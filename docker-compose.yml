@@ -22,7 +22,7 @@ services:
     volumes:
       - 'trl-pgsql:/var/lib/postgresql/data'
     ports:
-      - ${DB_PORT}:5432
+      - ${FORWARD_DB_PORT}:5432
     networks:
       - trl-net
 
