@@ -10,6 +10,93 @@
 			"name": "Auth",
 			"item": [
 				{
+					"name": "Forgot Password",
+					"item": [
+						{
+							"name": "Forgot Password OTP",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"mashfiqurrr@gmail.com\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{Base_URL}}/auth/forgot-password",
+									"host": [
+										"{{Base_URL}}"
+									],
+									"path": [
+										"auth",
+										"forgot-password"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Forgot Password OTP Verify",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"otp\": \"797582\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{Base_URL}}/auth/forgot-password/verify-otp",
+									"host": [
+										"{{Base_URL}}"
+									],
+									"path": [
+										"auth",
+										"forgot-password",
+										"verify-otp"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Reset Password",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"token\": \"b4ff5d9e020b6c08876e674797edb3fe73fa65e64cbd8549e2ce21b397a70272\",\n    \"password\": \"12345678\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{Base_URL}}/auth/reset-password",
+									"host": [
+										"{{Base_URL}}"
+									],
+									"path": [
+										"auth",
+										"reset-password"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
 					"name": "Login",
 					"request": {
 						"method": "POST",
@@ -37,6 +124,33 @@
 					"response": []
 				},
 				{
+					"name": "Check user",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"mashfiqurrrqq@gmail.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Base_URL}}/auth/check-user",
+							"host": [
+								"{{Base_URL}}"
+							],
+							"path": [
+								"auth",
+								"check-user"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Profile",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
@@ -46,7 +160,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXNoZmlxdXJyckBnbWFpbC5jb20iLCJpc1JlZnJlc2hUb2tlbiI6ZmFsc2UsImlhdCI6MTcxOTY2MTUwOSwiZXhwIjoxNzE5ODM0MzA5fQ.Qg95CIS_LNnGP5Wl4KHKxsaADv1F4KJct6acnxaJGEP3-ghG_vHscj3OBtSPh2u2",
+								"value": "Bearer eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXNoZmlxdXJyckBnbWFpbC5jb20iLCJpc1JlZnJlc2hUb2tlbiI6ZmFsc2UsImlhdCI6MTcxOTc1NjU4MCwiZXhwIjoxNzE5OTI5MzgwfQ.VtjPl5yqwBO_lqiOJstohIA9Nz39NJm9r_rHY6VOHrDqOYp37bNWe-06S8aL_IM7",
 								"type": "text"
 							}
 						],
@@ -76,10 +190,16 @@
 					"name": "Refresh Token",
 					"request": {
 						"method": "POST",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXNoZmlxdXJyckBnbWFpbC5jb20iLCJpc1JlZnJlc2hUb2tlbiI6ZmFsc2UsImlhdCI6MTcxOTc1NjU4MCwiZXhwIjoxNzE5OTI5MzgwfQ.VtjPl5yqwBO_lqiOJstohIA9Nz39NJm9r_rHY6VOHrDqOYp37bNWe-06S8aL_IM7",
+								"type": "text"
+							}
+						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"refresh_token\": \"eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXNoZmlxdXJyckBnbWFpbC5jb20iLCJpc1JlZnJlc2hUb2tlbiI6dHJ1ZSwiaWF0IjoxNzE5NjYxNTA5LCJleHAiOjE3MjAyNjYzMDl9.lLkTqiuRD4Y65GB5oCvWlbxR1Nfsyd8U_HSdzi7DZQgxP9WSRRkhXkc-58KX6Osn\"\n}",
+							"raw": "{\n    \"refresh_token\": \"eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXNoZmlxdXJyckBnbWFpbC5jb20iLCJpc1JlZnJlc2hUb2tlbiI6dHJ1ZSwiaWF0IjoxNzE5NzU2NTgwLCJleHAiOjE3MjAzNjEzODB9.jvSFVcxIsYnTbFEH-g3O3vBa-dyLI6fp_kJELZJ37tZcrUwItvo-QbW_YNkflamt\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
