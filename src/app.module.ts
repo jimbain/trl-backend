@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ValidationModule } from './validation/validation.module';
+import { CommonModule } from './common/common.module';
 
 
 @Module({
@@ -17,6 +18,7 @@ import { ValidationModule } from './validation/validation.module';
     DatabaseModule,
     UserModule,
     AuthModule,
+    CommonModule,
     ValidationModule
   ],
   controllers: [AppController],

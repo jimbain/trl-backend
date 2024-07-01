@@ -42,4 +42,10 @@ export class UserService {
   remove(id: number) {
     return `This action removes a #${id} user`;
   }
+
+  async changePassword(user:User, password: string): Promise<User> {
+    user.password = password;
+    await this.userRepository.save(user);
+    return user;
+  }
 }

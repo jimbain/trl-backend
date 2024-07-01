@@ -21,6 +21,7 @@ services:
       POSTGRES_DB: "${DB_DATABASE}"
     volumes:
       - 'trl-pgsql:/var/lib/postgresql/data'
+      - './trl.sql:/docker-entrypoint-initdb.d/trl.sql'
     ports:
       - ${FORWARD_DB_PORT}:5432
     networks:

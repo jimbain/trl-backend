@@ -7,13 +7,21 @@ import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { User } from 'src/user/entities/user.entity';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
+import { InjectRepository } from '@nestjs/typeorm';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { Repository } from 'typeorm';
+import { TokenService } from 'src/common/services/token.service';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly tokenService: TokenService,
+
 
   ) {}
 
@@ -44,11 +52,11 @@ export class AuthService {
     };
   }
 
-  async refreshToken(token: string) {
+  async refreshToken(token: string, reqestedUser: User) {
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);
 
-      if ( ! payload.isRefreshToken ) {
+      if ( ! payload.isRefreshToken  || reqestedUser.id !== payload.id ) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -62,5 +70,40 @@ export class AuthService {
     } catch (e) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async sendOtp(email: string): Promise<{ otp: string }>{
+    const user = await this.userService.findByEmail(email);
+
+    const token = new PasswordResetToken();
+    token.user = user;
+    token.token = this.tokenService.generateRandomToken();
+    token.otp = this.tokenService.generateRandomOtp();
+    token.expired_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+
+    this.passwordResetTokenRepository.save(token);
+
+    return { otp: token.otp };
+  }
+  
+  async getForgotPasswordTokenFromOtp(otp: string): Promise<{token: string}>{
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { otp },
+      order: { created_at: 'DESC' },
+    });
+    
+    return { token: resetToken.token };
+  }
+
+  async resetPassword(token: string, password: string): Promise<{success: boolean}>{
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { token },
+      order: { created_at: 'DESC' },
+      relations: ['user'],
+    });
+
+    await this.userService.changePassword(resetToken.user, password);
+    
+    return { success: true };
   }
 }
