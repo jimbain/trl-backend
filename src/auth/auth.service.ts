@@ -11,6 +11,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
+import { plainToClass } from 'class-transformer';
+import { UserDto } from 'src/user/dto/user.dto';
 
 @Injectable()
 export class AuthService {
@@ -40,8 +42,8 @@ export class AuthService {
 
 
   async login(user: User) {
-    const accessPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: false };
-    const refreshPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: true };
+    const accessPayload: JwtPayload = { id: user.ulid, email: user.email, isRefreshToken: false };
+    const refreshPayload: JwtPayload = { id: user.ulid, email: user.email, isRefreshToken: true };
 
     const accessToken = this.jwtService.sign(accessPayload, { expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN') });
     const refreshToken = this.jwtService.sign(refreshPayload, { expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN') });
@@ -49,6 +51,7 @@ export class AuthService {
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
+      user: plainToClass(UserDto, user, { excludeExtraneousValues: true })
     };
   }
 
@@ -56,7 +59,7 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);
 
-      if ( ! payload.isRefreshToken  || reqestedUser.id !== payload.id ) {
+      if ( ! payload.isRefreshToken  || reqestedUser.ulid !== payload.id ) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 

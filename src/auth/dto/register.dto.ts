@@ -3,6 +3,8 @@ import {
   IsString,
   IsEmail,
 } from 'class-validator';
+import { User } from 'src/user/entities/user.entity';
+import { IsUnique } from 'src/validation/validators/is-unique.validator';
 
 export class RegisterDto {
   @IsString()
@@ -16,6 +18,7 @@ export class RegisterDto {
   @IsString()
   @IsEmail()
   @IsNotEmpty()
+  @IsUnique(User, 'email', { message: 'The email has already been taken.' })
   email: string;
 
   @IsString()

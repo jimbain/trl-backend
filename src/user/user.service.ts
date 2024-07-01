@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
-import { instanceToPlain } from 'class-transformer';
+import { plainToClass } from 'class-transformer';
+import { UserDto } from './dto/user.dto';
 
 @Injectable()
 export class UserService {
@@ -16,15 +17,15 @@ export class UserService {
   async create(createUserPayload: CreateUserDto): Promise<any> {
     const user = this.userRepository.create(createUserPayload);
     await this.userRepository.save(user);
-    return instanceToPlain(user);
+    return plainToClass(UserDto, user, { excludeExtraneousValues: true });
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
     return this.userRepository.findOne({ where: { email } });
   }
 
-  async findById(id: number): Promise<User | undefined> {
-    return this.userRepository.findOne({ where: { id } });
+  async findById(id: string): Promise<User | undefined> {
+    return this.userRepository.findOne({ where: { ulid: id } });
   }
 
   findAll() {
