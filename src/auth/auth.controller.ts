@@ -1,4 +1,4 @@
-import { Controller, Request, Post, UseGuards, Body, UnauthorizedException, Get } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, UnauthorizedException, Get, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -14,13 +14,25 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
+  @HttpCode(200)
   async signup(@Body() registerPayload: RegisterDto) {
-    return this.authService.signup(registerPayload);
+    const user = await this.authService.signup(registerPayload);
+    return {
+      message: 'Registered successfully',
+      data: {
+        user,
+      },
+    };
   }
 
   @Post('check-user')
-  async checkUser(@Body() checkUserDto: CheckUserDto): Promise<{ exists: boolean }> {
-    return { exists: true };
+  async checkUser(@Body() checkUserDto: CheckUserDto) {
+    return { 
+      message: 'User exists',
+      data: {
+        user: await this.authService.checkUser(checkUserDto.email)
+      }
+    };
   }
 
   @Post('login')
@@ -29,33 +41,57 @@ export class AuthController {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return this.authService.login(user);
+    return {
+      message: 'Logged in successfully.',
+      data: await this.authService.login(user)
+    };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('refresh-token')
   async refreshToken(@Request() req, @Body() refreshTokenPayload: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenPayload.refresh_token, req.user);
+    return {
+      message: 'The token has been successfully refreshed.',
+      data: await this.authService.refreshToken(refreshTokenPayload.refresh_token, req.user)
+    };
   }
 
   @Post('forgot-password')
   async forgotPassword(@Body() payload: ForgotPasswordDto) {
-    return this.authService.sendOtp(payload.email);
+    return {
+      message: 'Otp has been sent to email',
+      data:{
+        otp: await this.authService.sendOtp(payload.email)
+      }
+    }
   }
 
   @Post('forgot-password/verify-otp')
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
-    return this.authService.getForgotPasswordTokenFromOtp(payload.otp);
+    return {
+      message: 'Otp has been verified',
+      data:{
+        token: await this.authService.getForgotPasswordTokenFromOtp(payload.otp)
+      }
+    }
   }
 
   @Post('reset-password')
   async resetPassword(@Body() payload: ResetPasswordDto) {
-    return this.authService.resetPassword(payload.token, payload.password);
+    await this.authService.resetPassword(payload.token, payload.password);
+
+    return {
+      message: 'Password reset successfully.'
+    }
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Request() req) {
-    return req.user;
+    return {
+      data: {
+        user: req.user
+      }
+    }
   }
 }

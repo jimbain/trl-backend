@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { validationExceptionFactory } from './exceptions/validation.exception';
 import { useContainer } from 'class-validator';
+import { AllExceptionsFilter } from './exceptions/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,6 +16,8 @@ async function bootstrap() {
     transform: true, // Automatically transform payloads to DTO instances
     exceptionFactory: validationExceptionFactory
   }));
+
+  app.useGlobalFilters(new AllExceptionsFilter());
   
   // Integrate NestJS dependency injection container with class-validator. This is for custom validators
   useContainer(app.select(AppModule), { fallbackOnErrors: true });

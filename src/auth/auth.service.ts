@@ -23,8 +23,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
-
-
   ) {}
 
   async signup(registerPayload: RegisterDto) {
@@ -40,6 +38,10 @@ export class AuthService {
     return null;
   }
 
+  async checkUser(email: string): Promise<any> {
+    const user = await this.userService.findByEmail(email);
+    return plainToClass(UserDto, user, { excludeExtraneousValues: true })
+  }
 
   async login(user: User) {
     const accessPayload: JwtPayload = { id: user.ulid, email: user.email, isRefreshToken: false };
