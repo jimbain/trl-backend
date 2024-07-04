@@ -1,19 +1,19 @@
 -- Create the users table
 CREATE TABLE users (
-    id VARCHAR(30) NOT NULL PRIMARY KEY, -- user_{ULID}
+    id VARCHAR(40) NOT NULL PRIMARY KEY, -- user_{ULID}
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    hashed_password VARCHAR(255) NOT NULL,
-    password_salt VARCHAR(20) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    password_salt VARCHAR(40) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert seed data into the users table
--- INSERT INTO users (first_name, last_name, email, hashed_password, password_salt, id)
+-- INSERT INTO users (id, first_name, last_name, email, password, password_salt)
 -- VALUES 
--- ('John', 'Doe', 'john.doe@example.com', 'hashed_password_1', 'salt_1', '01ARZ3NDEKTSV4RRFFQ69G5FAV');
+-- ('user_01J1YMAFZ10ME9K6QS7BAD5F16', 'Mashfiqur', 'Rahman', 'mashfiq@trl.com', '$2a$20$ylUDPgegjediaUtJGEiypOEa0qRWHslxS6xj/pq8OxFxccJMBk8OS', '$2a$20$FH60G9UbQbkVcKCp9wPSlu');
 -- ('Jane', 'Smith', 'jane.smith@example.com', 'hashed_password_2', 'salt_2'  '01ARZ3NDEKTSV4RRFFQ69G5FBW');
 
 
@@ -22,7 +22,7 @@ CREATE TYPE otp_type AS ENUM ('email', 'sms');
 -- Create the password_reset_tokens table
 CREATE TABLE password_reset_tokens (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(30) NOT NULL,
+    user_id VARCHAR(40) NOT NULL,
     token VARCHAR(255) NOT NULL,
     otp VARCHAR(10) NOT NULL,
     otp_type otp_type NOT NULL DEFAULT 'email',

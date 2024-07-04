@@ -16,35 +16,22 @@ export class AuthController {
   @Post('signup')
   @HttpCode(200)
   async signup(@Body() registerPayload: RegisterDto) {
-    const user = await this.authService.signup(registerPayload);
-    return {
-      message: 'Registered successfully',
-      data: {
-        user,
-      },
-    };
+    return this.authService.signup(registerPayload);
   }
 
   @Post('check-user')
+  @HttpCode(200)
   async checkUser(@Body() checkUserDto: CheckUserDto) {
-    return { 
-      message: 'User exists',
-      data: {
-        user: await this.authService.checkUser(checkUserDto.email)
-      }
-    };
+    return;
   }
 
   @Post('login')
   async login(@Body() loginPayload: LoginDto) {
     const user = await this.authService.validateUser(loginPayload);
-    if (!user) {
+    if ( ! user ) {
       throw new UnauthorizedException();
     }
-    return {
-      message: 'Logged in successfully.',
-      data: await this.authService.login(user)
-    };
+    return this.authService.login(user);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -56,33 +43,23 @@ export class AuthController {
     };
   }
 
-  @Post('forgot-password')
+  @Post('forgot-password/send-otp')
   async forgotPassword(@Body() payload: ForgotPasswordDto) {
-    return {
-      message: 'Otp has been sent to email',
-      data:{
-        otp: await this.authService.sendOtp(payload.email)
-      }
-    }
+    const token = await this.authService.sendOtp(payload.email);
+    return token;
   }
 
   @Post('forgot-password/verify-otp')
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
     return {
-      message: 'Otp has been verified',
-      data:{
-        token: await this.authService.getForgotPasswordTokenFromOtp(payload.otp)
-      }
+      token: await this.authService.getForgotPasswordTokenFromOtp(payload.otp)
     }
   }
 
   @Post('reset-password')
   async resetPassword(@Body() payload: ResetPasswordDto) {
     await this.authService.resetPassword(payload.token, payload.password);
-
-    return {
-      message: 'Password reset successfully.'
-    }
+    return;
   }
 
   @UseGuards(JwtAuthGuard)

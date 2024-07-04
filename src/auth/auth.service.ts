@@ -44,8 +44,8 @@ export class AuthService {
   }
 
   async login(user: User) {
-    const accessPayload: JwtPayload = { id: user.ulid, email: user.email, isRefreshToken: false };
-    const refreshPayload: JwtPayload = { id: user.ulid, email: user.email, isRefreshToken: true };
+    const accessPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: false };
+    const refreshPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: true };
 
     const accessToken = this.jwtService.sign(accessPayload, { expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN') });
     const refreshToken = this.jwtService.sign(refreshPayload, { expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN') });
@@ -61,7 +61,7 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);
 
-      if ( ! payload.isRefreshToken  || reqestedUser.ulid !== payload.id ) {
+      if ( ! payload.isRefreshToken  || reqestedUser.id !== payload.id ) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -77,27 +77,28 @@ export class AuthService {
     }
   }
 
-  async sendOtp(email: string): Promise<{ otp: string }>{
+  async sendOtp(email: string): Promise<string>{
     const user = await this.userService.findByEmail(email);
 
     const token = new PasswordResetToken();
     token.user = user;
     token.token = this.tokenService.generateRandomToken();
     token.otp = this.tokenService.generateRandomOtp();
-    token.expired_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
-
+    token.otp_type = 'email';
+    token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+    
     this.passwordResetTokenRepository.save(token);
 
-    return { otp: token.otp };
+    return token.otp;
   }
   
-  async getForgotPasswordTokenFromOtp(otp: string): Promise<{token: string}>{
+  async getForgotPasswordTokenFromOtp(otp: string): Promise<string>{
     const resetToken = await this.passwordResetTokenRepository.findOne({
       where: { otp },
       order: { created_at: 'DESC' },
     });
     
-    return { token: resetToken.token };
+    return resetToken.token;
   }
 
   async resetPassword(token: string, password: string): Promise<{success: boolean}>{

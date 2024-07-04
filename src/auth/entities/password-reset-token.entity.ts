@@ -12,8 +12,15 @@ export class PasswordResetToken extends BaseEntity {
   @Column()
   otp: string;
 
+  @Column({
+    type: 'enum',
+    enum: ['email', 'sms'],
+    enumName: 'otp_type'
+  })
+  otp_type: string;
+
   @Column({ type: 'timestamp' })
-  expired_at: Date;
+  expires_at: Date;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

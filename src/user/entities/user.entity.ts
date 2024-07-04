@@ -6,7 +6,7 @@ import {
     CreateDateColumn,
     Entity,
     OneToMany,
-    PrimaryGeneratedColumn,
+    PrimaryColumn,
     UpdateDateColumn,
 } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -16,24 +16,24 @@ import { PasswordResetToken } from 'src/auth/entities/password-reset-token.entit
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryColumn({ type: 'varchar', length: 40 })
+    id: string;
 
-    @Column({ unique: true })
-    ulid: string;
-
-    @Column({type: 'varchar', length: 120})
+    @Column({type: 'varchar', length: 50})
     first_name: string;
 
-    @Column({type: 'varchar', length: 100})
+    @Column({type: 'varchar', length: 50})
     last_name: string;
 
-    @Column({ type: 'varchar', unique: true, length: 150 })
+    @Column({ type: 'varchar', length: 100, unique: true })
     email: string;
 
     @Exclude()
-    @Column({type: 'varchar'})
+    @Column({ type: 'varchar', length: 255, unique: true })
     password: string;
+
+    @Column({ type: 'varchar', length: 40 })
+    password_salt: string;
 
     @CreateDateColumn()
     created_at: Date;
@@ -45,14 +45,14 @@ export class User extends BaseEntity {
     @BeforeUpdate()
     async hashPassword() {
         if (this.password) {
-            const salt = await bcrypt.genSalt(10);
-            this.password = await bcrypt.hash(this.password, salt);
+            this.password_salt = await bcrypt.genSalt(10);
+            this.password = await bcrypt.hash(this.password, this.password_salt);
         }
     }
 
     @BeforeInsert()
     generateUlid() {
-        this.ulid = ulid();
+        this.id = 'user_' + ulid();
     }
 
     @BeforeUpdate()
