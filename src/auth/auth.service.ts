@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from 'src/user/user.service';
@@ -31,11 +31,19 @@ export class AuthService {
 
   async validateUser(loginPayload: LoginDto): Promise<any> {
     const user = await this.userService.findByEmail(loginPayload.email);
+    
     if (user && await bcrypt.compare(loginPayload.password, user.password)) {
       const { password, ...result } = user;
       return result;
     }
-    return null;
+
+    throw new HttpException({
+      errors: {
+        password: [
+          "Password doesn't match",
+        ]
+      }
+    }, HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
   async checkUser(email: string): Promise<any> {

@@ -1,4 +1,4 @@
-import { Controller, Request, Post, UseGuards, Body, UnauthorizedException, Get, HttpCode } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, Get, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -28,9 +28,6 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginPayload: LoginDto) {
     const user = await this.authService.validateUser(loginPayload);
-    if ( ! user ) {
-      throw new UnauthorizedException();
-    }
     return this.authService.login(user);
   }
 
