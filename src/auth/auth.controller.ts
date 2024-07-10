@@ -26,6 +26,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @HttpCode(200)
   async login(@Body() loginPayload: LoginDto) {
     const user = await this.authService.validateUser(loginPayload);
     return this.authService.login(user);
@@ -33,6 +34,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('refresh-token')
+  @HttpCode(200)
   async refreshToken(@Request() req, @Body() refreshTokenPayload: RefreshTokenDto) {
     return {
       message: 'The token has been successfully refreshed.',
@@ -41,19 +43,22 @@ export class AuthController {
   }
 
   @Post('forgot-password/send-otp')
+  @HttpCode(200)
   async forgotPassword(@Body() payload: ForgotPasswordDto) {
     const token = await this.authService.sendOtp(payload.email);
     return token;
   }
 
   @Post('forgot-password/verify-otp')
+  @HttpCode(200)
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
     return {
-      token: await this.authService.getForgotPasswordTokenFromOtp(payload.otp)
+      token: await this.authService.getForgotPasswordTokenFromOtp(payload.email, payload.otp)
     }
   }
 
   @Post('reset-password')
+  @HttpCode(200)
   async resetPassword(@Body() payload: ResetPasswordDto) {
     await this.authService.resetPassword(payload.token, payload.password);
     return;
@@ -61,6 +66,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
+  @HttpCode(200)
   getProfile(@Request() req) {
     return {
       data: {

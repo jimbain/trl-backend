@@ -100,9 +100,11 @@ export class AuthService {
     return token.otp;
   }
   
-  async getForgotPasswordTokenFromOtp(otp: string): Promise<string>{
+  async getForgotPasswordTokenFromOtp(email: string, otp: string): Promise<string>{
+    const user = await this.userService.findByEmail(email);
+
     const resetToken = await this.passwordResetTokenRepository.findOne({
-      where: { otp },
+      where: { otp: otp, user: { id: user.id } },
       order: { created_at: 'DESC' },
     });
     

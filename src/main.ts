@@ -13,6 +13,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  app.enableCors({
+    origin: [configService.get<string>('FRONTEND_APP_URL')],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Automatically remove non-whitelisted properties
@@ -29,4 +35,5 @@ async function bootstrap() {
 
   await app.listen(port);
 }
+
 bootstrap();
