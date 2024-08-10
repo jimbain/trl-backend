@@ -8,6 +8,7 @@ import { CheckUserDto } from './dto/check-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ForgotPasswordOtpVerifyDto } from './dto/forgot-password-otp-verify.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -54,6 +55,14 @@ export class AuthController {
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
     return {
       token: await this.authService.getForgotPasswordTokenFromOtp(payload.email, payload.otp)
+    }
+  }
+
+  @Post('change-password/verify-current-password')
+  @HttpCode(200)
+  async verifyCurrentPassword(@Body() payload: VerifyCurrentPasswordDto) {
+    return {
+      token: await this.authService.verifyCurrentPassword(payload.email, payload.password)
     }
   }
 

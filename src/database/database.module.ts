@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import * as fs from 'fs';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -24,9 +25,8 @@ import * as fs from 'fs';
                   .toString(),
               }
             : false,
-        autoLoadEntities: true,
-        synchronize:
-          config.getOrThrow<string>('POSTGRES_SYNCHRONIZE') === 'true',
+        entities: [join(__dirname, '..', '**', 'entities', '*.entity.{ts,js}')],
+        synchronize: config.getOrThrow<string>('POSTGRES_SYNCHRONIZE') === 'true',
         dropSchema: false,
         // Run migrations automatically,
         // you can disable this if you prefer running migration manually.

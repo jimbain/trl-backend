@@ -7,6 +7,8 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ValidationModule } from './validation/validation.module';
 import { CommonModule } from './common/common.module';
+import { CompanyModule } from './company/company.module';
+import { AudioModule } from './audio/audio.module';
 
 
 @Module({
@@ -19,7 +21,9 @@ import { CommonModule } from './common/common.module';
     UserModule,
     AuthModule,
     CommonModule,
-    ValidationModule
+    ValidationModule,
+    CompanyModule,
+    AudioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

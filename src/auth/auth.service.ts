@@ -111,6 +111,30 @@ export class AuthService {
     return resetToken.token;
   }
 
+  async verifyCurrentPassword(email: string, password: string): Promise<string>{
+    const user = await this.userService.findByEmail(email);
+
+    if (user && await bcrypt.compare(password, user.password)) {
+      const token = new PasswordResetToken();
+      token.user = user;
+      token.token = this.tokenService.generateRandomToken();
+      token.otp_type = 'email';
+      token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+      
+      this.passwordResetTokenRepository.save(token);
+
+      return token.token;
+    }
+
+    throw new HttpException({
+      errors: {
+        password: [
+          "Password doesn't match",
+        ]
+      }
+    }, HttpStatus.UNPROCESSABLE_ENTITY);
+  }
+
   async resetPassword(token: string, password: string): Promise<{success: boolean}>{
     const resetToken = await this.passwordResetTokenRepository.findOne({
       where: { token },
