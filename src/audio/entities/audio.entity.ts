@@ -21,10 +21,10 @@ export class Audio extends BaseEntity {
     @Column({ type: 'jsonb', nullable: true })
     audio_category_ids: string[];
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'float', default: 0 })
     rental_cost: number;
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'float', default: 0 })
     bookshelf_cost: number;
 
     @Column({ type: 'boolean', default: false })

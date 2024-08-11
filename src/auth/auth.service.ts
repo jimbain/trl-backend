@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { User } from 'src/user/entities/user.entity';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 import { InjectRepository } from '@nestjs/typeorm';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
 import { plainToClass } from 'class-transformer';
@@ -30,7 +30,7 @@ export class AuthService {
   }
 
   async validateUser(loginPayload: LoginDto): Promise<any> {
-    const user = await this.userService.findByEmail(loginPayload.email);
+    const user = await this.userService.findByEmail(loginPayload.email, ['company']);
     
     if (user && await bcrypt.compare(loginPayload.password, user.password)) {
       const { password, ...result } = user;

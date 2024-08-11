@@ -16,9 +16,20 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/jest/bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm migration:generate -- -d src/database/data_source.ts",
+    "migration:run": "npm run typeorm migration:run -- -d src/database/data_source.ts",
+    "migration:revert": "npm run typeorm migration:revert -- -d src/database/data_source.ts",
+    "migration:create": "npm run typeorm migration:create",
+    "migration:show": "npm run typeorm migration:show -- -d src/database/data_source.ts",
+    "migration:refresh": "node dist/database/refresh_db.js",
+    "fresh:migration": "npm run migration:revert && npm run migration:run",
+    "schema:sync": "npm run typeorm schema:sync -- -d src/database/data_source.ts",
+    "db:seed": "node dist/database/seeders/seed.js"
   },
   "dependencies": {
+    "@faker-js/faker": "^8.4.1",
     "@nestjs/common": "^10.3.2",
     "@nestjs/config": "^3.2.2",
     "@nestjs/core": "^10.3.2",
@@ -31,6 +42,7 @@
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "dotenv": "^16.4.5",
     "mailgun.js": "^10.2.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -66,7 +78,6 @@
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3"
   },
   "jest": {

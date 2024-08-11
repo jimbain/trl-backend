@@ -1,46 +1,29 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
-import * as fs from 'fs';
-import { join } from 'path';
+import { getDataSourceOptions } from './data_source';
+import { CompanySeeder } from 'src/database/seeders/company.seeder';
+import { Company } from 'src/company/entities/company.entity';
+import { UserSeeder } from 'src/database/seeders/user.seeder';
+import { User } from 'src/user/entities/user.entity';
+import { AudioCategorySeeder } from 'src/database/seeders/audio_category.seeder';
+import { AudioCategory } from 'src/audio/entities/audio_category.entity';
+import { CompanyAudioCategory } from 'src/company/entities/company_audio_category.entity';
+import { CompanyAudioCategorySeeder } from 'src/database/seeders/company_audio_category.seeder';
+import { AudioSeeder } from 'src/database/seeders/audio.seeder';
+import { Audio } from 'src/audio/entities/audio.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.getOrThrow<string>('DB_HOST'),
-        port: config.getOrThrow<number>('DB_PORT'),
-        username: config.getOrThrow<string>('DB_USERNAME'),
-        password: config.getOrThrow<string>('DB_PASSWORD'),
-        database: config.getOrThrow<string>('DB_DATABASE'),
-        ssl:
-          config.getOrThrow<string>('POSTGRES_SSL') === 'true'
-            ? {
-                rejectUnauthorized: true,
-                ca: fs
-                  .readFileSync('cert/dev-db-ca-certificate.crt')
-                  .toString(),
-              }
-            : false,
-        entities: [join(__dirname, '..', '**', 'entities', '*.entity.{ts,js}')],
-        synchronize: config.getOrThrow<string>('POSTGRES_SYNCHRONIZE') === 'true',
-        dropSchema: false,
-        // Run migrations automatically,
-        // you can disable this if you prefer running migration manually.
-        migrationsRun: false,
-        logging: true,
-        namingStrategy: new SnakeNamingStrategy(),
-        migrations: ['dist/migrations/**/*.js'],
-        subscribers: ['dist/subscriber/**/*.js'],
-        cli: {
-          migrationsDir: config.get<string>('TYPEORM_MIGRATIONS_DIR'),
-          subscribersDir: config.get<string>('TYPEORM_SUBSCRIBERS_DIR'),
-        },
+        ...getDataSourceOptions()
       }),
     }),
+    TypeOrmModule.forFeature([Company, User, AudioCategory, CompanyAudioCategory, Audio]),
   ],
+  providers: [CompanySeeder, UserSeeder, AudioCategorySeeder, CompanyAudioCategorySeeder, AudioSeeder],
 })
+
 export class DatabaseModule {}

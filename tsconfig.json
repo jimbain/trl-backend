@@ -12,6 +12,9 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "paths": {
+      "src/*": ["src/*"]
+    }
   }
 }

@@ -77,10 +77,6 @@ export class AuthController {
   @Get('profile')
   @HttpCode(200)
   getProfile(@Request() req) {
-    return {
-      data: {
-        user: req.user
-      }
-    }
+    return req.user;
   }
 }

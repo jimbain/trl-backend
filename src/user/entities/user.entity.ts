@@ -5,6 +5,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    JoinColumn,
     ManyToOne,
     OneToMany,
     PrimaryColumn,
@@ -13,7 +14,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { ulid } from 'ulid';
 import { Exclude } from 'class-transformer';
-import { PasswordResetToken } from 'src/auth/entities/password-reset-token.entity';
+import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Company } from 'src/company/entities/company.entity';
 
 @Entity({ name: 'users' })
@@ -66,5 +67,6 @@ export class User extends BaseEntity {
     passwordResetTokens: PasswordResetToken[];
 
     @ManyToOne(() => Company, (company) => company.users, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'company_id' })
     company: Company;
 }

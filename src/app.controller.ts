@@ -18,7 +18,7 @@ export class AppController {
   async sendEmail(@Query('to') to: string) {
     try {
       const response = await this.mailgunService.sendEmail(to, "Test email for TRL through Mailgun");
-      return response;
+      return response.status === 200;
     } catch (error) {
       return { message: error.message };
     }

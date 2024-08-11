@@ -7,7 +7,7 @@ import { UserModule } from 'src/user/user.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { CommonModule } from 'src/common/common.module';
 
 @Module({

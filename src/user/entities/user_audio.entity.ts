@@ -7,7 +7,7 @@ import {
     PrimaryColumn,
     BeforeUpdate,
 } from 'typeorm';
-import { User } from './user.entity';
+import { User } from 'src/user/entities/user.entity';
 import { Audio } from 'src/audio/entities/audio.entity';
 
 @Entity({ name: 'user_audios' })
