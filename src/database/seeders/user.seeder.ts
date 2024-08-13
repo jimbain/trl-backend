@@ -28,6 +28,7 @@ export class UserSeeder {
             'rhasan082@gmail.com',
             'msruchchhas.dev@gmail.com',
             'tanviranwarrafi@gmail.com',
+            'rjramm@TRLonline.com'
         ];
 
         const password = 'TrlPassword2024!@';
