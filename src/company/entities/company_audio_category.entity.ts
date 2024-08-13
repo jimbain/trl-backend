@@ -11,6 +11,11 @@ import { AudioCategory } from 'src/audio/entities/audio_category.entity';
 
 @Entity({ name: 'company_audio_categories' })
 export class CompanyAudioCategory extends BaseEntity {
+    constructor() {
+        super();
+        this.popularity = Math.floor(Math.random() * 901) + 100;
+    }
+
     @PrimaryColumn()
     company_id: string;
 
@@ -25,6 +30,8 @@ export class CompanyAudioCategory extends BaseEntity {
     @JoinColumn({ name: 'audio_category_id' })
     audioCategory: AudioCategory;
 
-    @Column({type: 'varchar', length: 255 })
+    @Column({type: 'varchar', length: 255, nullable: true })
     title: string;
+
+    popularity: number;
 }

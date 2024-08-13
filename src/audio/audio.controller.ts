@@ -1,61 +1,36 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { AudioService } from './audio.service';
-import { CreateAudioDto } from './dto/create-audio.dto';
-import { UpdateAudioDto } from './dto/update-audio.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
-@Controller('audio')
+@Controller()
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
 
-  @Post()
-  create(@Body() createAudioDto: CreateAudioDto) {
-    return this.audioService.create(createAudioDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.audioService.findAll();
-  }
-
-  @Get('home/list')
+  @Get('audio/home')
   async getAudioHomeList(@Request() req) {
+    const companyAudioCategoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(req.user.company.id);
+
     return {
-      featured: await this.audioService.findAllFeaturedAudios(),
+      featured: await this.audioService.findAllFeaturedAudios(companyAudioCategoryIds),
       bookshelf: [],
       queued: [],
       popular: []
     };
   }
 
-  @Get('categories')
+  @Get('audio-categories')
   findAudioCategories(@Request() req) {
     return this.audioService.findAllAudioCategoriesForCompany(req.user.company.id);
   }
 
-  @Get('categories/:id/audios')
+  @Get('audio-categories/:id/audios')
   findAudiosByCategory(@Request() req, @Param('id') id: string) {
-    return this.audioService.findAudiosByCategory(id);
+    return this.audioService.findAudiosByCategory(req.user.company.id, id);
   }
 
-  @Get('categories/:categoryId/audios/:audioId')
-  findAudioByCategory(@Request() req, @Param('categoryId') categoryId: string, @Param('audioId') audioId: string) {
-    return this.audioService.findAudioByCategory(categoryId, audioId);
-  }
-
-  @Get(':id')
+  @Get('audios/:id')
   findOne(@Param('id') id: string) {
-    return this.audioService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAudioDto: UpdateAudioDto) {
-    return this.audioService.update(+id, updateAudioDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.audioService.remove(+id);
+    return this.audioService.findAudioById(id);
   }
 }

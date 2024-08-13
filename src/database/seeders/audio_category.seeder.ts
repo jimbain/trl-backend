@@ -14,7 +14,7 @@ export class AudioCategorySeeder {
     async seed() {
         const audioCategories = new Set<string>(); // To ensure unique names
 
-        while (audioCategories.size < 50) {
+        while (audioCategories.size < 100) {
             audioCategories.add(faker.internet.domainWord());
         }
 

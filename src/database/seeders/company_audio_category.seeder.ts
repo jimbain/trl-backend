@@ -23,41 +23,48 @@ export class CompanyAudioCategorySeeder {
         const companies = await this.companyRepository.find();
         const audioCategories = await this.audioCategoryRepository.find();
 
-        if (companies.length === 0 || audioCategories.length < 2) {
+        if (companies.length === 0 || audioCategories.length < 10) {
             console.log('Not enough companies or audio categories to seed');
             return;
         }
 
         for (const company of companies) {
-            // Pick 2 random audio categories
-            const selectedCategories = this.getRandomItems(audioCategories, 2);
+            // Pick 10 random audio categories
+            const selectedCategories = this.getRandomItems(audioCategories, 10);
 
-            for (const category of selectedCategories) {
-                let title;
-                let isUnique = false;
-                
-                // Ensure the title is unique
-                while (!isUnique) {
-                    title = faker.commerce.department();
-                    const existing = await this.companyAudioCategoryRepository.findOne({
-                        where: { company_id: company.id, title: title },
-                    });
+            for (let i = 0; i < 10; i++) {
+                let title: string | null = null;
 
-                    if (!existing) {
-                        isUnique = true;
+                // Set title to null for the first 3 entries, and generate a unique title for the next 7
+                if (i >= 3) {
+                    let isUnique = false;
+                    
+                    // Ensure the title is unique and different from the audio category title
+                    while (!isUnique) {
+                        const generatedTitle = faker.commerce.department();
+                        const existingTitle = selectedCategories[i].title;
+
+                        const existing = await this.companyAudioCategoryRepository.findOne({
+                            where: { company_id: company.id, title: generatedTitle },
+                        });
+
+                        if (!existing && generatedTitle !== existingTitle) {
+                            title = generatedTitle;
+                            isUnique = true;
+                        }
                     }
                 }
 
                 const companyAudioCategory = this.companyAudioCategoryRepository.create({
                     company_id: company.id,
-                    audio_category_id: category.id,
+                    audio_category_id: selectedCategories[i].id,
                     title: title,
                 });
 
                 await this.companyAudioCategoryRepository.save(companyAudioCategory);
             }
 
-            console.log(`2 unique audio categories have been seeded for company: ${company.name}`);
+            console.log(`10 audio categories have been seeded for company: ${company.name}`);
         }
 
         console.log('CompanyAudioCategory seeding completed');

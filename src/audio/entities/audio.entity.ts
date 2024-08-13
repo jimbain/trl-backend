@@ -38,6 +38,9 @@ export class Audio extends BaseEntity {
     available_for: 'rent' | 'bookshelf' | 'both';
 
     @Column({ type: 'text', nullable: true })
+    image_url: string;
+
+    @Column({ type: 'text', nullable: true })
     url: string;
 
     @Column({ type: 'boolean', default: true })
