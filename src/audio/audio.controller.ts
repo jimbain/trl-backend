@@ -11,12 +11,24 @@ export class AudioController {
   async getAudioHomeList(@Request() req) {
     const companyAudioCategoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(req.user.company.id);
 
-    return {
-      featured: await this.audioService.findAllFeaturedAudios(companyAudioCategoryIds),
-      bookshelf: [],
-      queued: [],
-      popular: []
-    };
+    return [
+      {
+        label: "Featured",
+        audios: await this.audioService.findAllFeaturedAudios(companyAudioCategoryIds)
+      },
+      {
+        label: "Bookshelf",
+        audios: []
+      },
+      {
+        label: "Queued",
+        audios: []
+      },
+      {
+        label: "Popular",
+        audios: []
+      }
+    ];
   }
 
   @Get('audio-categories')
