@@ -18,27 +18,32 @@ export class UserSeeder {
     async seed() {
         const companies = await this.companyRepository.find();
 
-        for (const company of companies) {
-            const users = [];
+        if (companies.length === 0) {
+            console.log('No companies found to assign users to');
+            return;
+        }
 
-            for (let i = 0; i < 10; i++) {
-                const password = 'TrlPassword2024!@';
-                
-                users.push({
-                    first_name: faker.person.firstName(),
-                    last_name: faker.person.lastName(),
-                    email: faker.internet.email().toLowerCase(),
-                    password: password,  
-                    company: company,
-                });
-            }
+        const emails = [
+            'mashfiqurrr@gmail.com',
+            'rhasan082@gmail.com',
+            'msruchchhas.dev@gmail.com',
+            'tanviranwarrafi@gmail.com',
+        ];
 
-            for (const userData of users) {
-                const user = this.userRepository.create(userData);
-                await this.userRepository.save(user);
-            }
+        const password = 'TrlPassword2024!@';
 
-            console.log(`10 users have been seeded for company: ${company.name}`);
+         for (const email of emails) {
+            const randomCompany = companies[Math.floor(Math.random() * companies.length)];
+
+            const user = this.userRepository.create({
+                first_name: faker.person.firstName(),
+                last_name: faker.person.lastName(),
+                email: email,
+                password: password,
+                company: randomCompany,
+            });
+
+            await this.userRepository.save(user);
         }
 
         console.log('User seeding completed');

@@ -28,6 +28,6 @@ export class AudioCategorySeeder {
             await this.audioCategoryRepository.save(audioCategory);
         }
 
-        console.log('50 audio categories have been seeded');
+        console.log('100 audio categories have been seeded');
     }
 }

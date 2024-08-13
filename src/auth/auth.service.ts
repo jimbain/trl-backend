@@ -13,6 +13,7 @@ import { Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
 import { plainToClass } from 'class-transformer';
 import { UserDto } from 'src/user/dto/user.dto';
+import { MailgunService } from 'src/common/services/mailgun.service';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
+    private readonly mailgunService: MailgunService
   ) {}
 
   async signup(registerPayload: RegisterDto) {
@@ -85,7 +87,7 @@ export class AuthService {
     }
   }
 
-  async sendOtp(email: string): Promise<string>{
+  async sendForgotPasswordOtp(email: string){
     const user = await this.userService.findByEmail(email);
 
     const token = new PasswordResetToken();
@@ -94,10 +96,9 @@ export class AuthService {
     token.otp = this.tokenService.generateRandomOtp();
     token.otp_type = 'email';
     token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
-    
     this.passwordResetTokenRepository.save(token);
 
-    return token.otp;
+    await this.mailgunService.sendEmail(user.email, 'Forgot Password OTP', this.mailgunService.getOtpEmailTemplate(token.otp));
   }
   
   async getForgotPasswordTokenFromOtp(email: string, otp: string): Promise<string>{
@@ -121,7 +122,7 @@ export class AuthService {
       token.otp_type = 'email';
       token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
       
-      this.passwordResetTokenRepository.save(token);
+      await this.passwordResetTokenRepository.save(token);
 
       return token.token;
     }

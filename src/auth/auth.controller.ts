@@ -46,8 +46,7 @@ export class AuthController {
   @Post('forgot-password/send-otp')
   @HttpCode(200)
   async forgotPassword(@Body() payload: ForgotPasswordDto) {
-    const token = await this.authService.sendOtp(payload.email);
-    return token;
+    return await this.authService.sendForgotPasswordOtp(payload.email);
   }
 
   @Post('forgot-password/verify-otp')

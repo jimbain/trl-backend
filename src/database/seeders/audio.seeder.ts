@@ -16,18 +16,48 @@ export class AudioSeeder {
 
   async seed() {
     const demoAudios = [
-      'https://music.wixstatic.com/preview/5ad03d_dd3f171ed29042a294c0294664c3f6af-128.mp3',
-      'https://music.wixstatic.com/preview/5ad03d_545b0604bfc443608631f83c5af698b6-128.mp3',
-      'https://music.wixstatic.com/preview/5ad03d_c5741c97701c43ba9723b06680da2547-128.mp3',
-      'https://music.wixstatic.com/preview/5ad03d_adeb0acf30454425bc2ff4aca11d0a98-128.mp3'
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_01.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_02.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_03.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_04.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_05.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_06.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_07.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_08.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_09.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_10.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_1.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_2.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_3.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_4.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_5.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_6.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_7.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_8.flac',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_9.flac',
     ];
 
     const demoImages = [
-      'https://marketplace.canva.com/EAFPHUaBrFc/1/0/1003w/canva-black-and-white-modern-alone-story-book-cover-QHBKwQnsgzs.jpg',
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSG7ekxu3OzvIQLn2K9bnYPHvNlHiVnR216eg&s',
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSh6zKQpZZlZy4RnkXeMXslIklt9aZQdvLavA&s',
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRD4-lgfczeJeYdHqM1-DWxaLnsudpE1-3xgg&s',
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYjX6vLQwJ1HssgxygBWkdEtVii9GUovthsA&s'
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00037.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00078.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00082.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00120.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00184.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00185.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00200.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00451.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00655.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00722.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00753.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00929.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_00930.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01022.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01095.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01099.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01105.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01178.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01188.png',
+      'https://trl-dev.nyc3.digitaloceanspaces.com/audio-images/AudioApi_01656.png'
     ];
 
     const audioCategories = await this.audioCategoryRepository.find({

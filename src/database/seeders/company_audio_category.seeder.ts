@@ -30,13 +30,13 @@ export class CompanyAudioCategorySeeder {
 
         for (const company of companies) {
             // Pick 10 random audio categories
-            const selectedCategories = this.getRandomItems(audioCategories, 10);
+            const selectedCategories = this.getRandomItems(audioCategories, 20);
 
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 20; i++) {
                 let title: string | null = null;
 
                 // Set title to null for the first 3 entries, and generate a unique title for the next 7
-                if (i >= 3) {
+                if (i >= 10) {
                     let isUnique = false;
                     
                     // Ensure the title is unique and different from the audio category title

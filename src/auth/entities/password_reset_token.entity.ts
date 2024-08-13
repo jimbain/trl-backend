@@ -9,7 +9,7 @@ export class PasswordResetToken extends BaseEntity {
   @Column()
   token: string;
 
-  @Column()
+  @Column({nullable:true})
   otp: string;
 
   @Column({

@@ -18,12 +18,12 @@ export class MailgunService {
     });
   }
 
-  async sendEmail(to: string, subject: string) {
+  async sendEmail(to: string, subject: string, html:string) {
     const data = {
       from: this.config.getOrThrow<string>('MAILGUN_FROM_ADDRESS'),
       to,
       subject,
-      html: "<h1>Hello World</h1>",
+      html: html,
     };
 
     try {
@@ -34,4 +34,36 @@ export class MailgunService {
       throw new Error(error);
     }
   }
+
+  getOtpEmailTemplate(otp: string): string {
+    return `
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); overflow: hidden;">
+          <div style="background-color: #0a2b5a; color: #ffffff; padding: 20px; text-align: center;">
+            <h1 style="margin: 0;">Password Reset Request</h1>
+          </div>
+          <div style="padding: 20px; color: #333333;">
+            <p style="font-size: 16px; margin: 0 0 10px;">Hello,</p>
+            <p style="font-size: 16px; margin: 0 0 10px;">
+              You have requested to reset your password. Please use the OTP below to reset your password. This OTP is valid for 1 hour.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 24px; font-weight: bold; background-color: #f8f9fa; padding: 10px 20px; border-radius: 5px; border: 1px solid #dddddd; display: inline-block;">
+                ${otp}
+              </span>
+            </div>
+            <p style="font-size: 16px; margin: 0 0 10px;">
+              If you did not request this, please ignore this email.
+            </p>
+            <p style="font-size: 16px; margin: 0;">Thank you!</p>
+          </div>
+          <div style="background-color: #f8f9fa; color: #888888; padding: 20px; text-align: center;">
+            <p style="font-size: 14px; margin: 0;">&copy; 2024 TRL. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+
 }
