@@ -13,21 +13,30 @@ export class AudioController {
 
     return [
       {
-        label: "Featured",
+        label: "Featured Titles",
+        slug: 'featured',
         audios: await this.audioService.findAllFeaturedAudios(companyAudioCategoryIds)
       },
       {
-        label: "Bookshelf",
+        label: "Continue Listening",
+        slug: 'continue_listening',
         audios: []
       },
       {
-        label: "Queued",
+        label: "My Bookshelf",
+        slug: 'bookself',
         audios: []
       },
       {
-        label: "Popular",
+        label: "Queued Titles",
+        slug: 'queued',
         audios: []
-      }
+      },
+      {
+        label: "Popular Audio Titles",
+        slug: 'popular',
+        audios: []
+      },
     ];
   }
 
