@@ -16,6 +16,8 @@ export class UserSeeder {
     ) {}
 
     async seed() {
+        console.log('User seeder start');
+
         const companies = await this.companyRepository.find();
 
         if (companies.length === 0) {
@@ -23,30 +25,50 @@ export class UserSeeder {
             return;
         }
 
-        const emails = [
-            'mashfiqurrr@gmail.com',
-            'rhasan082@gmail.com',
-            'msruchchhas.dev@gmail.com',
-            'tanviranwarrafi@gmail.com',
-            'rjramm@TRLonline.com'
+        const users = [
+            {
+                first_name: "Mashfiqur",
+                last_name: "Rahman",
+                email: 'mashfiqurrr@gmail.com',
+                password: 'TrlPassword2024!@',
+            },
+            {
+                first_name: "Rakibul",
+                last_name: "Hasan",
+                email: 'rhasan082@gmail.com',
+                password: 'TrlPassword2024!@',
+            },
+            {
+                first_name: "Shafiur",
+                last_name: "Uchchhas",
+                email: 'msruchchhas.dev@gmail.com',
+                password: 'TrlPassword2024!@',
+            },
+            {
+                first_name: "Tanvir Anwar",
+                last_name: "Rafi",
+                email: 'tanviranwarrafi@gmail.com',
+                password: 'TrlPassword2024!@',
+            },
+            {
+                first_name: "Mark",
+                last_name: "Ramm",
+                email: 'rjramm@TRLonline.com',
+                password: 'TrlPassword2024!@',
+            }
         ];
 
-        const password = 'TrlPassword2024!@';
-
-         for (const email of emails) {
+        for (const user of users) {
             const randomCompany = companies[Math.floor(Math.random() * companies.length)];
 
-            const user = this.userRepository.create({
-                first_name: faker.person.firstName(),
-                last_name: faker.person.lastName(),
-                email: email,
-                password: password,
+            const userEntity = this.userRepository.create({
+                ...user,
                 company: randomCompany,
             });
 
-            await this.userRepository.save(user);
+            await this.userRepository.save(userEntity);
         }
 
-        console.log('User seeding completed');
+        console.log('User seeder end');
     }
 }

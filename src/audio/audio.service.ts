@@ -31,6 +31,7 @@ export class AudioService {
         'audio.id',
         'audio.title',
         'audio.audio_category_ids',
+        'audio.authors',
         'audio.rental_cost',
         'audio.bookshelf_cost',
         'audio.is_featured',
@@ -95,6 +96,7 @@ export class AudioService {
         'audio.id', 
         'audio.title', 
         'audio.audio_category_ids', 
+        'audio.authors', 
         'audio.rental_cost', 
         'audio.bookshelf_cost', 
         'audio.is_featured', 
@@ -108,7 +110,7 @@ export class AudioService {
   async findAudioById(id: string): Promise<Audio> {
     const audio = await this.audioRepository.findOne({
       where: {id},
-      select: ['id', 'title', 'audio_category_ids', 'rental_cost', 'bookshelf_cost', 'is_featured', 'available_for', 'image_url', 'url']
+      select: ['id', 'title', 'audio_category_ids', 'authors', 'rental_cost', 'bookshelf_cost', 'is_featured', 'available_for', 'image_url', 'url']
     });
 
     if( ! audio ){

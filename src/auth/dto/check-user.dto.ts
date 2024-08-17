@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
     IsNotEmpty,
     IsString,
@@ -10,5 +11,6 @@ export class CheckUserDto {
     @IsEmail()
     @IsNotEmpty()
     @IsBasicAuthCompanyUser()
+    @Transform(({ value }) => value.toLowerCase())
     email: string;
 }

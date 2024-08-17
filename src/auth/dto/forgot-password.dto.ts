@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
     IsNotEmpty,
     IsString,
@@ -11,5 +12,6 @@ export class ForgotPasswordDto {
     @IsEmail()
     @IsNotEmpty()
     @IsExist(User, 'email', { message: 'Email does not exist' })
+    @Transform(({ value }) => value.toLowerCase())
     email: string;
 }

@@ -1,16 +1,17 @@
+import { Transform } from 'class-transformer';
 import {
     IsNotEmpty,
     IsString,
     IsEmail,
 } from 'class-validator';
-import { User } from 'src/user/entities/user.entity';
-import { IsExist } from 'src/validation/validators/is-exist.validator';
+import { IsBasicAuthCompanyUser } from 'src/validation/validators/is_basic_auth_company_user.validator';
 
 export class LoginDto {
     @IsString()
     @IsEmail()
     @IsNotEmpty()
-    @IsExist(User, 'email', { message: 'Email does not exist' })
+    @IsBasicAuthCompanyUser()
+    @Transform(({ value }) => value.toLowerCase())
     email: string;
 
     @IsString()

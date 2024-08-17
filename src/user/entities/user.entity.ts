@@ -4,6 +4,7 @@ import {
     BeforeUpdate,
     Column,
     CreateDateColumn,
+    DeleteDateColumn,
     Entity,
     JoinColumn,
     ManyToOne,
@@ -43,6 +44,9 @@ export class User extends BaseEntity {
 
     @UpdateDateColumn()
     updated_at: Date;
+
+    @DeleteDateColumn()
+    deleted_at: Date;
 
     @BeforeInsert()
     @BeforeUpdate()

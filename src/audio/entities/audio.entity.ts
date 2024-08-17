@@ -21,6 +21,9 @@ export class Audio extends BaseEntity {
     @Column({ type: 'jsonb', nullable: true })
     audio_category_ids: string[];
 
+    @Column({ type: 'jsonb', nullable: true })
+    authors: string[];
+
     @Column({ type: 'float', default: 0 })
     rental_cost: number;
 

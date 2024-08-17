@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,6 +20,7 @@ export class RegisterDto {
   @IsEmail()
   @IsNotEmpty()
   @IsUnique(User, 'email', { message: 'The email has already been taken.' })
+  @Transform(({ value }) => value.toLowerCase())
   email: string;
 
   @IsString()

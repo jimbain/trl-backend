@@ -12,9 +12,9 @@ export class IsExistConstraint implements ValidatorConstraintInterface {
     async validate(value: any, args: ValidationArguments) {
         const [entityClass, fieldName] = args.constraints;
         const repository = this.entityManager.getRepository(entityClass);
-
+        
         // Check if any entity exists with the given value in the column
-        const entity = await repository.findOne({ where: { [fieldName]: value } });
+        const entity = await repository.findOne({ where: { [fieldName]: fieldName === 'email' ? value.toLowerCase() : value } });
         return !!entity; // Return true if the value exists, false otherwise
     }
 

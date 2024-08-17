@@ -33,7 +33,7 @@ export class AuthService {
 
   async validateUser(loginPayload: LoginDto): Promise<any> {
     const user = await this.userService.findByEmail(loginPayload.email, ['company']);
-    
+
     if (user && await bcrypt.compare(loginPayload.password, user.password)) {
       const { password, ...result } = user;
       return result;

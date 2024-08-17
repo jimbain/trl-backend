@@ -19,7 +19,7 @@ export class IsBasicAuthCompanyUserConstraint implements ValidatorConstraintInte
         }
 
         const user = await this.entityManager.findOne(User, {
-            where: { email: value },
+            where: { email: value.toLowerCase() },
             relations: ['company'],
         });
 
