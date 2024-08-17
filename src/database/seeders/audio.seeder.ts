@@ -15,6 +15,8 @@ export class AudioSeeder {
   ) {}
 
   async seed() {
+    console.log('###########################  AUDIO SEEDING START  ###########################');
+
     const demoAudios = [
       'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_01.flac',
       'https://trl-dev.nyc3.digitaloceanspaces.com/audios/9781467611145_02.flac',
@@ -117,7 +119,7 @@ export class AudioSeeder {
       await this.audioRepository.save(audio);
     }
 
-    console.log('200 audios have been seeded');
+    console.log('###########################  AUDIO SEEDING END  ###########################');
   }
 
   getRandomAuthors(authors: string[]): string[] {

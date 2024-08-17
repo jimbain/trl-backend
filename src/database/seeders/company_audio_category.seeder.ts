@@ -20,6 +20,8 @@ export class CompanyAudioCategorySeeder {
     ) {}
 
     async seed() {
+        console.log('###########################  COMPANY AUDIO CATEGORY SEEDING START  ###########################');
+
         const companies = await this.companyRepository.find();
         const audioCategories = await this.audioCategoryRepository.find();
 
@@ -67,7 +69,7 @@ export class CompanyAudioCategorySeeder {
             console.log(`10 audio categories have been seeded for company: ${company.name}`);
         }
 
-        console.log('CompanyAudioCategory seeding completed');
+        console.log('###########################  COMPANY AUDIO CATEGORY SEEDING END  ###########################');
     }
 
     private getRandomItems<T>(items: T[], count: number): T[] {

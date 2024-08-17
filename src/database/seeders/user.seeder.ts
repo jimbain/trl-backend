@@ -16,7 +16,7 @@ export class UserSeeder {
     ) {}
 
     async seed() {
-        console.log('User seeder start');
+        console.log('###########################  USER SEEDING START  ###########################');
 
         const companies = await this.companyRepository.find();
 
@@ -53,7 +53,7 @@ export class UserSeeder {
             {
                 first_name: "Mark",
                 last_name: "Ramm",
-                email: 'rjramm@TRLonline.com',
+                email: 'rjramm@trlonline.com',
                 password: 'TrlPassword2024!@',
             }
         ];
@@ -69,6 +69,6 @@ export class UserSeeder {
             await this.userRepository.save(userEntity);
         }
 
-        console.log('User seeder end');
+        console.log('###########################  USER SEEDING END  ###########################');
     }
 }

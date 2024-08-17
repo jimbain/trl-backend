@@ -12,6 +12,8 @@ export class AudioCategorySeeder {
     ) {}
 
     async seed() {
+        console.log('###########################  AUDIO CATEGORY SEEDING START  ###########################');
+
         const audioCategories = new Set<string>(); // To ensure unique names
 
         while (audioCategories.size < 100) {
@@ -28,6 +30,6 @@ export class AudioCategorySeeder {
             await this.audioCategoryRepository.save(audioCategory);
         }
 
-        console.log('100 audio categories have been seeded');
+        console.log('###########################  AUDIO CATEGORY SEEDING END  ###########################');
     }
 }

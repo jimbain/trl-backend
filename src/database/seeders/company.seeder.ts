@@ -12,7 +12,7 @@ export class CompanySeeder {
     ) {}
 
     async seed() {
-        console.log('Company seeder start');
+        console.log('###########################  COMPANY SEEDING START  ###########################');
 
         const companies = [];
         const numberOfCompanies = 10;
@@ -35,6 +35,6 @@ export class CompanySeeder {
             await this.companyRepository.save(company);
         }
 
-        console.log('Company seeder end');
+        console.log('###########################  COMPANY SEEDING END  ###########################');
     }
 }
