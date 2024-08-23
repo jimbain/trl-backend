@@ -48,6 +48,6 @@ export class AudioReviewService {
 
     newReview = await this.audioReviewRepository.save(newReview);
 
-    return plainToInstance(AudioReviewDto, review, {excludeExtraneousValues: true});
+    return plainToInstance(AudioReviewDto, newReview, {excludeExtraneousValues: true});
   }
 }
