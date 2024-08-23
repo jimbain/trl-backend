@@ -25,7 +25,7 @@ export class CompanySeeder {
                 logo_url: faker.image.url(),
                 is_active: faker.datatype.boolean(),
                 domain: faker.internet.domainName(),
-                is_sso_login: faker.datatype.boolean(),
+                is_sso_login: false,
                 available_credits: faker.number.int({ min: 100, max: 500 }),
             });
         }

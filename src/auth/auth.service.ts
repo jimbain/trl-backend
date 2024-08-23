@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { UserDto } from 'src/user/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
 
@@ -50,7 +50,7 @@ export class AuthService {
 
   async checkUser(email: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
-    return plainToClass(UserDto, user, { excludeExtraneousValues: true })
+    return plainToInstance(UserDto, user, { excludeExtraneousValues: true })
   }
 
   async login(user: User) {
@@ -63,7 +63,7 @@ export class AuthService {
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
-      user: plainToClass(UserDto, user, { excludeExtraneousValues: true })
+      user: plainToInstance(UserDto, user, { excludeExtraneousValues: true })
     };
   }
 

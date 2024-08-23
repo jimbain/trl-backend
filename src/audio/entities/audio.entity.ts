@@ -18,8 +18,23 @@ export class Audio extends BaseEntity {
     @Column({ type: 'varchar', length: 255 })
     title: string;
 
+    @Column({type: 'text', nullable: true})
+    short_description: string;
+
+    @Column({type: 'text', nullable: true})
+    long_description: string;
+
     @Column({ type: 'jsonb', nullable: true })
     audio_category_ids: string[];
+
+    @Column({ type: 'varchar', nullable: true })
+    language: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    publisher: string;
+
+    @Column({ type: 'date', nullable: true })
+    copyright: Date;
 
     @Column({ type: 'jsonb', nullable: true })
     authors: string[];
@@ -29,6 +44,15 @@ export class Audio extends BaseEntity {
 
     @Column({ type: 'float', default: 0 })
     bookshelf_cost: number;
+
+    @Column({ type: 'int', default: 0 })
+    rental_credit: number;
+
+    @Column({ type: 'int', default: 0 })
+    bookshelf_credit: number;
+
+    @Column({ type: 'int', default: 0, comment: "Duration in seconds" })
+    duration: number;
 
     @Column({ type: 'boolean', default: false })
     is_featured: boolean;
@@ -43,8 +67,8 @@ export class Audio extends BaseEntity {
     @Column({ type: 'text', nullable: true })
     image_url: string;
 
-    @Column({ type: 'text', nullable: true })
-    url: string;
+    @Column({ type: 'jsonb', nullable: true })
+    audio_urls: string[];
 
     @Column({ type: 'boolean', default: true })
     is_active: boolean;

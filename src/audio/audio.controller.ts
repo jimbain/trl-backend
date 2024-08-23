@@ -1,11 +1,16 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { AudioService } from './audio.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { AudioReviewService } from './audio_review.service';
+import { CreateAudioReview } from './dto/create_audio_review.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class AudioController {
-  constructor(private readonly audioService: AudioService) {}
+  constructor(
+    private readonly audioService: AudioService,
+    private readonly audioReviewService: AudioReviewService,
+  ) {}
 
   @Get('audio/home')
   async getAudioHomeList(@Request() req) {
@@ -53,5 +58,15 @@ export class AudioController {
   @Get('audios/:id')
   findOne(@Param('id') id: string) {
     return this.audioService.findAudioById(id);
+  }
+
+  @Get('audios/:id/reviews')
+  findAudioReviews(@Param('id') id: string) {
+    return this.audioReviewService.findAudioReviews(id);
+  }
+
+  @Post('audios/:id/reviews')
+  storeAudioReview(@Request() req, @Param('id') id: string, @Body() payload: CreateAudioReview) {
+    return this.audioReviewService.storeAudioReview(id, payload, req.user);
   }
 }

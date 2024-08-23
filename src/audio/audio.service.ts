@@ -4,6 +4,8 @@ import { AudioCategory } from 'src/audio/entities/audio_category.entity';
 import { In, Repository } from 'typeorm';
 import { CompanyAudioCategory } from 'src/company/entities/company_audio_category.entity';
 import { Audio } from './entities/audio.entity';
+import { plainToInstance } from 'class-transformer';
+import { AudioDto, AudioListDto } from './dto/audio.dto';
 
 @Injectable()
 export class AudioService {
@@ -21,8 +23,8 @@ export class AudioService {
     return companyAudioCategories.map(category => category.audio_category_id);
   }
 
-  async findAllFeaturedAudios(audioCategoryIds: string[]): Promise<Audio[]> {
-    return this.audioRepository
+  async findAllFeaturedAudios(audioCategoryIds: string[]): Promise<AudioListDto[]> {
+    const featuredAudios = await this.audioRepository
       .createQueryBuilder('audio')
       .where(`array(SELECT jsonb_array_elements_text(audio.audio_category_ids)) && :categoryIds`, { categoryIds: audioCategoryIds })
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
@@ -30,18 +32,13 @@ export class AudioService {
       .select([
         'audio.id',
         'audio.title',
-        'audio.audio_category_ids',
-        'audio.authors',
-        'audio.rental_cost',
-        'audio.bookshelf_cost',
-        'audio.is_featured',
-        'audio.available_for',
         'audio.image_url',
-        'audio.url'
+        'audio.authors',
       ])
       .getMany();
+
+    return plainToInstance(AudioListDto, featuredAudios);
   }
-  
 
   async findAllAudioCategoriesForCompany(companyId: string) {
     const companyAudioCategories = await this.companyAudioCategoryRepository.find({
@@ -78,7 +75,7 @@ export class AudioService {
   }
 
 
-  async findAudiosByCategory(companyId: string, categoryId: string): Promise<Audio[]> {
+  async findAudiosByCategory(companyId: string, categoryId: string): Promise<AudioListDto[]> {
     const companyAudioCategory = await this.companyAudioCategoryRepository
           .findOne({ where: { company_id: companyId, audio_category_id: categoryId } });
 
@@ -86,7 +83,7 @@ export class AudioService {
       throw new NotFoundException(`Audio category with ID ${categoryId} not found for your company`);
     }
 
-    return this.audioRepository
+    const audios = await this.audioRepository
       .createQueryBuilder('audio')
       .where('audio.audio_category_ids @> :categoryId::jsonb', {
         categoryId: JSON.stringify([categoryId]),
@@ -95,28 +92,28 @@ export class AudioService {
       .select([
         'audio.id', 
         'audio.title', 
-        'audio.audio_category_ids', 
         'audio.authors', 
-        'audio.rental_cost', 
-        'audio.bookshelf_cost', 
-        'audio.is_featured', 
-        'audio.available_for', 
         'audio.image_url',
-        'audio.url'
       ])
       .getMany();
+
+    return plainToInstance(AudioListDto, audios);
   }  
 
-  async findAudioById(id: string): Promise<Audio> {
+  async findAudioById(id: string): Promise<AudioDto> {
     const audio = await this.audioRepository.findOne({
       where: {id},
-      select: ['id', 'title', 'audio_category_ids', 'authors', 'rental_cost', 'bookshelf_cost', 'is_featured', 'available_for', 'image_url', 'url']
+      select: [
+        'id', 'title', 'short_description', 'long_description', 'audio_category_ids', 'language', 'publisher', 'copyright',
+        'authors', 'rental_cost', 'bookshelf_cost', 'rental_credit', 'bookshelf_credit', 'duration',
+        'is_featured', 'available_for', 'image_url', 'audio_urls'
+      ]
     });
 
     if( ! audio ){
       throw new NotFoundException(`Audio with ID ${id} not found`);
     }
 
-    return audio;
+    return plainToInstance(AudioDto, audio)
   }  
 }
