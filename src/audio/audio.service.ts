@@ -23,6 +23,20 @@ export class AudioService {
   @InjectRepository(UserAudio)
     private readonly userAudioRepository: Repository<UserAudio>
 
+
+  async findById(id: string, relations: string[] = []): Promise<Audio | undefined> {
+    const audio = await this.audioRepository.findOne({
+      where: { id },
+      relations: relations.length ? relations : undefined,
+    });
+    console.log("AudioService", audio)
+    if( ! audio ){
+      throw new NotFoundException(`Audio with ID ${id} not found`);
+    }
+
+    return audio;
+  }
+
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
     const companyAudioCategories = await this.companyAudioCategoryRepository.find({ where: { company_id: companyId } });
     return companyAudioCategories.map(category => category.audio_category_id);
@@ -43,7 +57,27 @@ export class AudioService {
       ])
       .getMany();
 
-    return plainToInstance(AudioListDto, featuredAudios);
+    return plainToInstance(AudioListDto, featuredAudios, {excludeExtraneousValues: true});
+  }
+
+  async findAudiosOfUserBasedOnStatus(user: User, status: 'queued' | 'bookshelved'): Promise<AudioListDto[]> {
+    const userAudios = await this.userAudioRepository.find({
+      where: { user_id: user.id, status: status },
+      select: ['audio_id']
+    });
+
+    const audioIds = userAudios.map(userAudio => userAudio.audio_id);
+
+    if (audioIds.length === 0) {
+      return [];
+    }
+
+    const audios = await this.audioRepository.find({
+      where: { id: In(audioIds) },
+      select: ['id', 'title', 'image_url', 'authors', 'average_review_rating']
+    });
+
+    return plainToInstance(AudioListDto, audios, {excludeExtraneousValues: true});
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
@@ -103,22 +137,11 @@ export class AudioService {
       ])
       .getMany();
 
-    return plainToInstance(AudioListDto, audios);
+    return plainToInstance(AudioListDto, audios, {excludeExtraneousValues: true});
   }  
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
-    const audio = await this.audioRepository.findOne({
-      where: {id},
-      select: [
-        'id', 'title', 'description', 'language', 'publisher', 'copyright',
-        'authors', 'duration','available_for', 'image_url', 'audio_urls',
-        'is_featured', 'bookshelf_credit', 'average_review_rating'
-      ]
-    });
-
-    if( ! audio ){
-      throw new NotFoundException(`Audio with ID ${id} not found`);
-    }
+    const audio = await this.findById(id);
 
     let status = null;
 
@@ -131,6 +154,6 @@ export class AudioService {
       status = userAudio.status;
     }
 
-    return plainToInstance(AudioDto, { ...audio, ...{status: status}});
+    return plainToInstance(AudioDto, { ...audio, ...{status: status}}, {excludeExtraneousValues: true});
   }  
 }

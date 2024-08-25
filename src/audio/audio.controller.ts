@@ -30,12 +30,12 @@ export class AudioController {
       {
         label: "My Bookshelf",
         slug: 'bookself',
-        audios: []
+        audios: await this.audioService.findAudiosOfUserBasedOnStatus(req.user, 'bookshelved')
       },
       {
         label: "Queued Titles",
         slug: 'queued',
-        audios: []
+        audios: await this.audioService.findAudiosOfUserBasedOnStatus(req.user, 'queued')
       },
       {
         label: "Popular Audio Titles",

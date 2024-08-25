@@ -11,9 +11,6 @@ export class AudioDto {
   description?: string;
 
   @Expose()
-  audio_category_ids?: string[];
-
-  @Expose()
   language?: string;
 
   @Expose()
@@ -24,18 +21,6 @@ export class AudioDto {
 
   @Expose()
   authors?: string[];
-
-  @Expose()
-  rental_cost: number;
-
-  @Expose()
-  bookshelf_cost: number;
-
-  @Expose()
-  rental_credit: number;
-
-  @Expose()
-  bookshelf_credit: number;
 
   @Expose()
   duration: number;
@@ -90,5 +75,6 @@ export class AudioListDto {
   image_url?: string;
 
   @Expose()
+  @Transform(({ value }) => value !== null && value !== undefined ? Math.round(value * 10) / 10 : null)
   average_review_rating: number;
 }

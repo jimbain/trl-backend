@@ -1,5 +1,13 @@
-import { Expose, Type } from 'class-transformer';
-import { UserDto } from 'src/user/dto/user.dto';
+import { Expose, Transform, Type } from 'class-transformer';
+
+export class AudioReviewUserDto {
+    @Expose()
+    id: string;
+  
+    @Expose()
+    @Transform(({ obj }) => `${obj.first_name} ${obj.last_name}`)
+    name: string;
+}  
 
 export class AudioReviewDto {
     @Expose()
@@ -12,6 +20,6 @@ export class AudioReviewDto {
     review: string;
 
     @Expose()
-    @Type(() => UserDto)
-    user: UserDto;
+    @Type(() => AudioReviewUserDto)
+    user: AudioReviewUserDto;
 }
