@@ -56,8 +56,8 @@ export class AudioController {
   }
 
   @Get('audios/:id')
-  findOne(@Param('id') id: string) {
-    return this.audioService.findAudioById(id);
+  findOne(@Request() req, @Param('id') id: string) {
+    return this.audioService.findAudioById(id, req.user);
   }
 
   @Get('audios/:id/reviews')

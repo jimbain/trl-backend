@@ -104,8 +104,7 @@ export class AudioSeeder {
 
       return {
         title: faker.music.songName(),
-        short_description: faker.lorem.sentence(),
-        long_description: faker.lorem.paragraphs(),
+        description: faker.lorem.sentence(),
         audio_category_ids: randomCategories,
         language: faker.helpers.arrayElement(['English', 'Spanish', 'French', 'German', 'Chinese']) as 'English' | 'Spanish' | 'French' | 'German' | 'Chinese',  // Random language
         publisher: faker.person.fullName(),

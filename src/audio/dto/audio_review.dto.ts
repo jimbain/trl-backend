@@ -14,10 +14,4 @@ export class AudioReviewDto {
     @Expose()
     @Type(() => UserDto)
     user: UserDto;
-
-    @Expose()
-    created_at: Date;
-
-    @Expose()
-    updated_at: Date;
 }

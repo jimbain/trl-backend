@@ -19,10 +19,7 @@ export class Audio extends BaseEntity {
     title: string;
 
     @Column({type: 'text', nullable: true})
-    short_description: string;
-
-    @Column({type: 'text', nullable: true})
-    long_description: string;
+    description: string;
 
     @Column({ type: 'jsonb', nullable: true })
     audio_category_ids: string[];
@@ -72,6 +69,9 @@ export class Audio extends BaseEntity {
 
     @Column({ type: 'boolean', default: true })
     is_active: boolean;
+
+    @Column({ type: 'float', default: 0 })
+    average_review_rating: number;
 
     @CreateDateColumn()
     created_at: Date;

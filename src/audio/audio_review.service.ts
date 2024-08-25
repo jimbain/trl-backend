@@ -6,9 +6,13 @@ import { CreateAudioReview } from './dto/create_audio_review.dto';
 import { User } from 'src/user/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioReviewDto } from './dto/audio_review.dto';
+import { Audio } from './entities/audio.entity';
 
 @Injectable()
 export class AudioReviewService {
+  @InjectRepository(Audio)
+    private readonly audioRepository: Repository<Audio>
+
   @InjectRepository(AudioReview)
     private readonly audioReviewRepository: Repository<AudioReview>
 
@@ -18,16 +22,7 @@ export class AudioReviewService {
       relations: ['user']
     });
 
-    const totalReviews = reviews.length;
-    const avgRating = reviews.reduce((sum, review) => sum + review.rate, 0) / totalReviews || 0;
-
-    return {
-      summary: {
-        avg_rating: avgRating,
-        total_reviews: totalReviews,
-      },
-      reviews: plainToInstance(AudioReviewDto, reviews, {excludeExtraneousValues: true}),
-    };
+    return plainToInstance(AudioReviewDto, reviews, {excludeExtraneousValues: true});
   }   
 
   async storeAudioReview(audioId: string, payload: CreateAudioReview, user: User): Promise<AudioReviewDto> {
@@ -48,6 +43,25 @@ export class AudioReviewService {
 
     newReview = await this.audioReviewRepository.save(newReview);
 
+    this.updateAverageReviewRate(audioId);
+    
     return plainToInstance(AudioReviewDto, newReview, {excludeExtraneousValues: true});
+  }
+
+  async updateAverageReviewRate(audioId: string){
+    const reviews =  await this.audioReviewRepository.find({ 
+      where: { audio_id: audioId } ,
+      select: ['id', 'rate']
+    });
+
+    const avgRating = reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length ?? 0;
+    
+    await this.audioRepository.createQueryBuilder()
+      .update(Audio)
+      .set({
+        average_review_rating: avgRating
+      })
+      .where("id = :id", { id: audioId })
+      .execute();
   }
 }

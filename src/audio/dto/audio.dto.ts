@@ -8,10 +8,7 @@ export class AudioDto {
   title: string;
 
   @Expose()
-  short_description?: string;
-
-  @Expose()
-  long_description?: string;
+  description?: string;
 
   @Expose()
   audio_category_ids?: string[];
@@ -47,6 +44,10 @@ export class AudioDto {
   is_featured: boolean;
 
   @Expose()
+  @Transform(({ obj }) => obj.bookshelf_credit > 1)
+  is_premium: boolean;
+
+  @Expose()
   available_for: 'rent' | 'bookshelf' | 'both';
 
   @Expose()
@@ -64,10 +65,10 @@ export class AudioDto {
   audio_urls?: string[];
 
   @Expose()
-  created_at: Date;
+  average_review_rating: number;
 
   @Expose()
-  updated_at: Date;
+  status: string;
 }
 
 
@@ -87,4 +88,7 @@ export class AudioListDto {
     return value ? `${baseUrl}/${value}` : null;
   })
   image_url?: string;
+
+  @Expose()
+  average_review_rating: number;
 }

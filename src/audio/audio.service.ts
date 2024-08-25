@@ -6,6 +6,8 @@ import { CompanyAudioCategory } from 'src/company/entities/company_audio_categor
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
+import { UserAudio } from 'src/user/entities/user_audio.entity';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class AudioService {
@@ -17,6 +19,9 @@ export class AudioService {
 
   @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>
+
+  @InjectRepository(UserAudio)
+    private readonly userAudioRepository: Repository<UserAudio>
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
     const companyAudioCategories = await this.companyAudioCategoryRepository.find({ where: { company_id: companyId } });
@@ -34,6 +39,7 @@ export class AudioService {
         'audio.title',
         'audio.image_url',
         'audio.authors',
+        'audio.average_review_rating'
       ])
       .getMany();
 
@@ -100,13 +106,13 @@ export class AudioService {
     return plainToInstance(AudioListDto, audios);
   }  
 
-  async findAudioById(id: string): Promise<AudioDto> {
+  async findAudioById(id: string, user: User | null): Promise<AudioDto> {
     const audio = await this.audioRepository.findOne({
       where: {id},
       select: [
-        'id', 'title', 'short_description', 'long_description', 'audio_category_ids', 'language', 'publisher', 'copyright',
-        'authors', 'rental_cost', 'bookshelf_cost', 'rental_credit', 'bookshelf_credit', 'duration',
-        'is_featured', 'available_for', 'image_url', 'audio_urls'
+        'id', 'title', 'description', 'language', 'publisher', 'copyright',
+        'authors', 'duration','available_for', 'image_url', 'audio_urls',
+        'is_featured', 'bookshelf_credit', 'average_review_rating'
       ]
     });
 
@@ -114,6 +120,17 @@ export class AudioService {
       throw new NotFoundException(`Audio with ID ${id} not found`);
     }
 
-    return plainToInstance(AudioDto, audio)
+    let status = null;
+
+    const userAudio = await this.userAudioRepository.findOne({
+      where: {user_id: user.id, audio_id: id},
+      select:['status']
+    });
+
+    if( userAudio ){
+      status = userAudio.status;
+    }
+
+    return plainToInstance(AudioDto, { ...audio, ...{status: status}});
   }  
 }
