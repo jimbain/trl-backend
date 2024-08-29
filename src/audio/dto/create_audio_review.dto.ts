@@ -1,8 +1,8 @@
-import { Transform } from 'class-transformer';
 import {
     IsNotEmpty,
     IsString,
     IsInt,
+    IsOptional,
 } from 'class-validator';
 
 export class CreateAudioReview {
@@ -11,6 +11,6 @@ export class CreateAudioReview {
     rate: number;
 
     @IsString()
-    @IsNotEmpty()
-    review: string
+    @IsOptional()
+    review?: string
 }

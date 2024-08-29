@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { AudioReview } from './entities/audio_review.entity';
 import { CreateAudioReview } from './dto/create_audio_review.dto';
 import { User } from 'src/user/entities/user.entity';
@@ -21,16 +21,31 @@ export class AudioReviewService {
     private readonly audioService: AudioService
   ) {}
 
-  async findAudioReviews(audioId: string): Promise<any> {
+  async findAudioReviews(audioId: string, user: User): Promise<AudioReviewDto[]> {
     const audio = await this.audioService.findById(audioId);
 
-    const reviews =  await this.audioReviewRepository.find({ 
-      where: { audio_id: audio.id } ,
-      relations: ['user']
+    // Find the current user's review, if it exists
+    const userReview = await this.audioReviewRepository.findOne({
+        where: { audio_id: audio.id, user: { id: user.id }, review: Not('null') },
+        relations: ['user'],
     });
 
-    return plainToInstance(AudioReviewDto, reviews, {excludeExtraneousValues: true});
-  }   
+    // Find other reviews, excluding the current user's review, sorted by created_at descending
+    const otherReviews = await this.audioReviewRepository.find({
+        where: { 
+            audio_id: audio.id, 
+            user: { id: Not(user.id) }, 
+            review: Not('null') 
+        },
+        relations: ['user'],
+        order: { created_at: 'DESC' },
+    });
+
+    // Combine the reviews with the current user's review first, if it exists
+    const reviews = userReview ? [userReview, ...otherReviews] : otherReviews;
+
+    return plainToInstance(AudioReviewDto, reviews, { excludeExtraneousValues: true });
+  }
 
   async storeAudioReview(audioId: string, payload: CreateAudioReview, user: User): Promise<{average_review_rating: number, review: AudioReviewDto}> {
 
@@ -64,9 +79,9 @@ export class AudioReviewService {
       select: ['id', 'rate']
     });
 
-    audio.average_review_rating = reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length ?? 0;
-
     const avgRating = reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length ?? 0;
+
+    audio.average_review_rating = avgRating;
     
     await this.audioRepository.save(audio);
 

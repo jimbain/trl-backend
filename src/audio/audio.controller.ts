@@ -61,8 +61,8 @@ export class AudioController {
   }
 
   @Get('audios/:id/reviews')
-  findAudioReviews(@Param('id') id: string) {
-    return this.audioReviewService.findAudioReviews(id);
+  findAudioReviews(@Request() req, @Param('id') id: string) {
+    return this.audioReviewService.findAudioReviews(id, req.user);
   }
 
   @Post('audios/:id/reviews')
