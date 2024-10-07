@@ -9,9 +9,7 @@ import { UserAudio } from './entities/user_audio.entity';
 import { Audio } from 'src/audio/entities/audio.entity';
 
 @Module({
-  imports:[
-    TypeOrmModule.forFeature([User, Audio, UserAudio]),
-  ],
+  imports: [TypeOrmModule.forFeature([User, Audio, UserAudio])],
   controllers: [UserController, UserAudioController],
   providers: [UserService, UserAudioService],
   exports: [UserService],

@@ -6,35 +6,39 @@ import { faker } from '@faker-js/faker';
 
 @Injectable()
 export class CompanySeeder {
-    constructor(
-        @InjectRepository(Company)
-        private readonly companyRepository: Repository<Company>,
-    ) {}
+  constructor(
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
+  ) {}
 
-    async seed() {
-        console.log('###########################  COMPANY SEEDING START  ###########################');
+  async seed() {
+    console.log(
+      '###########################  COMPANY SEEDING START  ###########################',
+    );
 
-        const companies = [];
-        const numberOfCompanies = 10;
+    const companies = [];
+    const numberOfCompanies = 10;
 
-        for (let i = 0; i < numberOfCompanies; i++) {
-            companies.push({
-                name: faker.company.name(),
-                short_description: faker.company.catchPhrase(),
-                long_description: faker.lorem.paragraph(),
-                logo_url: faker.image.url(),
-                is_active: faker.datatype.boolean(),
-                domain: faker.internet.domainName(),
-                is_sso_login: false,
-                available_credits: faker.number.int({ min: 100, max: 500 }),
-            });
-        }
-
-        for (const companyData of companies) {
-            const company = this.companyRepository.create(companyData);
-            await this.companyRepository.save(company);
-        }
-
-        console.log('###########################  COMPANY SEEDING END  ###########################');
+    for (let i = 0; i < numberOfCompanies; i++) {
+      companies.push({
+        name: faker.company.name(),
+        short_description: faker.company.catchPhrase(),
+        long_description: faker.lorem.paragraph(),
+        logo_url: faker.image.url(),
+        is_active: faker.datatype.boolean(),
+        domain: faker.internet.domainName(),
+        is_sso_login: false,
+        available_credits: faker.number.int({ min: 100, max: 500 }),
+      });
     }
+
+    for (const companyData of companies) {
+      const company = this.companyRepository.create(companyData);
+      await this.companyRepository.save(company);
+    }
+
+    console.log(
+      '###########################  COMPANY SEEDING END  ###########################',
+    );
+  }
 }

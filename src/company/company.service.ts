@@ -27,7 +27,7 @@ export class CompanyService {
 
   async findOne(id: string) {
     const company = await this.findById(id);
-    
+
     if (!company) {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
@@ -38,7 +38,7 @@ export class CompanyService {
   async update(id: string, updateCompanyDto: UpdateCompanyDto) {
     const company = await this.findById(id);
 
-    if ( ! company ) {
+    if (!company) {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 

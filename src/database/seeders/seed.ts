@@ -7,29 +7,29 @@ import { CompanyAudioCategorySeeder } from 'src/database/seeders/company_audio_c
 import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 
 async function bootstrap() {
-    const app = await NestFactory.createApplicationContext(AppModule);
+  const app = await NestFactory.createApplicationContext(AppModule);
 
-    console.info("Database seeding start!🤫");
+  console.info('Database seeding start!🤫');
 
-    const seeders = [
-        app.get(CompanySeeder),
-        app.get(UserSeeder),
-        app.get(AudioCategorySeeder),
-        app.get(CompanyAudioCategorySeeder),
-        app.get(AudioSeeder)
-    ];
+  const seeders = [
+    app.get(CompanySeeder),
+    app.get(UserSeeder),
+    app.get(AudioCategorySeeder),
+    app.get(CompanyAudioCategorySeeder),
+    app.get(AudioSeeder),
+  ];
 
-    // Execute seed method for each seeder
-    for (const seeder of seeders) {
-        await seeder.seed();
-    }
+  // Execute seed method for each seeder
+  for (const seeder of seeders) {
+    await seeder.seed();
+  }
 
-    console.info("Database seeding end!💪");
+  console.info('Database seeding end!💪');
 
-    await app.close();
+  await app.close();
 }
 
 bootstrap().catch((err) => {
-    console.error('Error during seeding:', err);
-    process.exit(1);
+  console.error('Error during seeding:', err);
+  process.exit(1);
 });

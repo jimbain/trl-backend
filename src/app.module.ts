@@ -10,7 +10,6 @@ import { CommonModule } from './common/common.module';
 import { CompanyModule } from './company/company.module';
 import { AudioModule } from './audio/audio.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({

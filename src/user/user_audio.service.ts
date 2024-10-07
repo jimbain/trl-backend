@@ -15,13 +15,16 @@ export class UserAudioService {
     private readonly audioRepository: Repository<Audio>,
   ) {}
 
-  async update(audioId: string, status: "queued" | "rented" | "bookshelved", user: User) {
-
+  async update(
+    audioId: string,
+    status: 'queued' | 'rented' | 'bookshelved',
+    user: User,
+  ) {
     const audio = await this.audioRepository.findOne({
-      where: {id: audioId},
+      where: { id: audioId },
     });
 
-    if( ! audio ){
+    if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 

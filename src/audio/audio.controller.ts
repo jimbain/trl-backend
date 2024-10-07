@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AudioService } from './audio.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AudioReviewService } from './audio_review.service';
@@ -14,40 +24,53 @@ export class AudioController {
 
   @Get('audio/home')
   async getAudioHomeList(@Request() req) {
-    const companyAudioCategoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(req.user.company.id);
+    const companyAudioCategoryIds =
+      await this.audioService.findAllAudioCategoryIdOfCompany(
+        req.user.company.id,
+      );
 
     return [
       {
-        label: "Featured Titles",
+        label: 'Featured Titles',
         slug: 'featured',
-        audios: await this.audioService.findAllFeaturedAudios(companyAudioCategoryIds)
+        audios: await this.audioService.findAllFeaturedAudios(
+          companyAudioCategoryIds,
+        ),
       },
       {
-        label: "Continue Listening",
+        label: 'Continue Listening',
         slug: 'continue_listening',
-        audios: []
+        audios: [],
       },
       {
-        label: "My Bookshelf",
+        label: 'My Bookshelf',
         slug: 'bookself',
-        audios: await this.audioService.findAudiosOfUserBasedOnStatus(req.user, 'bookshelved')
+        audios: await this.audioService.findAudiosOfUserBasedOnStatus(
+          req.user,
+          'bookshelved',
+        ),
       },
       {
-        label: "Queued Titles",
+        label: 'Queued Titles',
         slug: 'queued',
-        audios: await this.audioService.findAudiosOfUserBasedOnStatus(req.user, 'queued')
+        audios: await this.audioService.findAudiosOfUserBasedOnStatus(
+          req.user,
+          'queued',
+        ),
       },
       {
-        label: "Popular Audio Titles",
+        label: 'Popular Audio Titles',
         slug: 'popular',
-        audios: []
+        audios: [],
       },
     ];
   }
 
   @Get('audio-categories')
   findAudioCategories(@Request() req) {
-    return this.audioService.findAllAudioCategoriesForCompany(req.user.company.id);
+    return this.audioService.findAllAudioCategoriesForCompany(
+      req.user.company.id,
+    );
   }
 
   @Get('audio-categories/:id/audios')
@@ -66,7 +89,11 @@ export class AudioController {
   }
 
   @Post('audios/:id/reviews')
-  storeAudioReview(@Request() req, @Param('id') id: string, @Body() payload: CreateAudioReview) {
+  storeAudioReview(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() payload: CreateAudioReview,
+  ) {
     return this.audioReviewService.storeAudioReview(id, payload, req.user);
   }
 }

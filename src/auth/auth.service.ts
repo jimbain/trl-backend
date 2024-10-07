@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserService } from 'src/user/user.service';
@@ -24,7 +29,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
-    private readonly mailgunService: MailgunService
+    private readonly mailgunService: MailgunService,
   ) {}
 
   async signup(registerPayload: RegisterDto) {
@@ -32,38 +37,53 @@ export class AuthService {
   }
 
   async validateUser(loginPayload: LoginDto): Promise<any> {
-    const user = await this.userService.findByEmail(loginPayload.email, ['company']);
+    const user = await this.userService.findByEmail(loginPayload.email, [
+      'company',
+    ]);
 
-    if (user && await bcrypt.compare(loginPayload.password, user.password)) {
+    if (user && (await bcrypt.compare(loginPayload.password, user.password))) {
       const { password, ...result } = user;
       return result;
     }
 
-    throw new HttpException({
-      errors: {
-        password: [
-          "Password doesn't match",
-        ]
-      }
-    }, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw new HttpException(
+      {
+        errors: {
+          password: ["Password doesn't match"],
+        },
+      },
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 
   async checkUser(email: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
-    return plainToInstance(UserDto, user, { excludeExtraneousValues: true })
+    return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
   }
 
   async login(user: User) {
-    const accessPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: false };
-    const refreshPayload: JwtPayload = { id: user.id, email: user.email, isRefreshToken: true };
+    const accessPayload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      isRefreshToken: false,
+    };
+    const refreshPayload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      isRefreshToken: true,
+    };
 
-    const accessToken = this.jwtService.sign(accessPayload, { expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN') });
-    const refreshToken = this.jwtService.sign(refreshPayload, { expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN') });
+    const accessToken = this.jwtService.sign(accessPayload, {
+      expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN'),
+    });
+    const refreshToken = this.jwtService.sign(refreshPayload, {
+      expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
+    });
 
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
-      user: plainToInstance(UserDto, user, { excludeExtraneousValues: true })
+      user: plainToInstance(UserDto, user, { excludeExtraneousValues: true }),
     };
   }
 
@@ -71,13 +91,13 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);
 
-      if ( ! payload.isRefreshToken  || reqestedUser.id !== payload.id ) {
+      if (!payload.isRefreshToken || reqestedUser.id !== payload.id) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
       const user = await this.userService.findById(payload.id);
 
-      if ( ! user ) {
+      if (!user) {
         throw new UnauthorizedException('User not found');
       }
 
@@ -87,7 +107,7 @@ export class AuthService {
     }
   }
 
-  async sendForgotPasswordOtp(email: string){
+  async sendForgotPasswordOtp(email: string) {
     const user = await this.userService.findByEmail(email);
 
     const token = new PasswordResetToken();
@@ -98,45 +118,59 @@ export class AuthService {
     token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
     this.passwordResetTokenRepository.save(token);
 
-    await this.mailgunService.sendEmail(user.email, 'Forgot Password OTP', this.mailgunService.getOtpEmailTemplate(token.otp));
+    await this.mailgunService.sendEmail(
+      user.email,
+      'Forgot Password OTP',
+      this.mailgunService.getOtpEmailTemplate(token.otp),
+    );
   }
-  
-  async getForgotPasswordTokenFromOtp(email: string, otp: string): Promise<string>{
+
+  async getForgotPasswordTokenFromOtp(
+    email: string,
+    otp: string,
+  ): Promise<string> {
     const user = await this.userService.findByEmail(email);
 
     const resetToken = await this.passwordResetTokenRepository.findOne({
       where: { otp: otp, user: { id: user.id } },
       order: { created_at: 'DESC' },
     });
-    
+
     return resetToken.token;
   }
 
-  async verifyCurrentPassword(email: string, password: string): Promise<string>{
+  async verifyCurrentPassword(
+    email: string,
+    password: string,
+  ): Promise<string> {
     const user = await this.userService.findByEmail(email);
 
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && (await bcrypt.compare(password, user.password))) {
       const token = new PasswordResetToken();
       token.user = user;
       token.token = this.tokenService.generateRandomToken();
       token.otp_type = 'email';
       token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
-      
+
       await this.passwordResetTokenRepository.save(token);
 
       return token.token;
     }
 
-    throw new HttpException({
-      errors: {
-        password: [
-          "Password doesn't match",
-        ]
-      }
-    }, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw new HttpException(
+      {
+        errors: {
+          password: ["Password doesn't match"],
+        },
+      },
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 
-  async resetPassword(token: string, password: string): Promise<{success: boolean}>{
+  async resetPassword(
+    token: string,
+    password: string,
+  ): Promise<{ success: boolean }> {
     const resetToken = await this.passwordResetTokenRepository.findOne({
       where: { token },
       order: { created_at: 'DESC' },
@@ -144,7 +178,7 @@ export class AuthService {
     });
 
     await this.userService.changePassword(resetToken.user, password);
-    
+
     return { success: true };
   }
 }

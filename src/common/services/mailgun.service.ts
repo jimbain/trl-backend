@@ -8,17 +8,15 @@ export class MailgunService {
   private mailgun: Mailgun;
   private mg: ReturnType<Mailgun['client']>;
 
-  constructor(
-    private readonly config: ConfigService,
-  ) {
+  constructor(private readonly config: ConfigService) {
     this.mailgun = new Mailgun(FormData);
-    this.mg = this.mailgun.client({ 
-      username: 'api', 
-      key: this.config.getOrThrow<string>('MAILGUN_API_KEY') 
+    this.mg = this.mailgun.client({
+      username: 'api',
+      key: this.config.getOrThrow<string>('MAILGUN_API_KEY'),
     });
   }
 
-  async sendEmail(to: string, subject: string, html:string) {
+  async sendEmail(to: string, subject: string, html: string) {
     const data = {
       from: this.config.getOrThrow<string>('MAILGUN_FROM_ADDRESS'),
       to,
@@ -27,10 +25,13 @@ export class MailgunService {
     };
 
     try {
-      const response = await this.mg.messages.create(this.config.getOrThrow<string>('MAILGUN_DOMAIN') , data);
+      const response = await this.mg.messages.create(
+        this.config.getOrThrow<string>('MAILGUN_DOMAIN'),
+        data,
+      );
       return response;
     } catch (error) {
-      console.log(error)
+      console.log(error);
       throw new Error(error);
     }
   }
@@ -64,6 +65,4 @@ export class MailgunService {
       </div>
     `;
   }
-
-
 }

@@ -18,12 +18,23 @@ import { Audio } from 'src/audio/entities/audio.entity';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        ...getDataSourceOptions()
+        ...getDataSourceOptions(),
       }),
     }),
-    TypeOrmModule.forFeature([Company, User, AudioCategory, CompanyAudioCategory, Audio]),
+    TypeOrmModule.forFeature([
+      Company,
+      User,
+      AudioCategory,
+      CompanyAudioCategory,
+      Audio,
+    ]),
   ],
-  providers: [CompanySeeder, UserSeeder, AudioCategorySeeder, CompanyAudioCategorySeeder, AudioSeeder],
+  providers: [
+    CompanySeeder,
+    UserSeeder,
+    AudioCategorySeeder,
+    CompanyAudioCategorySeeder,
+    AudioSeeder,
+  ],
 })
-
 export class DatabaseModule {}

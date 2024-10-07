@@ -1,16 +1,11 @@
-import {
-    IsNotEmpty,
-    IsString,
-    IsInt,
-    IsOptional,
-} from 'class-validator';
+import { IsNotEmpty, IsString, IsInt, IsOptional } from 'class-validator';
 
 export class CreateAudioReview {
-    @IsInt()
-    @IsNotEmpty()
-    rate: number;
+  @IsInt()
+  @IsNotEmpty()
+  rate: number;
 
-    @IsString()
-    @IsOptional()
-    review?: string
+  @IsString()
+  @IsOptional()
+  review?: string;
 }

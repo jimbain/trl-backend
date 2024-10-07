@@ -5,8 +5,8 @@ import { IsUnique } from 'src/validation/validators/is-unique.validator';
 import { Company } from 'src/company/entities/company.entity';
 
 export class UpdateCompanyDto extends PartialType(CreateCompanyDto) {
-    @IsString()
-    @IsNotEmpty()
-    @IsUnique(Company, 'name', {id: 'company_01J4YBE43FGEY0WYCQ8JHA37HF'})
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  @IsUnique(Company, 'name', { id: 'company_01J4YBE43FGEY0WYCQ8JHA37HF' })
+  name: string;
 }

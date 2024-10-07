@@ -8,7 +8,11 @@ export class UserAudioController {
   constructor(private readonly userAudioService: UserAudioService) {}
 
   @Patch(':audioId/status/:status')
-  update(@Param('audioId') audioId: string, @Param('status') status: "queued" | "rented" | "bookshelved", @Request() req) {
+  update(
+    @Param('audioId') audioId: string,
+    @Param('status') status: 'queued' | 'rented' | 'bookshelved',
+    @Request() req,
+  ) {
     return this.userAudioService.update(audioId, status, req.user);
   }
 }

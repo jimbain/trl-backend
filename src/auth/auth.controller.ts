@@ -1,4 +1,12 @@
-import { Controller, Request, Post, UseGuards, Body, Get, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Request,
+  Post,
+  UseGuards,
+  Body,
+  Get,
+  HttpCode,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -36,10 +44,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('refresh-token')
   @HttpCode(200)
-  async refreshToken(@Request() req, @Body() refreshTokenPayload: RefreshTokenDto) {
+  async refreshToken(
+    @Request() req,
+    @Body() refreshTokenPayload: RefreshTokenDto,
+  ) {
     return {
       message: 'The token has been successfully refreshed.',
-      data: await this.authService.refreshToken(refreshTokenPayload.refresh_token, req.user)
+      data: await this.authService.refreshToken(
+        refreshTokenPayload.refresh_token,
+        req.user,
+      ),
     };
   }
 
@@ -53,16 +67,22 @@ export class AuthController {
   @HttpCode(200)
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
     return {
-      token: await this.authService.getForgotPasswordTokenFromOtp(payload.email, payload.otp)
-    }
+      token: await this.authService.getForgotPasswordTokenFromOtp(
+        payload.email,
+        payload.otp,
+      ),
+    };
   }
 
   @Post('change-password/verify-current-password')
   @HttpCode(200)
   async verifyCurrentPassword(@Body() payload: VerifyCurrentPasswordDto) {
     return {
-      token: await this.authService.verifyCurrentPassword(payload.email, payload.password)
-    }
+      token: await this.authService.verifyCurrentPassword(
+        payload.email,
+        payload.password,
+      ),
+    };
   }
 
   @Post('reset-password')

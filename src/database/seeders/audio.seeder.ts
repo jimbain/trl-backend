@@ -15,7 +15,9 @@ export class AudioSeeder {
   ) {}
 
   async seed() {
-    console.log('###########################  AUDIO SEEDING START  ###########################');
+    console.log(
+      '###########################  AUDIO SEEDING START  ###########################',
+    );
 
     const AUDIO_COUNT = 1000;
 
@@ -61,20 +63,20 @@ export class AudioSeeder {
       'audio-images/AudioApi_01105.png',
       'audio-images/AudioApi_01178.png',
       'audio-images/AudioApi_01188.png',
-      'audio-images/AudioApi_01656.png'
+      'audio-images/AudioApi_01656.png',
     ];
 
     const authors = [
-      "J.K. Rowling",
-      "George Orwell",
-      "Jane Austen",
-      "Mark Twain",
-      "J.R.R. Tolkien",
-      "Ernest Hemingway",
-      "F. Scott Fitzgerald",
-      "Agatha Christie",
-      "Charles Dickens",
-      "Leo Tolstoy"
+      'J.K. Rowling',
+      'George Orwell',
+      'Jane Austen',
+      'Mark Twain',
+      'J.R.R. Tolkien',
+      'Ernest Hemingway',
+      'F. Scott Fitzgerald',
+      'Agatha Christie',
+      'Charles Dickens',
+      'Leo Tolstoy',
     ];
 
     const audioCategories = await this.audioCategoryRepository.find({
@@ -82,18 +84,20 @@ export class AudioSeeder {
     });
 
     if (audioCategories.length === 0) {
-      console.log('No audio categories found. Please seed audio categories first.');
+      console.log(
+        'No audio categories found. Please seed audio categories first.',
+      );
       return;
     }
 
     const audioEntities = Array.from({ length: AUDIO_COUNT }).map(() => {
-      let randomCategories = faker.helpers.arrayElements(
-        audioCategories.map(category => category.id),
-        faker.number.int({ min: 1, max: 3 })
+      const randomCategories = faker.helpers.arrayElements(
+        audioCategories.map((category) => category.id),
+        faker.number.int({ min: 1, max: 3 }),
       );
 
-      let numberOfAuthors = Math.floor(Math.random() * authors.length) + 1;
-      let randomAuthors = [];
+      const numberOfAuthors = Math.floor(Math.random() * authors.length) + 1;
+      const randomAuthors = [];
 
       while (randomAuthors.length < numberOfAuthors) {
         const randomIndex = Math.floor(Math.random() * authors.length);
@@ -106,18 +110,32 @@ export class AudioSeeder {
         title: faker.music.songName(),
         description: faker.lorem.sentence(),
         audio_category_ids: randomCategories,
-        language: faker.helpers.arrayElement(['English', 'Spanish', 'French', 'German', 'Chinese']) as 'English' | 'Spanish' | 'French' | 'German' | 'Chinese',  // Random language
+        language: faker.helpers.arrayElement([
+          'English',
+          'Spanish',
+          'French',
+          'German',
+          'Chinese',
+        ]) as 'English' | 'Spanish' | 'French' | 'German' | 'Chinese', // Random language
         publisher: faker.person.fullName(),
         copyright: faker.date.anytime(),
         authors: this.getRandomAuthors(authors),
         rental_cost: faker.number.float({ min: 50, max: 100, precision: 0.01 }),
-        bookshelf_cost: faker.number.float({ min: 100, max: 450, precision: 0.01 }),
+        bookshelf_cost: faker.number.float({
+          min: 100,
+          max: 450,
+          precision: 0.01,
+        }),
         rental_credit: faker.number.int({ min: 50, max: 1000 }),
         bookshelf_credit: faker.number.int({ min: 100, max: 450 }),
         duration: faker.number.int({ min: 100, max: 1000 }),
         is_featured: faker.datatype.boolean(),
-        available_for: faker.helpers.arrayElement(['rent', 'bookshelf', 'both']) as 'rent' | 'bookshelf' | 'both', 
-        image_url:demoImages[Math.floor(Math.random() * demoImages.length)],
+        available_for: faker.helpers.arrayElement([
+          'rent',
+          'bookshelf',
+          'both',
+        ]) as 'rent' | 'bookshelf' | 'both',
+        image_url: demoImages[Math.floor(Math.random() * demoImages.length)],
         audio_urls: this.getRandomAudioUrls(demoAudios),
         is_active: faker.datatype.boolean(),
       };
@@ -128,23 +146,26 @@ export class AudioSeeder {
       await this.audioRepository.save(audio);
     }
 
-    console.log('###########################  AUDIO SEEDING END  ###########################');
+    console.log(
+      '###########################  AUDIO SEEDING END  ###########################',
+    );
   }
 
   getRandomAuthors(authors: string[]): string[] {
     const shouldReturnMultiple = Math.random() < 0.3; // 30% chance to return multiple authors
-  
+
     if (shouldReturnMultiple) {
-      const numberOfAuthors = Math.floor(Math.random() * (authors.length - 1)) + 2; // At least 2 authors
+      const numberOfAuthors =
+        Math.floor(Math.random() * (authors.length - 1)) + 2; // At least 2 authors
       const randomAuthors: string[] = [];
-  
+
       while (randomAuthors.length < numberOfAuthors) {
         const randomIndex = Math.floor(Math.random() * authors.length);
         if (!randomAuthors.includes(authors[randomIndex])) {
           randomAuthors.push(authors[randomIndex]);
         }
       }
-  
+
       return randomAuthors;
     } else {
       const randomIndex = Math.floor(Math.random() * authors.length);

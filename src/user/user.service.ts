@@ -20,14 +20,20 @@ export class UserService {
     return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
   }
 
-  async findByEmail(email: string, relations: string[] = []): Promise<User | undefined> {
+  async findByEmail(
+    email: string,
+    relations: string[] = [],
+  ): Promise<User | undefined> {
     return this.userRepository.findOne({
-        where: { email },
-        relations: relations.length ? relations : undefined,
+      where: { email },
+      relations: relations.length ? relations : undefined,
     });
   }
 
-  async findById(id: string, relations: string[] = []): Promise<User | undefined> {
+  async findById(
+    id: string,
+    relations: string[] = [],
+  ): Promise<User | undefined> {
     return this.userRepository.findOne({
       where: { id },
       relations: relations.length ? relations : undefined,
@@ -50,7 +56,7 @@ export class UserService {
     return `This action removes a #${id} user`;
   }
 
-  async changePassword(user:User, password: string): Promise<User> {
+  async changePassword(user: User, password: string): Promise<User> {
     user.password = password;
     await this.userRepository.save(user);
     return user;

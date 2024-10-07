@@ -9,12 +9,12 @@ import { IsBasicAuthCompanyUserConstraint } from './validators/is_basic_auth_com
   providers: [
     IsExistConstraint,
     IsUniqueConstraint,
-    IsBasicAuthCompanyUserConstraint
+    IsBasicAuthCompanyUserConstraint,
   ],
   exports: [
     IsExistConstraint,
     IsUniqueConstraint,
-    IsBasicAuthCompanyUserConstraint
+    IsBasicAuthCompanyUserConstraint,
   ],
 })
 export class ValidationModule {}

@@ -45,7 +45,9 @@ export class AudioDto {
   @Expose()
   @Transform(({ value }: { value?: string[] }) => {
     const baseUrl = process.env.BUCKET_BASE_URL || '';
-    return value?.map((url: string | undefined) => url ? `${baseUrl}/${url}` : null);
+    return value?.map((url: string | undefined) =>
+      url ? `${baseUrl}/${url}` : null,
+    );
   })
   audio_urls?: string[];
 
@@ -55,7 +57,6 @@ export class AudioDto {
   @Expose()
   status: string;
 }
-
 
 export class AudioListDto {
   @Expose()
@@ -75,6 +76,8 @@ export class AudioListDto {
   image_url?: string;
 
   @Expose()
-  @Transform(({ value }) => value !== null && value !== undefined ? Math.round(value * 10) / 10 : null)
+  @Transform(({ value }) =>
+    value !== null && value !== undefined ? Math.round(value * 10) / 10 : null,
+  )
   average_review_rating: number;
 }

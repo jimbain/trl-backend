@@ -10,8 +10,14 @@ import { AudioReviewService } from './audio_review.service';
 import { UserAudio } from 'src/user/entities/user_audio.entity';
 
 @Module({
-  imports:[
-    TypeOrmModule.forFeature([AudioCategory, CompanyAudioCategory, Audio, AudioReview, UserAudio]),
+  imports: [
+    TypeOrmModule.forFeature([
+      AudioCategory,
+      CompanyAudioCategory,
+      Audio,
+      AudioReview,
+      UserAudio,
+    ]),
   ],
   controllers: [AudioController],
   providers: [AudioService, AudioReviewService],

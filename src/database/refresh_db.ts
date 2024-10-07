@@ -2,14 +2,14 @@ import { DataSource } from 'typeorm';
 import { getDataSourceOptions } from './data_source';
 
 async function refreshDatabase() {
-    const dataSource = new DataSource(getDataSourceOptions());
+  const dataSource = new DataSource(getDataSourceOptions());
 
-    try {
-        console.log('Initializing data source...');
-        await dataSource.initialize();
+  try {
+    console.log('Initializing data source...');
+    await dataSource.initialize();
 
-        console.log('Dropping all enum types...');
-        await dataSource.query(`
+    console.log('Dropping all enum types...');
+    await dataSource.query(`
             DO $$ 
             DECLARE 
                 r RECORD;
@@ -25,16 +25,17 @@ async function refreshDatabase() {
             END $$;
         `);
 
-        console.log('Dropping all tables...');
-        await dataSource.dropDatabase();
+    console.log('Dropping all tables...');
+    await dataSource.dropDatabase();
 
-        console.log('All tables and enum types have been dropped successfully.');
-
-    } catch (error) {
-        console.error('Error refreshing database:', error);
-    } finally {
-        await dataSource.destroy();
-    }
+    console.log('All tables and enum types have been dropped successfully.');
+  } catch (error) {
+    console.error('Error refreshing database:', error);
+  } finally {
+    await dataSource.destroy();
+  }
 }
 
-refreshDatabase().catch((error) => console.error('Error refreshing database:', error));
+refreshDatabase().catch((error) =>
+  console.error('Error refreshing database:', error),
+);
