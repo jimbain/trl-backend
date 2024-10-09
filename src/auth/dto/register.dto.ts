@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, IsEmail } from 'class-validator';
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 import { IsUnique } from 'src/validation/validators/is-unique.validator';
 
 export class RegisterDto {

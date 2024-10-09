@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { faker } from '@faker-js/faker';
-import { AudioCategory } from 'src/audio/entities/audio_category.entity';
+import { AudioCategory } from 'src/audios/entities/audio_metadata.entity';
 
 @Injectable()
 export class AudioCategorySeeder {

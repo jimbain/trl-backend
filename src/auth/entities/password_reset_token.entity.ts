@@ -1,4 +1,4 @@
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   BaseEntity,
+  JoinColumn,
 } from 'typeorm';
 
 @Entity({ name: 'password_reset_tokens' })
@@ -15,15 +16,19 @@ export class PasswordResetToken extends BaseEntity {
   id: number;
 
   @Column()
+  user_id: string;
+
+  @Column()
   token: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, length: 4 })
   otp: string;
 
   @Column({
     type: 'enum',
     enum: ['email', 'sms'],
     enumName: 'otp_type',
+    default: "email"
   })
   otp_type: string;
 
@@ -36,8 +41,7 @@ export class PasswordResetToken extends BaseEntity {
   @UpdateDateColumn({ type: 'timestamp' })
   updated_at: Date;
 
-  @ManyToOne(() => User, (user) => user.passwordResetTokens, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => User, (user) => user.passwordResetTokens, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 }

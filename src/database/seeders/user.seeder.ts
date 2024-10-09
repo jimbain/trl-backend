@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from 'src/user/entities/user.entity';
-import { Company } from 'src/company/entities/company.entity';
+import { User } from 'src/users/entities/user.entity';
+import { Company } from 'src/companies/entities/company.entity';
 import { faker } from '@faker-js/faker';
 
 @Injectable()

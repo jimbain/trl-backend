@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { faker } from '@faker-js/faker';
-import { AudioCategory } from 'src/audio/entities/audio_category.entity';
-import { Audio } from 'src/audio/entities/audio.entity';
+import { AudioCategory } from 'src/audios/entities/audio_metadata.entity';
+import { Audio } from 'src/audios/entities/audio.entity';
 
 @Injectable()
 export class AudioSeeder {

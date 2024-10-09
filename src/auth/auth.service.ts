@@ -6,18 +6,18 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'src/users/user.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
 import { plainToInstance } from 'class-transformer';
-import { UserDto } from 'src/user/dto/user.dto';
+import { UserDto } from 'src/users/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
 
 @Injectable()

@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 import { EntityManager } from 'typeorm';
 import { Injectable } from '@nestjs/common';
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 @ValidatorConstraint({ async: true })

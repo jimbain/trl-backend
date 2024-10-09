@@ -1,6 +1,6 @@
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 import { IsExist } from 'src/validation/validators/is-exist.validator';
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 import { Transform } from 'class-transformer';
 
 export class VerifyCurrentPasswordDto {
