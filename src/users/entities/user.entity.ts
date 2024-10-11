@@ -88,7 +88,10 @@ export class User extends BaseEntity {
   @BeforeUpdate()
   async hashPassword() {
     if (this.password) {
-      this.password = await bcrypt.hash(this.password, await bcrypt.genSalt(10));
+      this.password = await bcrypt.hash(
+        this.password,
+        await bcrypt.genSalt(10),
+      );
     }
   }
 

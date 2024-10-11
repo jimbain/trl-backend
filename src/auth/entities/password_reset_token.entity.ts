@@ -28,7 +28,7 @@ export class PasswordResetToken extends BaseEntity {
     type: 'enum',
     enum: ['email', 'sms'],
     enumName: 'otp_type',
-    default: "email"
+    default: 'email',
   })
   otp_type: string;
 
@@ -41,7 +41,9 @@ export class PasswordResetToken extends BaseEntity {
   @UpdateDateColumn({ type: 'timestamp' })
   updated_at: Date;
 
-  @ManyToOne(() => User, (user) => user.passwordResetTokens, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.passwordResetTokens, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
 }

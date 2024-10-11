@@ -51,7 +51,7 @@ export class Audio extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   display_short_description: string;
-  
+
   @Column({ type: 'varchar', nullable: true })
   display_copyright: string;
 

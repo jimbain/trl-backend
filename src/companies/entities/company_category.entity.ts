@@ -29,7 +29,7 @@ export class CompanyCategory extends BaseEntity {
   @JoinColumn({ name: 'company_id' })
   company: Company;
 
-  @ManyToOne(() => Category, (category) => category.id, { onDelete: 'CASCADE'})
+  @ManyToOne(() => Category, (category) => category.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'category_id' })
   category: Category;
 

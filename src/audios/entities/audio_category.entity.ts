@@ -1,10 +1,4 @@
-import {
-  BaseEntity,
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-} from 'typeorm';
+import { BaseEntity, Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { Category } from 'src/categories/entities/category.entity';
 import { Audio } from './audio.entity';
 
@@ -20,7 +14,7 @@ export class AudioCategory extends BaseEntity {
   @JoinColumn({ name: 'audio_id' })
   audio: Audio;
 
-  @ManyToOne(() => Category, (category) => category.id, { onDelete: 'CASCADE'})
+  @ManyToOne(() => Category, (category) => category.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'category_id' })
   category: Category;
 }

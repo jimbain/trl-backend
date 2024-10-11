@@ -1,9 +1,4 @@
-import {
-  BaseEntity,
-  Column,
-  Entity,
-  PrimaryColumn,
-} from 'typeorm';
+import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {
@@ -72,7 +67,7 @@ export class AudioMetadata extends BaseEntity {
 
   @Column({ type: 'boolean', default: true })
   is_for_sale: boolean;
-  
+
   @Column({ type: 'jsonb', default: ['world'] })
   sales_locations: string[];
 
