@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { Company } from './company.entity';
 import { Category } from 'src/categories/entities/category.entity';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 
 @Entity({ name: 'company_categories' })
 export class CompanyCategory extends BaseEntity {

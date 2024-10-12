@@ -6,11 +6,13 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
+  Unique,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 import { Audio } from './audio.entity';
 
 @Entity({ name: 'audio_suggestions' })
+@Unique(['audio_id', 'suggested_audio_id'])
 export class AudioSuggestion extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 45 })
   id: string;

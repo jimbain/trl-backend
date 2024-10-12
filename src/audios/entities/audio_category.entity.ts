@@ -1,8 +1,16 @@
-import { BaseEntity, Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  Unique,
+} from 'typeorm';
 import { Category } from 'src/categories/entities/category.entity';
 import { Audio } from './audio.entity';
 
 @Entity({ name: 'audio_categories' })
+@Unique(['audio_id', 'category_id'])
 export class AudioCategory extends BaseEntity {
   @Column()
   audio_id: string;

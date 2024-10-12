@@ -13,7 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 import { Exclude } from 'class-transformer';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Company } from 'src/companies/entities/company.entity';

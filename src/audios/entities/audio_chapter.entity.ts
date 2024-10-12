@@ -7,12 +7,14 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 import { Audio } from './audio.entity';
 
 @Entity({ name: 'audio_chapters' })
+@Unique(['audio_id', 'part_id', 'chapter_id'])
 export class AudioChapter extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 45 })
   id: string;
@@ -20,10 +22,13 @@ export class AudioChapter extends BaseEntity {
   @Column()
   audio_id: string;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int' })
+  part_id: number;
+
+  @Column({ type: 'int' })
   chapter_id: number;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int' })
   duration: number;
 
   @CreateDateColumn()

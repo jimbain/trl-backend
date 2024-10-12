@@ -1,3 +1,4 @@
+import { MediaType } from 'src/constants';
 import { User } from 'src/users/entities/user.entity';
 import {
   BaseEntity,
@@ -10,7 +11,8 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
+import { CompanyContract } from './company_contract.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends BaseEntity {
@@ -32,11 +34,14 @@ export class Company extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ type: 'varchar' })
+  color: string;
+
   @Column({ type: 'boolean', default: false })
   is_sso_login: boolean;
 
   @Column({ type: 'jsonb', nullable: true, default: ['audio'] })
-  available_medias: string[];
+  available_medias: MediaType[];
 
   @Column({ type: 'integer', default: 0 })
   available_credits: number;
@@ -57,4 +62,7 @@ export class Company extends BaseEntity {
 
   @OneToMany(() => User, (user) => user.company)
   users: User[];
+
+  @OneToMany(() => CompanyContract, (contract) => contract.company)
+  company_contracts: CompanyContract[];
 }

@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
+import { MEDIA_TYPES, MediaType, USER_ACTITIVITY } from 'src/constants';
 
 @Entity({ name: 'user_activity_logs' })
 export class UserAudioStatus extends BaseEntity {
@@ -21,17 +22,17 @@ export class UserAudioStatus extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: ['audio', 'video', 'pharma'],
+    enum: MEDIA_TYPES,
     default: 'audio',
   })
-  item_type: 'audio' | 'video' | 'pharma';
+  item_type: MediaType;
 
   @Column({
     type: 'enum',
-    enum: ['queue', 'rent', 'keep', 'play'],
-    default: 'queue',
+    enum: USER_ACTITIVITY,
+    default: USER_ACTITIVITY.QUEUE,
   })
-  action_type: 'queue' | 'rent' | 'keep' | 'play';
+  action_type: USER_ACTITIVITY;
 
   @Column({ type: 'int', default: 0 })
   credit_used: number;

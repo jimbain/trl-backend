@@ -1,3 +1,4 @@
+import { MediaType } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -8,7 +9,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 
 @Entity({ name: 'categories' })
 export class Category extends BaseEntity {
@@ -22,7 +23,7 @@ export class Category extends BaseEntity {
   is_active: boolean;
 
   @Column({ type: 'jsonb', nullable: true, default: ['audio'] })
-  media_types: string[];
+  media_types: MediaType[];
 
   @CreateDateColumn()
   created_at: Date;

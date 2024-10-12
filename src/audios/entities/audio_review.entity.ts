@@ -8,13 +8,15 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 import { Audio } from './audio.entity';
 import { User } from 'src/users/entities/user.entity';
 
 @Entity({ name: 'audio_reviews' })
+@Unique(['audio_id', 'user_id'])
 export class AudioReview extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 45 })
   id: string;
@@ -25,7 +27,7 @@ export class AudioReview extends BaseEntity {
   @Column()
   user_id: string;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int' })
   rate: number;
 
   @Column({ type: 'text', nullable: true })

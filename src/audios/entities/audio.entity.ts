@@ -1,3 +1,4 @@
+import { AUDIO_AVAILABILITY_TYPE } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -8,7 +9,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
@@ -20,10 +21,10 @@ export class Audio extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: ['rent', 'bookshelf', 'both'],
-    default: 'both',
+    enum: AUDIO_AVAILABILITY_TYPE,
+    default: AUDIO_AVAILABILITY_TYPE.BOTH,
   })
-  available_for: 'rent' | 'bookshelf' | 'both';
+  available_for: AUDIO_AVAILABILITY_TYPE;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;

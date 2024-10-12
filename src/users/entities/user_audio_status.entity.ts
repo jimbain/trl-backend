@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
-import { ulid } from 'ulid';
+import { ulid } from 'ulidx';
 
 @Entity({ name: 'user_audio_statuses' })
 export class UserAudioStatus extends BaseEntity {
