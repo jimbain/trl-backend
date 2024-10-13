@@ -2,14 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { UserAudio } from './entities/user_audio_status.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { UserAudioStatus } from './entities/user_audio_status.entity';
 
 @Injectable()
 export class UserAudioService {
   constructor(
-    @InjectRepository(UserAudio)
-    private readonly userAudioRepository: Repository<UserAudio>,
+    @InjectRepository(UserAudioStatus)
+    private readonly userAudioRepository: Repository<UserAudioStatus>,
 
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,

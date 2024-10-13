@@ -1,12 +1,12 @@
-import { BaseEntity, Column, Entity } from 'typeorm';
+import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'app_config' })
 export class AppConfig extends BaseEntity {
-  @Column('string')
-  config_key: string;
+  @PrimaryColumn({ type: 'varchar', unique: true })
+  key: string;
 
-  @Column('string')
-  config_value: string;
+  @Column({ type: 'varchar' })
+  value: string;
   // @Column({ type: 'int', default: 14, comment: 'In days' })
   // audio_rental_period: number;
 

@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { faker } from '@faker-js/faker';
-import { AudioCategory } from 'src/audios/entities/audio_metadata.entity';
+import { Category } from 'src/categories/entities/category.entity';
 
 @Injectable()
-export class AudioCategorySeeder {
+export class CategorySeeder {
   constructor(
-    @InjectRepository(AudioCategory)
-    private readonly audioCategoryRepository: Repository<AudioCategory>,
+    @InjectRepository(Category)
+    private readonly audioCategoryRepository: Repository<Category>,
   ) {}
 
   async seed() {

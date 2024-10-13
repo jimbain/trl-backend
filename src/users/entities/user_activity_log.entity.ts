@@ -10,7 +10,7 @@ import { User } from 'src/users/entities/user.entity';
 import { MEDIA_TYPES, MediaType, USER_ACTITIVITY } from 'src/constants';
 
 @Entity({ name: 'user_activity_logs' })
-export class UserAudioStatus extends BaseEntity {
+export class UserActivityLog extends BaseEntity {
   @PrimaryGeneratedColumn({ type: 'int' })
   id: number;
 

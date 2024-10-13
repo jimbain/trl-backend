@@ -6,12 +6,12 @@ import { CompanySeeder } from 'src/database/seeders/company.seeder';
 import { Company } from 'src/companies/entities/company.entity';
 import { UserSeeder } from 'src/database/seeders/user.seeder';
 import { User } from 'src/users/entities/user.entity';
-import { AudioCategorySeeder } from 'src/database/seeders/audio_category.seeder';
-import { AudioCategory } from 'src/audios/entities/audio_metadata.entity';
+import { CategorySeeder } from 'src/database/seeders/category.seeder';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
-import { CompanyCategorySeeder } from 'src/database/seeders/company_category.seeder';
 import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { Category } from 'src/categories/entities/category.entity';
+import { CompanyCategorySeeder } from './seeders/company_category.seeder';
 
 @Module({
   imports: [
@@ -24,7 +24,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
     TypeOrmModule.forFeature([
       Company,
       User,
-      AudioCategory,
+      Category,
       CompanyCategory,
       Audio,
     ]),
@@ -32,8 +32,8 @@ import { Audio } from 'src/audios/entities/audio.entity';
   providers: [
     CompanySeeder,
     UserSeeder,
-    AudioCategorySeeder,
-    CompanyAudioCategorySeeder,
+    CategorySeeder,
+    CompanyCategorySeeder,
     AudioSeeder,
   ],
 })

@@ -86,19 +86,20 @@ export class AudioReviewService {
   }
 
   async updateAverageReviewRate(audio: Audio): Promise<number> {
-    const reviews = await this.audioReviewRepository.find({
-      where: { audio_id: audio.id },
-      select: ['id', 'rate'],
-    });
+    return 2;
+    // const reviews = await this.audioReviewRepository.find({
+    //   where: { audio_id: audio.id },
+    //   select: ['id', 'rate'],
+    // });
 
-    const avgRating =
-      reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length ??
-      0;
+    // const avgRating =
+    //   reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length ??
+    //   0;
 
-    audio.average_review_rating = avgRating;
+    // audio.average_review_rating = avgRating;
 
-    await this.audioRepository.save(audio);
+    // await this.audioRepository.save(audio);
 
-    return avgRating;
+    // return avgRating;
   }
 }
