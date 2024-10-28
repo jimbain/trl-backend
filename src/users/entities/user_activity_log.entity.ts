@@ -30,7 +30,7 @@ export class UserActivityLog extends BaseEntity {
   @Column({
     type: 'enum',
     enum: Object.values(USER_ACTITIVITY),
-    default: USER_ACTITIVITY.QUEUE,
+    nullable: false,
   })
   action_type: UserActivity;
 

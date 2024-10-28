@@ -1,8 +1,14 @@
-import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  Entity,
+  IntegerType,
+  PrimaryColumn,
+} from 'typeorm';
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {
-  @PrimaryColumn({ type: 'number', nullable: false })
+  @PrimaryColumn({ type: 'int', nullable: false })
   sku: number; // id
 
   @Column({ type: 'varchar', length: 255 })
@@ -21,7 +27,7 @@ export class AudioMetadata extends BaseEntity {
   sample_url: string;
 
   @Column({ type: 'int', default: 0 })
-  actual_size: number;
+  actual_size: IntegerType;
 
   @Column({ type: 'varchar', length: 255 })
   publisher: string;

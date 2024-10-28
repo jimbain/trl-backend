@@ -37,6 +37,6 @@ export class CompanyContact extends BaseEntity {
   @Column({ type: 'varchar' })
   contact_email: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: 'jsonb', default: [] })
   contact_responsibility: CompanyContactResponsibility[];
 }

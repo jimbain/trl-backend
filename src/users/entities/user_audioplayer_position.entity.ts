@@ -6,20 +6,22 @@ import {
   JoinColumn,
   PrimaryColumn,
   BeforeInsert,
+  Unique,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { ulid } from 'ulidx';
 
 @Entity({ name: 'user_audioplayer_positions' })
+@Unique(['audio_id', 'user_id'])
 export class UserAudioplayerPosition extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 45 })
   id: string;
 
-  @PrimaryColumn()
+  @Column()
   user_id: string;
 
-  @PrimaryColumn()
+  @Column()
   audio_id: string;
 
   @Column({ type: 'int', nullable: true })

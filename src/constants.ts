@@ -36,7 +36,8 @@ export const USER_ACTITIVITY = {
   KEEP: 'keep',
   PLAY: 'play',
 };
-export type UserActivity = (typeof MEDIA)[keyof typeof MEDIA];
+export type UserActivity =
+  (typeof USER_ACTITIVITY)[keyof typeof USER_ACTITIVITY];
 
 export const NOTIFICATION_CHANNEL = {
   EMAIL: 'email',

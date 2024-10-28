@@ -6,28 +6,31 @@ import {
   JoinColumn,
   PrimaryColumn,
   BeforeInsert,
+  Unique,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { ulid } from 'ulidx';
+import { MediaStatus, USER_MEDIA_STATUS } from 'src/constants';
 
 @Entity({ name: 'user_audio_statuses' })
+@Unique(['audio_id', 'user_id'])
 export class UserAudioStatus extends BaseEntity {
-  @PrimaryColumn({ type: 'varchar', length: 45 })
+  @PrimaryColumn({ type: 'varchar', length: 255 })
   id: string;
 
-  @PrimaryColumn()
+  @Column()
   user_id: string;
 
-  @PrimaryColumn()
+  @Column()
   audio_id: string;
 
   @Column({
     type: 'enum',
-    enum: ['queued', 'rented', 'bookshelved'],
-    default: 'queued',
+    enum: Object.values(USER_MEDIA_STATUS),
+    default: USER_MEDIA_STATUS.QUEUED,
   })
-  status: 'queued' | 'rented' | 'bookshelved';
+  status: MediaStatus;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;

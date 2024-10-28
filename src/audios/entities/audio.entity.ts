@@ -59,6 +59,12 @@ export class Audio extends BaseEntity {
   // @Column({ type: 'text', nullable: true })
   // image_url: string;
 
+  @Column({ type: 'jsonb', nullable: false, default: [] })
+  audio_categories: string[]; // categories.id[]
+
+  @Column({ type: 'jsonb', nullable: false, default: [] })
+  audio_suggestions: string[]; // audios.id[]
+
   @Column({ type: 'int', default: 0 })
   purchased_licenses: number; // QTO
 
