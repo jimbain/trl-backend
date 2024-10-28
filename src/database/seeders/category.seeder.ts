@@ -16,15 +16,42 @@ export class CategorySeeder {
       '###########################  AUDIO CATEGORY SEEDING START  ###########################',
     );
 
-    const audioCategories = new Set<string>(); // To ensure unique names
-
-    while (audioCategories.size < 100) {
-      audioCategories.add(faker.internet.domainWord());
-    }
+    const audioCategories = [
+      'All Categories',
+      'Best of TRL',
+      'Appearance',
+      'Business Book Summaries',
+      'Business Concepts',
+      'Communication',
+      'Creativity',
+      'Decision Making',
+      'Emotions',
+      'Entrepreneurship',
+      'Family',
+      'Feelings',
+      'Financial',
+      'Future',
+      'Health',
+      'Language',
+      'Management',
+      'Marketing',
+      'Mind Development',
+      'Negotiation',
+      'Personal Development',
+      'Pharmaceutical Selling',
+      'Relaxation',
+      'Selling',
+      'Stress',
+      'Success',
+      'Time Management',
+      'Sales Management',
+      'Diversity',
+      '-3LG Only',
+      '3LG Only',
+    ];
 
     const audioCategoryEntities = Array.from(audioCategories).map((name) => ({
-      title: faker.music.genre(),
-      name: name,
+      title: name,
     }));
 
     for (const categoryData of audioCategoryEntities) {

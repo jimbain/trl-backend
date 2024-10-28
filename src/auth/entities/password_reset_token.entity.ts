@@ -1,3 +1,4 @@
+import { NOTIFICATION_CHANNEL, NotificationChannel } from 'src/constants';
 import { User } from 'src/users/entities/user.entity';
 import {
   Entity,
@@ -26,11 +27,11 @@ export class PasswordResetToken extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: ['email', 'sms'],
-    enumName: 'otp_type',
-    default: 'email',
+    enum: Object.values(NOTIFICATION_CHANNEL),
+    enumName: 'otp_channel',
+    default: NOTIFICATION_CHANNEL.EMAIL,
   })
-  otp_type: string;
+  otp_channel: NotificationChannel;
 
   @Column({ type: 'timestamp' })
   expires_at: Date;

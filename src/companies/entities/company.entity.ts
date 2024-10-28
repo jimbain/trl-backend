@@ -1,4 +1,4 @@
-import { MediaType } from 'src/constants';
+import { MEDIA, Media } from 'src/constants';
 import { User } from 'src/users/entities/user.entity';
 import {
   BaseEntity,
@@ -12,7 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ulid } from 'ulidx';
-import { CompanyContract } from './company_contract.entity';
+import { CompanyContact } from './company_contact.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends BaseEntity {
@@ -22,8 +22,8 @@ export class Company extends BaseEntity {
   @Column({ type: 'varchar', length: 255, unique: true })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  logo_url: string;
+  // @Column({ type: 'text', nullable: true })
+  // logo_url: string;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
@@ -34,14 +34,14 @@ export class Company extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'varchar' })
-  color: string;
+  // @Column({ type: 'varchar' })
+  // color: string;
 
   @Column({ type: 'boolean', default: false })
   is_sso_login: boolean;
 
-  @Column({ type: 'jsonb', nullable: true, default: ['audio'] })
-  available_medias: MediaType[];
+  @Column({ type: 'jsonb', nullable: true, default: [MEDIA.AUDIO] })
+  available_medias: Media[];
 
   @Column({ type: 'integer', default: 0 })
   available_credits: number;
@@ -63,6 +63,6 @@ export class Company extends BaseEntity {
   @OneToMany(() => User, (user) => user.company)
   users: User[];
 
-  @OneToMany(() => CompanyContract, (contract) => contract.company)
-  company_contracts: CompanyContract[];
+  @OneToMany(() => CompanyContact, (contract) => contract.company)
+  company_contacts: CompanyContact[];
 }

@@ -16,7 +16,7 @@ async function bootstrap() {
     app.get(UserSeeder),
     app.get(CategorySeeder),
     app.get(CompanyCategorySeeder),
-    app.get(AudioSeeder),
+    // app.get(AudioSeeder),
   ];
 
   // Execute seed method for each seeder

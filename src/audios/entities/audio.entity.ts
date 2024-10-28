@@ -1,4 +1,4 @@
-import { AUDIO_AVAILABILITY_TYPE } from 'src/constants';
+import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -21,10 +21,10 @@ export class Audio extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: AUDIO_AVAILABILITY_TYPE,
-    default: AUDIO_AVAILABILITY_TYPE.BOTH,
+    enum: Object.values(MEDIA_AVAILABILITY_TYPE),
+    default: MEDIA_AVAILABILITY_TYPE.BOTH,
   })
-  available_for: AUDIO_AVAILABILITY_TYPE;
+  available_for: MediaAvailabilityType;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
@@ -56,17 +56,17 @@ export class Audio extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   display_copyright: string;
 
-  @Column({ type: 'text', nullable: true })
-  image_url: string;
+  // @Column({ type: 'text', nullable: true })
+  // image_url: string;
 
   @Column({ type: 'int', default: 0 })
-  purchased_licenses: number;
+  purchased_licenses: number; // QTO
 
   @Column({ type: 'int', default: 0 })
-  purchased_license_limit: number;
+  purchased_license_limit: number; // QTO limit
 
   @Column({ type: 'int', default: 0 })
-  rent_counter: number;
+  total_rented: number; // QOH
 
   @Column({ type: 'float', default: 0 })
   avg_rating: number;

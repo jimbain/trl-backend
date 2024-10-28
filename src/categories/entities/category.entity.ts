@@ -1,4 +1,4 @@
-import { MediaType } from 'src/constants';
+import { MEDIA, Media } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -22,8 +22,8 @@ export class Category extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
-  @Column({ type: 'jsonb', nullable: true, default: ['audio'] })
-  media_types: MediaType[];
+  @Column({ type: 'jsonb', nullable: true, default: [MEDIA.AUDIO] })
+  media_types: Media[];
 
   @CreateDateColumn()
   created_at: Date;

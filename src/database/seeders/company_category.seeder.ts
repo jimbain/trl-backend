@@ -10,75 +10,38 @@ import { Category } from 'src/categories/entities/category.entity';
 export class CompanyCategorySeeder {
   constructor(
     @InjectRepository(CompanyCategory)
-    private readonly companyAudioCategoryRepository: Repository<CompanyCategory>,
+    private readonly companyCategoryRepository: Repository<CompanyCategory>,
 
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
 
     @InjectRepository(Category)
-    private readonly audioCategoryRepository: Repository<Category>,
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
   async seed() {
-    return;
-    // console.log(
-    //   '###########################  COMPANY AUDIO CATEGORY SEEDING START  ###########################',
-    // );
+    console.log(
+      '###########################  COMPANY AUDIO CATEGORY SEEDING START  ###########################',
+    );
+    const companies = await this.companyRepository.find();
+    const audioCategories = await this.categoryRepository.find();
+    if (companies.length === 0 || audioCategories.length < 10) {
+      console.log('Not enough companies or audio categories to seed');
+      return;
+    }
+    for (const company of companies) {
+      for (const audioCategory of audioCategories) {
+        const companyAudioCategory = this.companyCategoryRepository.create({
+          company_id: company.id,
+          category_id: audioCategory.id,
+        });
+        await this.companyCategoryRepository.save(companyAudioCategory);
+      }
+    }
 
-    // const companies = await this.companyRepository.find();
-    // const audioCategories = await this.audioCategoryRepository.find();
-
-    // if (companies.length === 0 || audioCategories.length < 10) {
-    //   console.log('Not enough companies or audio categories to seed');
-    //   return;
-    // }
-
-    // for (const company of companies) {
-    //   // Pick 10 random audio categories
-    //   const selectedCategories = this.getRandomItems(audioCategories, 20);
-
-    //   for (let i = 0; i < 20; i++) {
-    //     let title: string | null = null;
-
-    //     // Set title to null for the first 3 entries, and generate a unique title for the next 7
-    //     if (i >= 10) {
-    //       let isUnique = false;
-
-    //       // Ensure the title is unique and different from the audio category title
-    //       while (!isUnique) {
-    //         const generatedTitle = faker.commerce.department();
-    //         const existingTitle = selectedCategories[i].title;
-
-    //         const existing = await this.companyAudioCategoryRepository.findOne({
-    //           where: { company_id: company.id, title: generatedTitle },
-    //         });
-
-    //         if (!existing && generatedTitle !== existingTitle) {
-    //           title = generatedTitle;
-    //           isUnique = true;
-    //         }
-    //       }
-    //     }
-
-    //     const companyAudioCategory = this.companyAudioCategoryRepository.create(
-    //       {
-    //         company_id: company.id,
-    //         audio_category_id: selectedCategories[i].id,
-    //         title: title,
-    //       },
-    //     );
-
-    //     await this.companyAudioCategoryRepository.save(companyAudioCategory);
-    //   }
-
-    //   console.log(
-    //     `10 audio categories have been seeded for company: ${company.name}`,
-    //   );
-    // }
-
-    // console.log(
-    //   '###########################  COMPANY AUDIO CATEGORY SEEDING END  ###########################',
-    // );
+    console.log(
+      '###########################  COMPANY CATEGORY SEEDING END  ###########################',
+    );
   }
 
   private getRandomItems<T>(items: T[], count: number): T[] {

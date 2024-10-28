@@ -14,10 +14,13 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Company } from './company.entity';
-import { RESPONSIBILITY_TYPE, ResponsibilityType } from 'src/constants';
+import {
+  COMPANY_CONTACT_RESPONSIBILITY,
+  CompanyContactResponsibility,
+} from 'src/constants';
 
-@Entity({ name: 'company_contracts' })
-export class CompanyContract extends BaseEntity {
+@Entity({ name: 'company_contacts' })
+export class CompanyContact extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -34,6 +37,6 @@ export class CompanyContract extends BaseEntity {
   @Column({ type: 'varchar' })
   contact_email: string;
 
-  @Column({ type: 'enum', enum: RESPONSIBILITY_TYPE })
-  contact_responsibility: ResponsibilityType;
+  @Column({ type: 'jsonb' })
+  contact_responsibility: CompanyContactResponsibility[];
 }

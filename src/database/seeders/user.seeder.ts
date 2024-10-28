@@ -32,31 +32,25 @@ export class UserSeeder {
         first_name: 'Mashfiqur',
         last_name: 'Rahman',
         email: 'mashfiqurrr@gmail.com',
-        password: 'TrlPassword2024!@',
+        password: 'test',
       },
       {
         first_name: 'Rakibul',
         last_name: 'Hasan',
         email: 'rhasan082@gmail.com',
-        password: 'TrlPassword2024!@',
-      },
-      {
-        first_name: 'Shafiur',
-        last_name: 'Uchchhas',
-        email: 'msruchchhas.dev@gmail.com',
-        password: 'TrlPassword2024!@',
+        password: 'test',
       },
       {
         first_name: 'Tanvir Anwar',
         last_name: 'Rafi',
         email: 'tanviranwarrafi@gmail.com',
-        password: 'TrlPassword2024!@',
+        password: 'test',
       },
       {
         first_name: 'Mark',
         last_name: 'Ramm',
         email: 'rjramm@trlonline.com',
-        password: 'TrlPassword2024!@',
+        password: 'test',
       },
     ];
 

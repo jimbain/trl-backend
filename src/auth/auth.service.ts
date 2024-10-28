@@ -19,6 +19,7 @@ import { TokenService } from 'src/common/services/token.service';
 import { plainToInstance } from 'class-transformer';
 import { UserDto } from 'src/users/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
+import { NOTIFICATION_CHANNEL } from 'src/constants';
 
 @Injectable()
 export class AuthService {
@@ -114,7 +115,7 @@ export class AuthService {
     token.user = user;
     token.token = this.tokenService.generateRandomToken();
     token.otp = this.tokenService.generateRandomOtp();
-    token.otp_type = 'email';
+    token.otp_channel = NOTIFICATION_CHANNEL.EMAIL;
     token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
     this.passwordResetTokenRepository.save(token);
 
@@ -149,7 +150,7 @@ export class AuthService {
       const token = new PasswordResetToken();
       token.user = user;
       token.token = this.tokenService.generateRandomToken();
-      token.otp_type = 'email';
+      token.otp_channel = NOTIFICATION_CHANNEL.EMAIL;
       token.expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
       await this.passwordResetTokenRepository.save(token);

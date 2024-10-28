@@ -21,13 +21,7 @@ import { CompanyCategorySeeder } from './seeders/company_category.seeder';
         ...getDataSourceOptions(),
       }),
     }),
-    TypeOrmModule.forFeature([
-      Company,
-      User,
-      Category,
-      CompanyCategory,
-      Audio,
-    ]),
+    TypeOrmModule.forFeature([Company, User, Category, CompanyCategory, Audio]),
   ],
   providers: [
     CompanySeeder,

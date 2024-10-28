@@ -16,7 +16,7 @@ import { ulid } from 'ulidx';
 
 @Entity({ name: 'company_categories' })
 export class CompanyCategory extends BaseEntity {
-  @PrimaryColumn({ type: 'varchar', length: 40 })
+  @PrimaryColumn({ type: 'varchar', length: 255 })
   id: string;
 
   @Column()

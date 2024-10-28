@@ -40,7 +40,7 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    return []
+    return [];
     // const companyAudioCategories =
     //   await this.companyAudioCategoryRepository.find({
     //     where: { company_id: companyId },
@@ -51,7 +51,7 @@ export class AudioService {
   async findAllFeaturedAudios(
     audioCategoryIds: string[],
   ): Promise<AudioListDto[]> {
-    return []
+    return [];
     // const featuredAudios = await this.audioRepository
     //   .createQueryBuilder('audio')
     //   .where(
@@ -78,7 +78,7 @@ export class AudioService {
     user: User,
     status: 'queued' | 'bookshelved',
   ): Promise<AudioListDto[]> {
-    return []
+    return [];
     // const userAudios = await this.userAudioRepository.find({
     //   where: { user_id: user.id, status: status },
     //   select: ['audio_id'],
@@ -101,7 +101,7 @@ export class AudioService {
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
-    return "test";
+    return 'test';
     // const companyAudioCategories =
     //   await this.companyAudioCategoryRepository.find({
     //     where: { company_id: companyId },

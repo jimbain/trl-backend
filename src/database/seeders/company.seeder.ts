@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { RemoveOptions, Repository, SaveOptions } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { faker } from '@faker-js/faker';
+import { MEDIA, Media } from 'src/constants';
 
 @Injectable()
 export class CompanySeeder {
@@ -17,18 +18,23 @@ export class CompanySeeder {
     );
 
     const companies = [];
-    const numberOfCompanies = 10;
+    const numberOfCompanies = 1;
 
     for (let i = 0; i < numberOfCompanies; i++) {
       companies.push({
-        name: faker.company.name(),
-        short_description: faker.company.catchPhrase(),
-        long_description: faker.lorem.paragraph(),
-        logo_url: faker.image.url(),
-        is_active: faker.datatype.boolean(),
-        domain: faker.internet.domainName(),
+        id: '',
+        name: 'Demo',
+        // logo_url: faker.image.url(),
+        is_active: true,
+        domain: 'https://biz.trainingresourcelibrary.com',
+        description: faker.company.catchPhrase(),
         is_sso_login: false,
-        available_credits: faker.number.int({ min: 100, max: 500 }),
+        available_medias: [MEDIA.AUDIO, MEDIA.VIDEO, MEDIA.PHARMA],
+        available_credits: 100,
+        created_at: new Date(),
+        updated_at: new Date(),
+        deleted_at: null,
+        // color: '',
       });
     }
 
