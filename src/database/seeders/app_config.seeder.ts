@@ -17,11 +17,11 @@ export class AppConfigSeeder {
     );
 
     const appConfig = {
-      audio_rental_predio_in_days: 14,
+      audio_rental_period_in_days: 14,
       audio_rental_credit_cost: 1,
       video_rental_credit_cost: 1,
       pharma_rental_credit_cost: 1,
-      rent_expire_notification_days: 3,
+      notify_rent_expiration_days: 3,
       max_rental_items_per_period: 2,
       max_rental_items_on_hand: 1,
       rental_period_unit: RENTAL_PERIOD_UNIT.WEEK,

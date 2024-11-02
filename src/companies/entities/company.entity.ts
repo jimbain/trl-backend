@@ -12,7 +12,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ulid } from 'ulidx';
-import { CompanyContact } from './company_contact.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends BaseEntity {
@@ -46,6 +45,9 @@ export class Company extends BaseEntity {
   @Column({ type: 'integer', default: 0 })
   available_credits: number;
 
+  @Column({ type: 'jsonb', default: [] })
+  company_contacts: CompanyContact[];
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -62,7 +64,11 @@ export class Company extends BaseEntity {
 
   @OneToMany(() => User, (user) => user.company)
   users: User[];
+}
 
-  @OneToMany(() => CompanyContact, (contract) => contract.company)
-  company_contacts: CompanyContact[];
+interface CompanyContact {
+  name: string;
+  phone: string;
+  email: string;
+  responsibility: string[];
 }

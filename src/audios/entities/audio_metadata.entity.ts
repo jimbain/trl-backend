@@ -65,7 +65,8 @@ export class AudioMetadata extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   product_signature: string; // metadata_sig
 
-  @Column({ type: 'varchar', length: 255 })
+  // @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   isbn: string;
 
   // @Column({ type: 'varchar', length: 255 })
@@ -80,25 +81,25 @@ export class AudioMetadata extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   retail_product_id: string; // retail.id
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ type: 'float', nullable: true })
   findaway_price: number; // library.list_price
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ type: 'float', nullable: true })
   findaway_content_cost: number; // library.content_cost
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ type: 'float', nullable: true })
   findaway_retail_price: number; // retail.list_price
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ type: 'float', nullable: true })
   findaway_retail_content_cost: number; // retail.content_cost
 
-  @Column({ type: 'boolean', default: true })
-  is_for_sale: boolean; // active_products != null && sale_start_date != null
+  @Column({ type: 'boolean', nullable: true })
+  is_for_sale: boolean; // active_products != empty
 
-  @Column({ type: 'jsonb', default: ['WORLD'] })
+  @Column({ type: 'jsonb', nullable: true })
   sales_locations: string[]; // library.territories
 
-  @Column({ type: 'jsonb', default: ['ROW'] })
+  @Column({ type: 'jsonb', nullable: true })
   sales_location_exclusions: string[];
 
   // @Column({ type: 'varchar', length: 255, nullable: true })

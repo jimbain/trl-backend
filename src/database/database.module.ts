@@ -10,8 +10,11 @@ import { CategorySeeder } from 'src/database/seeders/category.seeder';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategorySeeder } from './seeders/company_category.seeder';
+import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { AppConfigSeeder } from './seeders/app_config.seeder';
 
 @Module({
   imports: [
@@ -21,7 +24,15 @@ import { CompanyCategorySeeder } from './seeders/company_category.seeder';
         ...getDataSourceOptions(),
       }),
     }),
-    TypeOrmModule.forFeature([Company, User, Category, CompanyCategory, Audio]),
+    TypeOrmModule.forFeature([
+      Company,
+      User,
+      Category,
+      CompanyCategory,
+      Audio,
+      AudioMetadata,
+      AppConfig,
+    ]),
   ],
   providers: [
     CompanySeeder,
@@ -29,6 +40,7 @@ import { CompanyCategorySeeder } from './seeders/company_category.seeder';
     CategorySeeder,
     CompanyCategorySeeder,
     AudioSeeder,
+    AppConfigSeeder,
   ],
 })
 export class DatabaseModule {}

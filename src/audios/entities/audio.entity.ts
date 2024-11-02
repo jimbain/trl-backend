@@ -17,7 +17,7 @@ export class Audio extends BaseEntity {
   id: string;
 
   @Column()
-  sku: string;
+  sku: number;
 
   @Column({
     type: 'enum',
@@ -41,7 +41,7 @@ export class Audio extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   trl_cost: number;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', nullable: true })
   display_title: string;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -60,10 +60,10 @@ export class Audio extends BaseEntity {
   // image_url: string;
 
   @Column({ type: 'jsonb', nullable: false, default: [] })
-  audio_categories: string[]; // categories.id[]
+  categories: string[]; // categories.id[]
 
   @Column({ type: 'jsonb', nullable: false, default: [] })
-  audio_suggestions: string[]; // audios.id[]
+  suggestions: string[]; // audios.id[]
 
   @Column({ type: 'int', default: 0 })
   purchased_licenses: number; // QTO

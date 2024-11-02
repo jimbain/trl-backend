@@ -1,186 +1,110 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { BaseEntity, Repository } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { Category } from 'src/categories/entities/category.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
+import fs from 'fs';
+import path from 'path';
+import _ from 'lodash';
+import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 
 @Injectable()
 export class AudioSeeder {
   constructor(
+    @InjectRepository(AudioMetadata)
+    private readonly audioMetadataRepository: Repository<AudioMetadata>,
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
     @InjectRepository(Category)
-    private readonly audioCategoryRepository: Repository<Category>,
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
   async seed() {
-    return;
-    // console.log(
-    //   '###########################  AUDIO SEEDING START  ###########################',
-    // );
+    console.log(
+      '###########################  AUDIO SEEDING START  ###########################',
+    );
 
-    // const AUDIO_COUNT = 1000;
+    const audioMetaPath = path.join(
+      process.cwd(),
+      './src/database/seeders/data/audio_500_data.json',
+    );
 
-    // const demoAudios = [
-    //   'audios/9781467611145_01.flac',
-    //   'audios/9781467611145_02.flac',
-    //   'audios/9781467611145_03.flac',
-    //   'audios/9781467611145_04.flac',
-    //   'audios/9781467611145_05.flac',
-    //   'audios/9781467611145_06.flac',
-    //   'audios/9781467611145_07.flac',
-    //   'audios/9781467611145_08.flac',
-    //   'audios/9781467611145_09.flac',
-    //   'audios/9781467611145_10.flac',
-    //   'audios/9781467611145_1.flac',
-    //   'audios/9781467611145_2.flac',
-    //   'audios/9781467611145_3.flac',
-    //   'audios/9781467611145_4.flac',
-    //   'audios/9781467611145_5.flac',
-    //   'audios/9781467611145_6.flac',
-    //   'audios/9781467611145_7.flac',
-    //   'audios/9781467611145_8.flac',
-    //   'audios/9781467611145_9.flac',
-    // ];
+    const rawData = fs.readFileSync(audioMetaPath, 'utf-8');
+    const data = JSON.parse(rawData);
+    const audioCategories = await this.categoryRepository.find();
 
-    // const demoImages = [
-    //   'audio-images/AudioApi_00037.png',
-    //   'audio-images/AudioApi_00078.png',
-    //   'audio-images/AudioApi_00082.png',
-    //   'audio-images/AudioApi_00120.png',
-    //   'audio-images/AudioApi_00184.png',
-    //   'audio-images/AudioApi_00185.png',
-    //   'audio-images/AudioApi_00200.png',
-    //   'audio-images/AudioApi_00451.png',
-    //   'audio-images/AudioApi_00655.png',
-    //   'audio-images/AudioApi_00722.png',
-    //   'audio-images/AudioApi_00753.png',
-    //   'audio-images/AudioApi_00929.png',
-    //   'audio-images/AudioApi_00930.png',
-    //   'audio-images/AudioApi_01022.png',
-    //   'audio-images/AudioApi_01095.png',
-    //   'audio-images/AudioApi_01099.png',
-    //   'audio-images/AudioApi_01105.png',
-    //   'audio-images/AudioApi_01178.png',
-    //   'audio-images/AudioApi_01188.png',
-    //   'audio-images/AudioApi_01656.png',
-    // ];
+    const audioEntities = data.map((audio) => {
+      const audiobook = audio.audiobook;
+      const library = audio?.active_products?.library;
+      const retail = audio?.active_products?.retail;
 
-    // const authors = [
-    //   'J.K. Rowling',
-    //   'George Orwell',
-    //   'Jane Austen',
-    //   'Mark Twain',
-    //   'J.R.R. Tolkien',
-    //   'Ernest Hemingway',
-    //   'F. Scott Fitzgerald',
-    //   'Agatha Christie',
-    //   'Charles Dickens',
-    //   'Leo Tolstoy',
-    // ];
+      // audioMetadata
+      const audioMeta = new AudioMetadata();
+      audioMeta.sku = parseInt(audiobook.id, 10);
+      audioMeta.title = audiobook.title;
+      audioMeta.description = audiobook.description;
+      audioMeta.abridgement = audiobook.abridgement;
+      audioMeta.cover_url = audiobook.cover_url;
+      audioMeta.sample_url = audiobook.sample_url;
+      audioMeta.actual_size = audiobook.actual_size;
+      audioMeta.publisher = audiobook.publisher;
+      audioMeta.runtime = audiobook.runtime;
+      audioMeta.copyright = audiobook.copyright;
+      audioMeta.chapters = audiobook.chapters;
+      audioMeta.sub_title = audiobook.sub_title;
+      audioMeta.street_date = audiobook.street_date;
+      audioMeta.modified_date = audiobook.modified_date;
+      audioMeta.language = audiobook.language;
+      audioMeta.authors = audiobook.authors;
+      audioMeta.narrators = audiobook.narrators;
+      audioMeta.bisac_codes = audiobook.bisac_codes;
+      audioMeta.product_signature = audiobook.metadata_sig;
+      audioMeta.isbn = library && library[0].isbn;
+      audioMeta.product_id = library && library[0].id;
+      audioMeta.retail_product_id = retail && retail[0].id;
+      audioMeta.findaway_price = library && library[0].list_price;
+      audioMeta.findaway_content_cost = library && library[0].content_cost;
+      audioMeta.findaway_retail_price = retail && retail[0].list_price;
+      audioMeta.findaway_retail_content_cost = retail && retail[0].content_cost;
+      audioMeta.is_for_sale = library !== undefined;
+      audioMeta.sales_locations = library && library[0].territories;
+      audioMeta.sales_location_exclusions = null;
 
-    // const audioCategories = await this.audioCategoryRepository.find({
-    //   select: ['id'],
-    // });
+      // audio
+      const audioEntity = new Audio();
+      audioEntity.sku = audioMeta.sku;
+      audioEntity.available_for = Object.values(MEDIA_AVAILABILITY_TYPE)[
+        _.random(1, 3)
+      ];
+      audioEntity.is_active = audioMeta.is_for_sale;
+      audioEntity.is_excluded = !audioEntity.is_active;
+      audioEntity.is_featured = Math.random() >= 0.5;
+      audioEntity.is_only_for_purchase = Math.random() >= 0.5;
+      audioEntity.trl_cost =
+        audioMeta.findaway_content_cost &&
+        Math.floor(audioMeta.findaway_content_cost / 10);
 
-    // if (audioCategories.length === 0) {
-    //   console.log(
-    //     'No audio categories found. Please seed audio categories first.',
-    //   );
-    //   return;
-    // }
+      audioEntity.categories = [
+        audioCategories[_.random(audioCategories.length - 1)].id,
+      ];
+      audioEntity.suggestions = [];
+      audioEntity.purchased_licenses = _.random(1, 10);
+      audioEntity.purchased_license_limit =
+        audioEntity.purchased_licenses + _.random(0, 5);
 
-    // const audioEntities = Array.from({ length: AUDIO_COUNT }).map(() => {
-    //   const randomCategories = faker.helpers.arrayElements(
-    //     audioCategories.map((category) => category.id),
-    //     faker.number.int({ min: 1, max: 3 }),
-    //   );
+      return { audioMeta, audioEntity };
+    });
 
-    //   const numberOfAuthors = Math.floor(Math.random() * authors.length) + 1;
-    //   const randomAuthors = [];
-
-    //   while (randomAuthors.length < numberOfAuthors) {
-    //     const randomIndex = Math.floor(Math.random() * authors.length);
-    //     if (!randomAuthors.includes(authors[randomIndex])) {
-    //       randomAuthors.push(authors[randomIndex]);
-    //     }
-    //   }
-
-    //   return {
-    //     title: faker.music.songName(),
-    //     description: faker.lorem.sentence(),
-    //     audio_category_ids: randomCategories,
-    //     language: faker.helpers.arrayElement([
-    //       'English',
-    //       'Spanish',
-    //       'French',
-    //       'German',
-    //       'Chinese',
-    //     ]) as 'English' | 'Spanish' | 'French' | 'German' | 'Chinese', // Random language
-    //     publisher: faker.person.fullName(),
-    //     copyright: faker.date.anytime(),
-    //     authors: this.getRandomAuthors(authors),
-    //     rental_cost: faker.number.float({ min: 50, max: 100, precision: 0.01 }),
-    //     bookshelf_cost: faker.number.float({
-    //       min: 100,
-    //       max: 450,
-    //       precision: 0.01,
-    //     }),
-    //     rental_credit: faker.number.int({ min: 50, max: 1000 }),
-    //     bookshelf_credit: faker.number.int({ min: 100, max: 450 }),
-    //     duration: faker.number.int({ min: 100, max: 1000 }),
-    //     is_featured: faker.datatype.boolean(),
-    //     available_for: faker.helpers.arrayElement([
-    //       'rent',
-    //       'bookshelf',
-    //       'both',
-    //     ]) as 'rent' | 'bookshelf' | 'both',
-    //     image_url: demoImages[Math.floor(Math.random() * demoImages.length)],
-    //     audio_urls: this.getRandomAudioUrls(demoAudios),
-    //     is_active: faker.datatype.boolean(),
-    //   };
-    // });
-
-    // for (const audioData of audioEntities) {
-    //   const audio = this.audioRepository.create(audioData);
-    //   await this.audioRepository.save(audio);
-    // }
-
-    // console.log(
-    //   '###########################  AUDIO SEEDING END  ###########################',
-    // );
-  }
-
-  getRandomAuthors(authors: string[]): string[] {
-    const shouldReturnMultiple = Math.random() < 0.3; // 30% chance to return multiple authors
-
-    if (shouldReturnMultiple) {
-      const numberOfAuthors =
-        Math.floor(Math.random() * (authors.length - 1)) + 2; // At least 2 authors
-      const randomAuthors: string[] = [];
-
-      while (randomAuthors.length < numberOfAuthors) {
-        const randomIndex = Math.floor(Math.random() * authors.length);
-        if (!randomAuthors.includes(authors[randomIndex])) {
-          randomAuthors.push(authors[randomIndex]);
-        }
-      }
-
-      return randomAuthors;
-    } else {
-      const randomIndex = Math.floor(Math.random() * authors.length);
-      return [authors[randomIndex]];
+    for (const entry of audioEntities) {
+      console.log(entry.audioMeta);
+      console.log(entry.audioEntity);
+      await this.audioMetadataRepository.save(entry.audioMeta);
+      await this.audioRepository.save(entry.audioEntity);
     }
-  }
-
-  getRandomAudioUrls(demoAudios: string[]): string[] {
-    const shouldReturnMultiple = Math.random() < 0.3; // 30% chance to return multiple audio URLs
-    if (shouldReturnMultiple) {
-      const numberOfUrls = faker.number.int({ min: 2, max: 5 });
-      return faker.helpers.arrayElements(demoAudios, numberOfUrls);
-    } else {
-      return [faker.helpers.arrayElement(demoAudios)];
-    }
+    console.log(
+      '###########################  AUDIO SEEDING END  ###########################',
+    );
   }
 }

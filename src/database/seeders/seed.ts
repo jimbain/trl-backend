@@ -4,7 +4,7 @@ import { CompanySeeder } from 'src/database/seeders/company.seeder';
 import { UserSeeder } from 'src/database/seeders/user.seeder';
 import { CategorySeeder } from 'src/database/seeders/category.seeder';
 import { CompanyCategorySeeder } from 'src/database/seeders/company_category.seeder';
-// import { AudioSeeder } from 'src/database/seeders/audio.seeder';
+import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 import { AppConfigSeeder } from 'src/database/seeders/app_config.seeder';
 
 async function bootstrap() {
@@ -17,8 +17,8 @@ async function bootstrap() {
     app.get(UserSeeder),
     app.get(CategorySeeder),
     app.get(CompanyCategorySeeder),
-    // app.get(AudioSeeder),
-    // app.get(AppConfigSeeder),
+    app.get(AudioSeeder),
+    app.get(AppConfigSeeder),
   ];
 
   // Execute seed method for each seeder
