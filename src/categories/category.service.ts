@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
-export class CategoriesService {
+export class CategoryService {
   create(createCategoryDto: CreateCategoryDto) {
     return 'This action adds a new category';
   }
@@ -22,5 +23,10 @@ export class CategoriesService {
 
   remove(id: number) {
     return `This action removes a #${id} category`;
+  }
+
+  getPopularity(id: string){
+    console.log("jksdkjs", id)
+    return 0;
   }
 }

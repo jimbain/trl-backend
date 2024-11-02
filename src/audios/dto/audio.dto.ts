@@ -5,54 +5,72 @@ export class AudioDto {
   id: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return (obj?.display_title ?? obj?.metadata?.title) ?? null
+  })
   title: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    if( obj?.display_short_description ){
+      return obj?.display_short_description;
+    }else if( obj?.display_description ){
+      return obj?.display_description;
+    }
+    else{
+      return obj?.metadata?.description;
+    }
+  })
   description?: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.metadata?.language;
+  })
   language?: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.metadata?.publisher;
+  })
   publisher?: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return (obj?.display_copyright ?? obj?.metadata?.copyright) ?? null
+  })
   copyright?: Date;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return (obj?.display_authors ?? obj?.metadata?.authors) ?? null
+  })
   authors?: string[];
 
   @Expose()
-  duration: number;
+  @Transform(({ obj }) => {
+    return obj?.metadata?.runtime ?? null;
+  })
+  runtime?: number;
 
   @Expose()
   is_featured: boolean;
 
   @Expose()
-  @Transform(({ obj }) => obj.bookshelf_credit > 1)
+  @Transform(({ obj }) => obj?.trl_cost > 1)
   is_premium: boolean;
 
   @Expose()
   available_for: 'rent' | 'bookshelf' | 'both';
 
   @Expose()
-  @Transform(({ value }) => {
-    const baseUrl = process.env.BUCKET_BASE_URL || '';
-    return value ? `${baseUrl}/${value}` : null;
+  @Transform(({ obj }) => {
+    return obj?.metadata?.cover_url ?? null;
   })
   image_url?: string;
 
   @Expose()
-  @Transform(({ value }: { value?: string[] }) => {
-    const baseUrl = process.env.BUCKET_BASE_URL || '';
-    return value?.map((url: string | undefined) =>
-      url ? `${baseUrl}/${url}` : null,
-    );
-  })
-  audio_urls?: string[];
-
-  @Expose()
-  average_review_rating: number;
+  avg_rating: number;
 
   @Expose()
   status: string;

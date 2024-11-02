@@ -34,4 +34,10 @@ export class ProfileDto {
     return obj?.company?.name ?? null;
   })
   company: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    return obj?.company?.available_credits ?? null;
+  })
+  available_credits: number;
 }

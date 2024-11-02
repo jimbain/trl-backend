@@ -8,6 +8,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
+import { CategoryService } from 'src/categories/category.service';
 
 @Injectable()
 export class AudioService {
@@ -23,6 +24,8 @@ export class AudioService {
   @InjectRepository(UserAudioStatus)
   private readonly userAudioRepository: Repository<UserAudioStatus>;
 
+  private readonly categoryService: CategoryService
+
   async findById(
     id: string,
     relations: string[] = [],
@@ -31,7 +34,7 @@ export class AudioService {
       where: { id },
       relations: relations.length ? relations : undefined,
     });
-    console.log('AudioService', audio);
+    
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found`);
     }
@@ -112,12 +115,14 @@ export class AudioService {
       })
       .getMany();
 
+      // this.categoryService.getPopularity(companyAudioCategory?.category_id)
     return companyAudioCategories.map((companyAudioCategory) => {
       return {
         id: companyAudioCategory?.category_id ?? null,
         title:
           companyAudioCategory?.display_title ??
           companyAudioCategory?.category?.title,
+        popularity: 0
       };
     });
   }
@@ -143,7 +148,7 @@ export class AudioService {
 
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata') // Join with AudioMetadata
+      .leftJoinAndSelect('audio.metadata', 'metadata')
       .where('audio.categories @> :categoryId::jsonb', {
         categoryId: JSON.stringify([categoryId]),
       })
@@ -159,19 +164,30 @@ export class AudioService {
       ])
       .getMany();
 
-    return audios.map((audio) => {
-      return {
-        id: audio?.id ?? null,
-        title: audio?.display_title ?? audio?.metadata?.title ?? null,
-        authors: audio?.display_authors ?? audio?.metadata?.authors ?? [],
-        image_url: audio?.metadata?.cover_url ?? null,
-        avg_rating: audio?.avg_rating ?? null,
-      };
-    });
+    return {
+      category:{
+        id: categoryId,
+        title: companyAudioCategory?.display_title ?? companyAudioCategory?.category?.title,
+      },
+      data: audios.map((audio) => {
+        return {
+          id: audio?.id ?? null,
+          title: audio?.display_title ?? audio?.metadata?.title ?? null,
+          authors: audio?.display_authors ?? audio?.metadata?.authors ?? [],
+          image_url: audio?.metadata?.cover_url ?? null,
+          avg_rating: audio?.avg_rating ?? null,
+        };
+      })
+    }
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
-    const audio = await this.findById(id);
+    const audio = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .where('audio.id = :id', { id })
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .getOne();
 
     let status = null;
 
