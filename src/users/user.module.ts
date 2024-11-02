@@ -13,7 +13,12 @@ import { MailgunService } from 'src/common/services/mailgun.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, Audio, UserAudioStatus])],
-  controllers: [ContactUsController, ProfileController, UserController, UserAudioController],
+  controllers: [
+    ContactUsController,
+    ProfileController,
+    UserController,
+    UserAudioController,
+  ],
   providers: [UserService, UserAudioService, MailgunService],
   exports: [UserService, MailgunService],
 })

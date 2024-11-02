@@ -107,21 +107,22 @@ export class AudioService {
       .where('companyCategory.company_id = :companyId', { companyId })
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
-      .andWhere("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .andWhere('category.media_types @> :mediaType', {
+        mediaType: '["audio"]',
+      })
       .getMany();
 
     return companyAudioCategories.map((companyAudioCategory) => {
       return {
         id: companyAudioCategory?.category_id ?? null,
-        title: companyAudioCategory?.display_title ?? companyAudioCategory?.category?.title,
+        title:
+          companyAudioCategory?.display_title ??
+          companyAudioCategory?.category?.title,
       };
     });
   }
 
-  async findAudiosByCategory(
-    companyId: string,
-    categoryId: string,
-  ){
+  async findAudiosByCategory(companyId: string, categoryId: string) {
     const companyAudioCategory = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
@@ -129,10 +130,12 @@ export class AudioService {
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
       .andWhere('category.id = :categoryId', { categoryId })
-      .andWhere("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .andWhere('category.media_types @> :mediaType', {
+        mediaType: '["audio"]',
+      })
       .getOne();
 
-    if ( ! companyAudioCategory ) {
+    if (!companyAudioCategory) {
       throw new NotFoundException(
         `Category with ID ${categoryId} not found for your company`,
       );
@@ -145,16 +148,24 @@ export class AudioService {
         categoryId: JSON.stringify([categoryId]),
       })
       .andWhere('audio.is_active = :isActive', { isActive: true })
-      .select(['audio.id', 'audio.display_title', 'audio.display_authors', 'audio.avg_rating', 'metadata.title', 'metadata.authors', 'metadata.cover_url'])
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+      ])
       .getMany();
 
     return audios.map((audio) => {
       return {
         id: audio?.id ?? null,
-        title: (audio?.display_title ?? audio?.metadata?.title) ?? null,
-        authors: (audio?.display_authors ?? audio?.metadata?.authors) ?? [],
+        title: audio?.display_title ?? audio?.metadata?.title ?? null,
+        authors: audio?.display_authors ?? audio?.metadata?.authors ?? [],
         image_url: audio?.metadata?.cover_url ?? null,
-        average_review_rating: audio?.avg_rating ?? null,
+        avg_rating: audio?.avg_rating ?? null,
       };
     });
   }

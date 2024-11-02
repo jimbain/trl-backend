@@ -1,7 +1,6 @@
 import { Expose, Transform } from 'class-transformer';
 
 export class ProfileDto {
-
   @Expose()
   @Transform(({ obj }) => `${obj.first_name} ${obj.last_name}`)
   name: string;
