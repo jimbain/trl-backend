@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import FormData from 'form-data';
 import Mailgun from 'mailgun.js';
 import { ConfigService } from '@nestjs/config';
+import { ContactUsDto } from 'src/users/dto/contact-us.dto';
 
 @Injectable()
 export class MailgunService {
@@ -60,6 +61,37 @@ export class MailgunService {
           </div>
           <div style="background-color: #f8f9fa; color: #888888; padding: 20px; text-align: center;">
             <p style="font-size: 14px; margin: 0;">&copy; 2024 TRL. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  getContactUsTemplate(data: ContactUsDto): string {
+    return `
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); overflow: hidden;">
+          <div style="background-color: #0a2b5a; color: #ffffff; padding: 20px; text-align: center;">
+            <h1 style="margin: 0;">Contact Us Message</h1>
+          </div>
+          <div style="padding: 20px; color: #333333;">
+            <p style="font-size: 16px; margin: 0 0 10px;">Hello Admin,</p>
+            <p style="font-size: 16px; margin: 0 0 10px;">
+              You have received a new message from the Contact Us form. Here are the details:
+            </p>
+            <div style="margin: 20px 0;">
+              <p><strong>Name:</strong> ${data.name}</p>
+              <p><strong>Email:</strong> ${data.email}</p>
+              <p><strong>Phone:</strong> ${data.phone || 'N/A'}</p>
+              <p><strong>Message:</strong></p>
+              <p style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #dddddd;">
+                ${data.message}
+              </p>
+            </div>
+            <p style="font-size: 16px; margin: 0;">Thank you!</p>
+          </div>
+          <div style="background-color: #f8f9fa; color: #888888; padding: 20px; text-align: center;">
+            <p style="font-size: 14px; margin: 0;">&copy; 2024 Your Company. All rights reserved.</p>
           </div>
         </div>
       </div>

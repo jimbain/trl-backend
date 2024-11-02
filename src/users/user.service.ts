@@ -48,8 +48,8 @@ export class UserService {
     return `This action returns a #${id} user`;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: string, payload: Object) {
+    return await this.userRepository.update(id, payload);
   }
 
   remove(id: number) {

@@ -6,10 +6,13 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { ulid } from 'ulidx';
+import { AudioMetadata } from './audio_metadata.entity';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
@@ -88,6 +91,10 @@ export class Audio extends BaseEntity {
 
   @DeleteDateColumn()
   deleted_at: Date;
+
+  @OneToOne(() => AudioMetadata)
+  @JoinColumn({ name: 'sku', referencedColumnName: 'sku' })
+  metadata: AudioMetadata;
 
   @BeforeInsert()
   generateUlid() {

@@ -15,7 +15,7 @@ export class AudioService {
   private readonly audioCategoryRepository: Repository<Category>;
 
   @InjectRepository(CompanyCategory)
-  private readonly companyAudioCategoryRepository: Repository<CompanyCategory>;
+  private readonly companyCategoryRepository: Repository<CompanyCategory>;
 
   @InjectRepository(Audio)
   private readonly audioRepository: Repository<Audio>;
@@ -101,72 +101,62 @@ export class AudioService {
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
-    return 'test';
-    // const companyAudioCategories =
-    //   await this.companyAudioCategoryRepository.find({
-    //     where: { company_id: companyId },
-    //     select: ['audio_category_id', 'title'],
-    //   });
+    const companyAudioCategories = await this.companyCategoryRepository
+      .createQueryBuilder('companyCategory')
+      .leftJoinAndSelect('companyCategory.category', 'category')
+      .where('companyCategory.company_id = :companyId', { companyId })
+      .andWhere('companyCategory.is_active = :isActive', { isActive: true })
+      .andWhere('category.is_active = :isActive', { isActive: true })
+      .andWhere("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .getMany();
 
-    // const audioCategoryIdsWithNullTitle = companyAudioCategories
-    //   .filter((cac) => cac.title === null)
-    //   .map((cac) => cac.audio_category_id);
-
-    // let audioCategoriesMap = new Map<string, string>();
-
-    // if (audioCategoryIdsWithNullTitle.length > 0) {
-    //   const audioCategories = await this.audioCategoryRepository.find({
-    //     where: { id: In(audioCategoryIdsWithNullTitle) },
-    //     select: ['id', 'title'],
-    //   });
-
-    //   audioCategoriesMap = new Map(
-    //     audioCategories.map((ac) => [ac.id, ac.title]),
-    //   );
-    // }
-
-    // const result = companyAudioCategories.map((companyAudioCategory) => {
-    //   const audioCategoryId = companyAudioCategory.audio_category_id;
-    //   const title =
-    //     companyAudioCategory.title ?? audioCategoriesMap.get(audioCategoryId);
-    //   return {
-    //     id: audioCategoryId,
-    //     title,
-    //     popularity: companyAudioCategory.popularity,
-    //   };
-    // });
-
-    // return result;
+    return companyAudioCategories.map((companyAudioCategory) => {
+      return {
+        id: companyAudioCategory?.category_id ?? null,
+        title: companyAudioCategory?.display_title ?? companyAudioCategory?.category?.title,
+      };
+    });
   }
 
   async findAudiosByCategory(
     companyId: string,
     categoryId: string,
-  ): Promise<AudioListDto[]> {
-    return [];
-    // const companyAudioCategory =
-    //   await this.companyAudioCategoryRepository.findOne({
-    //     where: { company_id: companyId, audio_category_id: categoryId },
-    //   });
+  ){
+    const companyAudioCategory = await this.companyCategoryRepository
+      .createQueryBuilder('companyCategory')
+      .leftJoinAndSelect('companyCategory.category', 'category')
+      .where('companyCategory.company_id = :companyId', { companyId })
+      .andWhere('companyCategory.is_active = :isActive', { isActive: true })
+      .andWhere('category.is_active = :isActive', { isActive: true })
+      .andWhere('category.id = :categoryId', { categoryId })
+      .andWhere("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .getOne();
 
-    // if (!companyAudioCategory) {
-    //   throw new NotFoundException(
-    //     `Audio category with ID ${categoryId} not found for your company`,
-    //   );
-    // }
+    if ( ! companyAudioCategory ) {
+      throw new NotFoundException(
+        `Category with ID ${categoryId} not found for your company`,
+      );
+    }
 
-    // const audios = await this.audioRepository
-    //   .createQueryBuilder('audio')
-    //   .where('audio.audio_category_ids @> :categoryId::jsonb', {
-    //     categoryId: JSON.stringify([categoryId]),
-    //   })
-    //   .andWhere('audio.is_active = :isActive', { isActive: true })
-    //   .select(['audio.id', 'audio.title', 'audio.authors', 'audio.image_url'])
-    //   .getMany();
+    const audios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata') // Join with AudioMetadata
+      .where('audio.categories @> :categoryId::jsonb', {
+        categoryId: JSON.stringify([categoryId]),
+      })
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .select(['audio.id', 'audio.display_title', 'audio.display_authors', 'audio.avg_rating', 'metadata.title', 'metadata.authors', 'metadata.cover_url'])
+      .getMany();
 
-    // return plainToInstance(AudioListDto, audios, {
-    //   excludeExtraneousValues: true,
-    // });
+    return audios.map((audio) => {
+      return {
+        id: audio?.id ?? null,
+        title: (audio?.display_title ?? audio?.metadata?.title) ?? null,
+        authors: (audio?.display_authors ?? audio?.metadata?.authors) ?? [],
+        image_url: audio?.metadata?.cover_url ?? null,
+        average_review_rating: audio?.avg_rating ?? null,
+      };
+    });
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
