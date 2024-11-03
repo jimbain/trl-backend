@@ -91,8 +91,11 @@ export class AudioReviewService {
       select: ['id', 'rate'],
     });
 
-    const avgRating = reviews.length > 0  ? reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length  : 0;
-    
+    const avgRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, review) => sum + review.rate, 0) / reviews.length
+        : 0;
+
     audio.avg_rating = avgRating;
 
     await this.audioRepository.save(audio);

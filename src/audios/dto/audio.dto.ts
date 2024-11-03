@@ -6,18 +6,17 @@ export class AudioDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    return (obj?.display_title ?? obj?.metadata?.title) ?? null
+    return obj?.display_title ?? obj?.metadata?.title ?? null;
   })
   title: string;
 
   @Expose()
   @Transform(({ obj }) => {
-    if( obj?.display_short_description ){
+    if (obj?.display_short_description) {
       return obj?.display_short_description;
-    }else if( obj?.display_description ){
+    } else if (obj?.display_description) {
       return obj?.display_description;
-    }
-    else{
+    } else {
       return obj?.metadata?.description;
     }
   })
@@ -37,13 +36,13 @@ export class AudioDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    return (obj?.display_copyright ?? obj?.metadata?.copyright) ?? null
+    return obj?.display_copyright ?? obj?.metadata?.copyright ?? null;
   })
   copyright?: Date;
 
   @Expose()
   @Transform(({ obj }) => {
-    return (obj?.display_authors ?? obj?.metadata?.authors) ?? null
+    return obj?.display_authors ?? obj?.metadata?.authors ?? null;
   })
   authors?: string[];
 

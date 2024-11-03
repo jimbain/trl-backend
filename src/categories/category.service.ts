@@ -25,8 +25,8 @@ export class CategoryService {
     return `This action removes a #${id} category`;
   }
 
-  getPopularity(id: string){
-    console.log("jksdkjs", id)
+  getPopularity(id: string) {
+    console.log('jksdkjs', id);
     return 0;
   }
 }

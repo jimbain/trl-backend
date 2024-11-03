@@ -24,7 +24,7 @@ export class AudioService {
   @InjectRepository(UserAudioStatus)
   private readonly userAudioRepository: Repository<UserAudioStatus>;
 
-  private readonly categoryService: CategoryService
+  private readonly categoryService: CategoryService;
 
   async findById(
     id: string,
@@ -34,7 +34,7 @@ export class AudioService {
       where: { id },
       relations: relations.length ? relations : undefined,
     });
-    
+
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found`);
     }
@@ -115,14 +115,14 @@ export class AudioService {
       })
       .getMany();
 
-      // this.categoryService.getPopularity(companyAudioCategory?.category_id)
+    // this.categoryService.getPopularity(companyAudioCategory?.category_id)
     return companyAudioCategories.map((companyAudioCategory) => {
       return {
         id: companyAudioCategory?.category_id ?? null,
         title:
           companyAudioCategory?.display_title ??
           companyAudioCategory?.category?.title,
-        popularity: 0
+        popularity: 0,
       };
     });
   }
@@ -165,9 +165,11 @@ export class AudioService {
       .getMany();
 
     return {
-      category:{
+      category: {
         id: categoryId,
-        title: companyAudioCategory?.display_title ?? companyAudioCategory?.category?.title,
+        title:
+          companyAudioCategory?.display_title ??
+          companyAudioCategory?.category?.title,
       },
       data: audios.map((audio) => {
         return {
@@ -177,8 +179,8 @@ export class AudioService {
           image_url: audio?.metadata?.cover_url ?? null,
           avg_rating: audio?.avg_rating ?? null,
         };
-      })
-    }
+      }),
+    };
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
