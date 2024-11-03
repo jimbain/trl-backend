@@ -22,7 +22,7 @@ export class UserAudioService {
     @InjectRepository(AppConfig)
     private readonly appConfigRepository: Repository<AppConfig>,
   ) {}
-  
+
   async update(
     audioId: string,
     status: 'queued' | 'rented' | 'bookshelved',
@@ -55,8 +55,8 @@ export class UserAudioService {
     const audioRentalCost = await this.appConfigRepository.findOne({
       select: ['value'],
       where: {
-        key: 'audio_rental_credit_cost'
-      }
+        key: 'audio_rental_credit_cost',
+      },
     });
 
     const userActivityLog = this.userActivityLogRepository.create({
@@ -64,22 +64,21 @@ export class UserAudioService {
       item_id: audioId,
       item_type: 'audio',
       action_type: null,
-      credit_used: 0
+      credit_used: 0,
     });
 
-    if( status === 'queued' ){
+    if (status === 'queued') {
       userActivityLog.action_type = 'queue';
-    }
-    else if( status === 'rented' ){
+    } else if (status === 'rented') {
       userActivityLog.action_type = 'rent';
-      userActivityLog.credit_used = parseInt(audioRentalCost ? audioRentalCost.value.toString() : "0");
-    }
-    else if( status === 'bookshelved' ){
+      userActivityLog.credit_used = parseInt(
+        audioRentalCost ? audioRentalCost.value.toString() : '0',
+      );
+    } else if (status === 'bookshelved') {
       userActivityLog.action_type = 'keep';
       userActivityLog.credit_used = audio.trl_cost;
     }
 
     await this.userActivityLogRepository.save(userActivityLog);
-
   }
 }

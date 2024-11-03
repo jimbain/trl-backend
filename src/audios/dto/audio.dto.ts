@@ -80,21 +80,23 @@ export class AudioListDto {
   id: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.display_title ?? obj?.metadata?.title ?? null;
+  })
   title: string;
-
+  
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.display_authors ?? obj?.metadata?.authors ?? null;
+  })
   authors?: string[];
 
   @Expose()
-  @Transform(({ value }) => {
-    const baseUrl = process.env.BUCKET_BASE_URL || '';
-    return value ? `${baseUrl}/${value}` : null;
+  @Transform(({ obj }) => {
+    return obj?.metadata?.cover_url ?? null;
   })
   image_url?: string;
 
   @Expose()
-  @Transform(({ value }) =>
-    value !== null && value !== undefined ? Math.round(value * 10) / 10 : null,
-  )
-  average_review_rating: number;
+  avg_rating: number;
 }

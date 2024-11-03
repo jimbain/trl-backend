@@ -22,9 +22,11 @@ export class AudioService {
   private readonly audioRepository: Repository<Audio>;
 
   @InjectRepository(UserAudioStatus)
-  private readonly userAudioRepository: Repository<UserAudioStatus>;
+  private readonly userAudioStatusRepository: Repository<UserAudioStatus>;
 
-  private readonly categoryService: CategoryService;
+  constructor(
+    private readonly categoryService: CategoryService
+  ) {}
 
   async findById(
     id: string,
@@ -43,64 +45,76 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    return [];
-    // const companyAudioCategories =
-    //   await this.companyAudioCategoryRepository.find({
-    //     where: { company_id: companyId },
-    //   });
-    // return companyAudioCategories.map((category) => category.audio_category_id);
+    const companyAudioCategories =
+      await this.companyCategoryRepository.find({
+        where: { company_id: companyId, is_active: true },
+      });
+
+    return companyAudioCategories.map((category) => category.category_id);
   }
 
   async findAllFeaturedAudios(
     audioCategoryIds: string[],
   ): Promise<AudioListDto[]> {
-    return [];
-    // const featuredAudios = await this.audioRepository
-    //   .createQueryBuilder('audio')
-    //   .where(
-    //     `array(SELECT jsonb_array_elements_text(audio.audio_category_ids)) && :categoryIds`,
-    //     { categoryIds: audioCategoryIds },
-    //   )
-    //   .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
-    //   .andWhere('audio.is_active = :isActive', { isActive: true })
-    //   .select([
-    //     'audio.id',
-    //     'audio.title',
-    //     'audio.image_url',
-    //     'audio.authors',
-    //     'audio.average_review_rating',
-    //   ])
-    //   .getMany();
+    const featuredAudios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .where(
+        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        { categoryIds: audioCategoryIds },
+      )
+      .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+      ])
+      .getMany();
 
-    // return plainToInstance(AudioListDto, featuredAudios, {
-    //   excludeExtraneousValues: true,
-    // });
+    return plainToInstance(AudioListDto, featuredAudios, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findAudiosOfUserBasedOnStatus(
     user: User,
     status: 'queued' | 'bookshelved',
   ): Promise<AudioListDto[]> {
-    return [];
-    // const userAudios = await this.userAudioRepository.find({
-    //   where: { user_id: user.id, status: status },
-    //   select: ['audio_id'],
-    // });
+    const userAudios = await this.userAudioStatusRepository.find({
+      where: { user_id: user.id, status: status },
+      select: ['audio_id'],
+    });
 
-    // const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
+    const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
 
-    // if (audioIds.length === 0) {
-    //   return [];
-    // }
+    if (audioIds.length === 0) {
+      return [];
+    }
 
-    // const audios = await this.audioRepository.find({
-    //   where: { id: In(audioIds) },
-    //   select: ['id', 'title', 'image_url', 'authors', 'average_review_rating'],
-    // });
+    const audios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('audio.id IN (:...audioIds)', { audioIds })
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+      ])
+      .getMany();
 
-    // return plainToInstance(AudioListDto, audios, {
-    //   excludeExtraneousValues: true,
-    // });
+    return plainToInstance(AudioListDto, audios, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
@@ -115,14 +129,13 @@ export class AudioService {
       })
       .getMany();
 
-    // this.categoryService.getPopularity(companyAudioCategory?.category_id)
     return companyAudioCategories.map((companyAudioCategory) => {
       return {
         id: companyAudioCategory?.category_id ?? null,
         title:
           companyAudioCategory?.display_title ??
           companyAudioCategory?.category?.title,
-        popularity: 0,
+        popularity: this.categoryService.getPopularity(companyAudioCategory?.category_id),
       };
     });
   }
@@ -193,7 +206,7 @@ export class AudioService {
 
     let status = null;
 
-    const userAudio = await this.userAudioRepository.findOne({
+    const userAudio = await this.userAudioStatusRepository.findOne({
       where: { user_id: user.id, audio_id: id },
       select: ['status'],
     });

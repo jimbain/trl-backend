@@ -9,7 +9,7 @@ import { ValidationModule } from './validation/validation.module';
 import { CommonModule } from './common/common.module';
 import { CompanyModule } from './companies/company.module';
 import { AudioModule } from './audios/audio.module';
-import { CategoriesModule } from './categories/category.module';
+import { CategoryModule } from './categories/category.module';
 import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
@@ -25,7 +25,7 @@ import { AppConfigModule } from './app-config/app-config.module';
     ValidationModule,
     CompanyModule,
     AudioModule,
-    CategoriesModule,
+    CategoryModule,
     AppConfigModule,
   ],
   controllers: [AppController],

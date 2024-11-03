@@ -14,7 +14,15 @@ import { UserActivityLog } from './entities/user_activity_log.entity';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Audio, UserAudioStatus, UserActivityLog, AppConfig])],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      Audio,
+      UserAudioStatus,
+      UserActivityLog,
+      AppConfig,
+    ]),
+  ],
   controllers: [
     ContactUsController,
     ProfileController,

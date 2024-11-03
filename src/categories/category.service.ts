@@ -26,7 +26,6 @@ export class CategoryService {
   }
 
   getPopularity(id: string) {
-    console.log('jksdkjs', id);
-    return 0;
+    return Math.floor(Math.random() * (200 - 50 + 1)) + 50;
   }
 }
