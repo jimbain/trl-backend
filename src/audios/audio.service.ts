@@ -24,9 +24,7 @@ export class AudioService {
   @InjectRepository(UserAudioStatus)
   private readonly userAudioStatusRepository: Repository<UserAudioStatus>;
 
-  constructor(
-    private readonly categoryService: CategoryService
-  ) {}
+  constructor(private readonly categoryService: CategoryService) {}
 
   async findById(
     id: string,
@@ -45,10 +43,9 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    const companyAudioCategories =
-      await this.companyCategoryRepository.find({
-        where: { company_id: companyId, is_active: true },
-      });
+    const companyAudioCategories = await this.companyCategoryRepository.find({
+      where: { company_id: companyId, is_active: true },
+    });
 
     return companyAudioCategories.map((category) => category.category_id);
   }
@@ -135,7 +132,9 @@ export class AudioService {
         title:
           companyAudioCategory?.display_title ??
           companyAudioCategory?.category?.title,
-        popularity: this.categoryService.getPopularity(companyAudioCategory?.category_id),
+        popularity: this.categoryService.getPopularity(
+          companyAudioCategory?.category_id,
+        ),
       };
     });
   }

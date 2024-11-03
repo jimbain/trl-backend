@@ -84,7 +84,7 @@ export class AudioListDto {
     return obj?.display_title ?? obj?.metadata?.title ?? null;
   })
   title: string;
-  
+
   @Expose()
   @Transform(({ obj }) => {
     return obj?.display_authors ?? obj?.metadata?.authors ?? null;
