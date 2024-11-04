@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
@@ -193,6 +193,42 @@ export class AudioService {
         };
       }),
     };
+  }
+
+  async searchAudios(companyId: string, query: string): Promise<AudioListDto[]>{
+    const categories = await this.findAllAudioCategoryIdOfCompany(companyId);
+
+    const audios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .where(
+        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        { categoryIds: categories },
+      )
+      .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where('audio.display_title ILIKE :query')
+            .orWhere('metadata.title ILIKE :query')
+            .orWhere('metadata.description ILIKE :query');
+        }),
+        { query: `%${query}%` },
+      )
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+      ])
+      .getMany();
+
+    return plainToInstance(AudioListDto, audios, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {

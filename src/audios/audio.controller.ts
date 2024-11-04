@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { AudioService } from './audio.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -76,6 +77,11 @@ export class AudioController {
   @Get('audio-categories/:id/audios')
   findAudiosByCategory(@Request() req, @Param('id') id: string) {
     return this.audioService.findAudiosByCategory(req.user.company.id, id);
+  }
+
+  @Get('search/audios')
+  search(@Request() req,  @Query('query') query: string) {
+    return this.audioService.searchAudios(req.user.company.id, query);
   }
 
   @Get('audios/:id')
