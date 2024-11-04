@@ -208,7 +208,6 @@ export class AudioService {
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categories },
       )
-      .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere(
         new Brackets((qb) => {

@@ -13,6 +13,6 @@ export class UserDto {
   email: string;
 
   @Expose()
-  @Type(() => CompanyDto)
-  company: CompanyDto;
+  @Transform(({ obj }) =>  obj?.company?.name ?? null )
+  company: string;
 }

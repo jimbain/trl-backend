@@ -84,6 +84,14 @@ export class AudioController {
     return this.audioService.searchAudios(req.user.company.id, query);
   }
 
+  @Get(':type/audios')
+  list(
+    @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
+    @Request() req,
+  ) {
+    return type;
+  }
+
   @Get('audios/:id')
   findOne(@Request() req, @Param('id') id: string) {
     return this.audioService.findAudioById(id, req.user);
