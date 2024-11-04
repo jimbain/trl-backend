@@ -195,7 +195,10 @@ export class AudioService {
     };
   }
 
-  async searchAudios(companyId: string, query: string): Promise<AudioListDto[]>{
+  async searchAudios(
+    companyId: string,
+    query: string,
+  ): Promise<AudioListDto[]> {
     const categories = await this.findAllAudioCategoryIdOfCompany(companyId);
 
     const audios = await this.audioRepository

@@ -80,7 +80,7 @@ export class AudioController {
   }
 
   @Get('search/audios')
-  search(@Request() req,  @Query('query') query: string) {
+  search(@Request() req, @Query('query') query: string) {
     return this.audioService.searchAudios(req.user.company.id, query);
   }
 
