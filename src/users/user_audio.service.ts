@@ -51,12 +51,18 @@ export class UserAudioService {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    const updatedUserAudio = userAudio
-      ? { ...userAudio, status }
+    if ( userAudio.status === status ) {
+      throw new BadRequestException(`Status unchanged`);
+    }
+
+    let updatedUserAudio = userAudio
+      ? { ...userAudio, status, updated_at: new Date(), rental_expire_at: status === 'rented' ? new Date() : null }
       : this.userAudioStatusRepository.create({
           audio_id: audioId,
           user_id: user.id,
           status,
+          updated_at: new Date(),
+          rental_expire_at: status === 'rented' ? new Date() : null,
         });
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
@@ -108,5 +114,9 @@ export class UserAudioService {
         );
       }
     }
+
+    return this.userAudioStatusRepository.findOne({
+      where: { audio_id: audioId, user_id: user.id },
+    });
   }
 }

@@ -97,20 +97,19 @@ export class AudioController {
         req.user.company.id,
       );
 
-    if (type === 'featured') {
-      return this.audioService.getFeaturedAudios(companyAudioCategoryIds);
-    } else if (type === 'queued') {
-      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'queued');
-    } else if (type === 'bookself') {
-      return this.audioService.getAudiosOfUserBasedOnStatus(
-        req.user,
-        'bookshelved',
-      );
-    } else if (type === 'popular') {
-      return [];
-    } else if (type === 'new') {
-      return [];
-    }
+      let data: any;
+
+      if (type === 'featured') {
+        data = await this.audioService.getFeaturedAudios(companyAudioCategoryIds);
+      } else if (type === 'queued') {
+        data = await this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'queued');
+      } else if (type === 'bookself') {
+        data = await this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'bookshelved');
+      } else if (type === 'popular' || type === 'new') {
+        data = [];
+      }
+
+      return { data };
   }
 
   @Get('audios/:id')
