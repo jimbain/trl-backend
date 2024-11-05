@@ -102,4 +102,7 @@ export class AudioListDto {
 
   @Expose()
   avg_rating: number;
+
+  @Expose()
+  updated_at?: Date;
 }

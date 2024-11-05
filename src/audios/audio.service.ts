@@ -91,10 +91,11 @@ export class AudioService {
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({
       where: { user_id: user.id, status: status },
-      select: ['audio_id'],
+      select: ['audio_id', 'updated_at'],
     });
 
     const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
+    const audioUpdatedAtMap = new Map(userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]));
 
     if (audioIds.length === 0) {
       return [];
@@ -121,7 +122,12 @@ export class AudioService {
 
     const audios = await queryBuilder.getMany();
 
-    return plainToInstance(AudioListDto, audios, {
+    const audiosWithUpdatedAt = audios.map((audio) => ({
+      ...audio,
+      updated_at: audioUpdatedAtMap.get(audio.id),
+    }));
+
+    return plainToInstance(AudioListDto, audiosWithUpdatedAt, {
       excludeExtraneousValues: true,
     });
   }
