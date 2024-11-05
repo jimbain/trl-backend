@@ -258,10 +258,15 @@ export class AudioService {
       select: ['status', 'rental_expire_at'],
     });
 
-
     return plainToInstance(
       AudioDto,
-      { ...audio, ...{ status: userAudio?.status ?? null, rental_expire_at: userAudio?.rental_expire_at ?? null } },
+      {
+        ...audio,
+        ...{
+          status: userAudio?.status ?? null,
+          rental_expire_at: userAudio?.rental_expire_at ?? null,
+        },
+      },
       { excludeExtraneousValues: true },
     );
   }
