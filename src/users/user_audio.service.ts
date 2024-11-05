@@ -51,12 +51,17 @@ export class UserAudioService {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    if ( userAudio.status === status ) {
+    if (userAudio.status === status) {
       throw new BadRequestException(`Status unchanged`);
     }
 
-    let updatedUserAudio = userAudio
-      ? { ...userAudio, status, updated_at: new Date(), rental_expire_at: status === 'rented' ? new Date() : null }
+    const updatedUserAudio = userAudio
+      ? {
+          ...userAudio,
+          status,
+          updated_at: new Date(),
+          rental_expire_at: status === 'rented' ? new Date() : null,
+        }
       : this.userAudioStatusRepository.create({
           audio_id: audioId,
           user_id: user.id,
