@@ -95,7 +95,9 @@ export class AudioService {
     });
 
     const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
-    const audioUpdatedAtMap = new Map(userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]));
+    const audioUpdatedAtMap = new Map(
+      userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]),
+    );
 
     if (audioIds.length === 0) {
       return [];
