@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
@@ -32,10 +36,10 @@ export class UserAudioService {
     status: 'queued' | 'rented' | 'bookshelved',
     user: User,
   ) {
-    let [audio, audioRentalCost, userAudio] = await Promise.all([
+    const [audio, audioRentalCost, userAudio] = await Promise.all([
       this.audioRepository.findOne({ where: { id: audioId } }),
-      this.appConfigRepository.findOne({ 
-        select: ['value'], 
+      this.appConfigRepository.findOne({
+        select: ['value'],
         where: { key: 'audio_rental_credit_cost' },
       }),
       this.userAudioStatusRepository.findOne({
@@ -65,9 +69,9 @@ export class UserAudioService {
       },
       bookshelved: { action_type: 'keep', credit_used: audio.trl_cost || 0 },
     };
-  
+
     const { action_type, credit_used } = actionMapping[status];
-  
+
     // Log user activity
     const userActivityLog = this.userActivityLogRepository.create({
       user_id: user.id,
@@ -76,20 +80,22 @@ export class UserAudioService {
       action_type,
       credit_used,
     });
-  
+
     await this.userActivityLogRepository.save(userActivityLog);
-  
+
     // Deduct credits if applicable
     if (credit_used > 0) {
       const company = await this.companyRepository.findOne({
         select: ['available_credits'],
         where: { id: user.company_id },
       });
-    
+
       if (!company) {
-        throw new NotFoundException(`Company with ID ${user.company_id} not found`);
+        throw new NotFoundException(
+          `Company with ID ${user.company_id} not found`,
+        );
       }
-    
+
       if (company.available_credits >= credit_used) {
         await this.companyRepository.decrement(
           { id: user.company_id },

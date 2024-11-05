@@ -22,7 +22,7 @@ import { Company } from 'src/companies/entities/company.entity';
       UserAudioStatus,
       UserActivityLog,
       AppConfig,
-      Company
+      Company,
     ]),
   ],
   controllers: [
