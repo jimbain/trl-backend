@@ -50,15 +50,16 @@ export class AudioService {
     return companyAudioCategories.map((category) => category.category_id);
   }
 
-  async findAllFeaturedAudios(
-    audioCategoryIds: string[],
+  async getFeaturedAudios(
+    categoryIds: string[],
+    limit: number = null
   ): Promise<AudioListDto[]> {
-    const featuredAudios = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
-        { categoryIds: audioCategoryIds },
+        { categoryIds: categoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
       .andWhere('audio.is_active = :isActive', { isActive: true })
@@ -70,17 +71,23 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
-      ])
-      .getMany();
+      ]);
+
+    if (limit !== null) {
+      queryBuilder.take(limit);
+    }
+
+    const featuredAudios = await queryBuilder.getMany();
 
     return plainToInstance(AudioListDto, featuredAudios, {
       excludeExtraneousValues: true,
     });
   }
 
-  async findAudiosOfUserBasedOnStatus(
+  async getAudiosOfUserBasedOnStatus(
     user: User,
     status: 'queued' | 'bookshelved',
+    limit: number = null
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({
       where: { user_id: user.id, status: status },
@@ -93,7 +100,7 @@ export class AudioService {
       return [];
     }
 
-    const audios = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .andWhere('audio.is_active = :isActive', { isActive: true })
@@ -106,8 +113,13 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
-      ])
-      .getMany();
+      ]);
+
+    if (limit !== null) {
+      queryBuilder.take(limit);
+    }
+
+    const audios = await queryBuilder.getMany();
 
     return plainToInstance(AudioListDto, audios, {
       excludeExtraneousValues: true,

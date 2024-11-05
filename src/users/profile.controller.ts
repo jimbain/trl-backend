@@ -31,5 +31,10 @@ export class ProfileController {
   @HttpCode(200)
   async updateProfile(@Request() req, @Body() payload: UpdateProfileDto) {
     await this.userService.update(req.user.id, payload);
+    const updatedUser = this.userService.findByEmail(req.user.email, ['company']);
+
+    return plainToInstance(ProfileDto, updatedUser, {
+      excludeExtraneousValues: true,
+    });
   }
 }

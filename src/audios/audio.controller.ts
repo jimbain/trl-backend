@@ -34,8 +34,8 @@ export class AudioController {
       {
         label: 'Featured Titles',
         slug: 'featured',
-        audios: await this.audioService.findAllFeaturedAudios(
-          companyAudioCategoryIds,
+        audios: await this.audioService.getFeaturedAudios(
+          companyAudioCategoryIds, 10
         ),
       },
       {
@@ -46,17 +46,19 @@ export class AudioController {
       {
         label: 'My Bookshelf',
         slug: 'bookself',
-        audios: await this.audioService.findAudiosOfUserBasedOnStatus(
+        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
           req.user,
           'bookshelved',
+          10
         ),
       },
       {
         label: 'Queued Titles',
         slug: 'queued',
-        audios: await this.audioService.findAudiosOfUserBasedOnStatus(
+        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
           req.user,
           'queued',
+          10
         ),
       },
       {
@@ -85,11 +87,27 @@ export class AudioController {
   }
 
   @Get(':type/audios')
-  list(
+  async list(
     @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
     @Request() req,
   ) {
-    return type;
+    const companyAudioCategoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(req.user.company.id);
+
+    if(type === 'featured'){
+      return this.audioService.getFeaturedAudios(companyAudioCategoryIds);
+    }
+    else if(type === 'queued'){
+      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'queued')
+    }
+    else if(type === 'bookself'){
+      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'bookshelved')
+    }
+    else if(type === 'popular'){
+      return []
+    }
+    else if(type === 'new'){
+      return []
+    }
   }
 
   @Get('audios/:id')
