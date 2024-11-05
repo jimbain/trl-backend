@@ -52,7 +52,7 @@ export class AudioService {
 
   async getFeaturedAudios(
     categoryIds: string[],
-    limit: number = null
+    limit: number = null,
   ): Promise<AudioListDto[]> {
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
@@ -87,7 +87,7 @@ export class AudioService {
   async getAudiosOfUserBasedOnStatus(
     user: User,
     status: 'queued' | 'bookshelved',
-    limit: number = null
+    limit: number = null,
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({
       where: { user_id: user.id, status: status },

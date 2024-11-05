@@ -35,7 +35,8 @@ export class AudioController {
         label: 'Featured Titles',
         slug: 'featured',
         audios: await this.audioService.getFeaturedAudios(
-          companyAudioCategoryIds, 10
+          companyAudioCategoryIds,
+          10,
         ),
       },
       {
@@ -49,7 +50,7 @@ export class AudioController {
         audios: await this.audioService.getAudiosOfUserBasedOnStatus(
           req.user,
           'bookshelved',
-          10
+          10,
         ),
       },
       {
@@ -58,7 +59,7 @@ export class AudioController {
         audios: await this.audioService.getAudiosOfUserBasedOnStatus(
           req.user,
           'queued',
-          10
+          10,
         ),
       },
       {
@@ -91,22 +92,24 @@ export class AudioController {
     @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
     @Request() req,
   ) {
-    const companyAudioCategoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(req.user.company.id);
+    const companyAudioCategoryIds =
+      await this.audioService.findAllAudioCategoryIdOfCompany(
+        req.user.company.id,
+      );
 
-    if(type === 'featured'){
+    if (type === 'featured') {
       return this.audioService.getFeaturedAudios(companyAudioCategoryIds);
-    }
-    else if(type === 'queued'){
-      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'queued')
-    }
-    else if(type === 'bookself'){
-      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'bookshelved')
-    }
-    else if(type === 'popular'){
-      return []
-    }
-    else if(type === 'new'){
-      return []
+    } else if (type === 'queued') {
+      return this.audioService.getAudiosOfUserBasedOnStatus(req.user, 'queued');
+    } else if (type === 'bookself') {
+      return this.audioService.getAudiosOfUserBasedOnStatus(
+        req.user,
+        'bookshelved',
+      );
+    } else if (type === 'popular') {
+      return [];
+    } else if (type === 'new') {
+      return [];
     }
   }
 
