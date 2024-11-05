@@ -253,20 +253,15 @@ export class AudioService {
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .getOne();
 
-    let status = null;
-
     const userAudio = await this.userAudioStatusRepository.findOne({
       where: { user_id: user.id, audio_id: id },
-      select: ['status'],
+      select: ['status', 'rental_expire_at'],
     });
 
-    if (userAudio) {
-      status = userAudio.status;
-    }
 
     return plainToInstance(
       AudioDto,
-      { ...audio, ...{ status: status } },
+      { ...audio, ...{ status: userAudio?.status ?? null, rental_expire_at: userAudio?.rental_expire_at ?? null } },
       { excludeExtraneousValues: true },
     );
   }

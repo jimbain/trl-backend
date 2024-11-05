@@ -73,6 +73,9 @@ export class AudioDto {
 
   @Expose()
   status: string;
+
+  @Expose()
+  rental_expire_at: Date;
 }
 
 export class AudioListDto {
