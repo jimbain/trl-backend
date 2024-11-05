@@ -51,7 +51,7 @@ export class UserAudioService {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    if (userAudio.status === status) {
+    if (userAudio && userAudio.status === status) {
       throw new BadRequestException(`Status unchanged`);
     }
 
