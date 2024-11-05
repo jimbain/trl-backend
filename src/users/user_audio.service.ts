@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
@@ -6,6 +6,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { UserAudioStatus } from './entities/user_audio_status.entity';
 import { UserActivityLog } from './entities/user_activity_log.entity';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { Company } from 'src/companies/entities/company.entity';
 
 @Injectable()
 export class UserAudioService {
@@ -21,6 +22,9 @@ export class UserAudioService {
 
     @InjectRepository(AppConfig)
     private readonly appConfigRepository: Repository<AppConfig>,
+
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
   ) {}
 
   async update(
@@ -28,57 +32,75 @@ export class UserAudioService {
     status: 'queued' | 'rented' | 'bookshelved',
     user: User,
   ) {
-    const audio = await this.audioRepository.findOne({
-      where: { id: audioId },
-    });
+    let [audio, audioRentalCost, userAudio] = await Promise.all([
+      this.audioRepository.findOne({ where: { id: audioId } }),
+      this.appConfigRepository.findOne({ 
+        select: ['value'], 
+        where: { key: 'audio_rental_credit_cost' },
+      }),
+      this.userAudioStatusRepository.findOne({
+        where: { audio_id: audioId, user_id: user.id },
+      }),
+    ]);
 
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    let userAudio = await this.userAudioStatusRepository.findOne({
-      where: { audio_id: audioId, user_id: user.id },
-    });
+    const updatedUserAudio = userAudio
+      ? { ...userAudio, status }
+      : this.userAudioStatusRepository.create({
+          audio_id: audioId,
+          user_id: user.id,
+          status,
+        });
 
-    if (userAudio) {
-      userAudio.status = status;
-    } else {
-      userAudio = this.userAudioStatusRepository.create({
-        audio_id: audioId,
-        user_id: user.id,
-        status: status,
-      });
-    }
+    await this.userAudioStatusRepository.save(updatedUserAudio);
 
-    await this.userAudioStatusRepository.save(userAudio);
-
-    const audioRentalCost = await this.appConfigRepository.findOne({
-      select: ['value'],
-      where: {
-        key: 'audio_rental_credit_cost',
+    const actionMapping = {
+      queued: { action_type: 'queue', credit_used: 0 },
+      rented: {
+        action_type: 'rent',
+        credit_used: parseInt(audioRentalCost?.value.toString() || '0', 10),
       },
-    });
-
+      bookshelved: { action_type: 'keep', credit_used: audio.trl_cost || 0 },
+    };
+  
+    const { action_type, credit_used } = actionMapping[status];
+  
+    // Log user activity
     const userActivityLog = this.userActivityLogRepository.create({
       user_id: user.id,
       item_id: audioId,
       item_type: 'audio',
-      action_type: null,
-      credit_used: 0,
+      action_type,
+      credit_used,
     });
-
-    if (status === 'queued') {
-      userActivityLog.action_type = 'queue';
-    } else if (status === 'rented') {
-      userActivityLog.action_type = 'rent';
-      userActivityLog.credit_used = parseInt(
-        audioRentalCost ? audioRentalCost.value.toString() : '0',
-      );
-    } else if (status === 'bookshelved') {
-      userActivityLog.action_type = 'keep';
-      userActivityLog.credit_used = audio.trl_cost;
-    }
-
+  
     await this.userActivityLogRepository.save(userActivityLog);
+  
+    // Deduct credits if applicable
+    if (credit_used > 0) {
+      const company = await this.companyRepository.findOne({
+        select: ['available_credits'],
+        where: { id: user.company_id },
+      });
+    
+      if (!company) {
+        throw new NotFoundException(`Company with ID ${user.company_id} not found`);
+      }
+    
+      if (company.available_credits >= credit_used) {
+        await this.companyRepository.decrement(
+          { id: user.company_id },
+          'available_credits',
+          credit_used,
+        );
+      } else {
+        throw new BadRequestException(
+          `Insufficient credits. Available credits: ${company.available_credits}`,
+        );
+      }
+    }
   }
 }
