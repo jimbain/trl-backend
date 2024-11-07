@@ -16,7 +16,6 @@ export class CategorySeeder {
     );
 
     const audioCategories = [
-      'All Categories',
       'Best of TRL',
       'Appearance',
       'Business Book Summaries',
@@ -57,6 +56,13 @@ export class CategorySeeder {
       const audioCategory = this.audioCategoryRepository.create(categoryData);
       await this.audioCategoryRepository.save(audioCategory);
     }
+
+    // push All Category
+    const allCategory = this.audioCategoryRepository.create({
+      title: 'All Category',
+      id: 'category_0',
+    });
+    await this.audioCategoryRepository.save(allCategory);
 
     console.log(
       '###########################  AUDIO CATEGORY SEEDING END  ###########################',
