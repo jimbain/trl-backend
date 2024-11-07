@@ -27,6 +27,7 @@ export class AppConfigSeeder {
       rental_period_unit: RENTAL_PERIOD_UNIT.WEEK,
       audio_ignored_languages: [],
       master_password: 'master',
+      contact_us_email: 'mashfiqurrr@gmail.com',
     };
 
     for (const [key, value] of Object.entries(appConfig)) {
