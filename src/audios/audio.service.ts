@@ -168,19 +168,24 @@ export class AudioService {
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
       // .andWhere('category.id = :categoryId', { categoryId })
-      .andWhere(categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1', { categoryId })
+      .andWhere(
+        categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1',
+        { categoryId },
+      )
       .andWhere('category.media_types @> :mediaType', {
         mediaType: '["audio"]',
       })
       .getMany();
 
-    if ( ! companyAudioCategories.length ) {
+    if (!companyAudioCategories.length) {
       throw new NotFoundException(
         `Category with ID ${categoryId} not found for your company`,
       );
     }
 
-    const categoryIds = companyAudioCategories.map((category) => category.category_id);
+    const categoryIds = companyAudioCategories.map(
+      (category) => category.category_id,
+    );
 
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
@@ -207,9 +212,11 @@ export class AudioService {
     return {
       category: {
         id: categoryId,
-        title: categoryId !== 'category_0' 
-          ? (companyAudioCategories?.[0]?.display_title ?? companyAudioCategories?.[0]?.category?.title) 
-          : "All categories"
+        title:
+          categoryId !== 'category_0'
+            ? companyAudioCategories?.[0]?.display_title ??
+              companyAudioCategories?.[0]?.category?.title
+            : 'All categories',
       },
       data: audios.map((audio) => {
         return {
