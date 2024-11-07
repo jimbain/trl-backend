@@ -76,7 +76,7 @@ export class AudioSeeder {
       const audioEntity = new Audio();
       audioEntity.sku = audioMeta.sku;
       audioEntity.available_for = Object.values(MEDIA_AVAILABILITY_TYPE)[
-        _.random(1, 3)
+        _.random(0, 2)
       ];
       audioEntity.is_active = audioMeta.is_for_sale;
       audioEntity.is_excluded = !audioEntity.is_active;

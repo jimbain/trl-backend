@@ -9,6 +9,7 @@ import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
+import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 
 @Injectable()
 export class AudioService {
@@ -266,11 +267,19 @@ export class AudioService {
       select: ['status', 'rental_expire_at'],
     });
 
+    const availableFor =
+      audio.available_for == MEDIA_AVAILABILITY_TYPE.PURCHASABLE
+        ? 'bookshelf'
+        : audio.available_for == MEDIA_AVAILABILITY_TYPE.RENTAL
+          ? 'rent'
+          : 'both';
+
     return plainToInstance(
       AudioDto,
       {
         ...audio,
         ...{
+          available_for: availableFor,
           status: userAudio?.status ?? null,
           rental_expire_at: userAudio?.rental_expire_at ?? null,
         },
