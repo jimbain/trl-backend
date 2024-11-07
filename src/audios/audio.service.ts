@@ -86,7 +86,7 @@ export class AudioService {
 
   async getAudiosOfUserBasedOnStatus(
     user: User,
-    status: 'queued' | 'bookshelved',
+    status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({

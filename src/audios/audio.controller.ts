@@ -42,7 +42,11 @@ export class AudioController {
       {
         label: 'Continue Listening',
         slug: 'continue_listening',
-        audios: [],
+        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
+          req.user,
+          'rented',
+          10,
+        ),
       },
       {
         label: 'My Bookshelf',
