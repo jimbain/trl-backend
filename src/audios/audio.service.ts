@@ -167,7 +167,6 @@ export class AudioService {
       .where('companyCategory.company_id = :companyId', { companyId })
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
-      // .andWhere('category.id = :categoryId', { categoryId })
       .andWhere(
         categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1',
         { categoryId },
@@ -190,9 +189,6 @@ export class AudioService {
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
-      // .where('audio.categories @> :categoryId::jsonb', {
-      //   categoryId: JSON.stringify([categoryId]),
-      // })
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categoryIds },
