@@ -161,30 +161,37 @@ export class AudioService {
   }
 
   async findAudiosByCategory(companyId: string, categoryId: string) {
-    const companyAudioCategory = await this.companyCategoryRepository
+    const companyAudioCategories = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
       .where('companyCategory.company_id = :companyId', { companyId })
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
-      .andWhere('category.id = :categoryId', { categoryId })
+      // .andWhere('category.id = :categoryId', { categoryId })
+      .andWhere(categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1', { categoryId })
       .andWhere('category.media_types @> :mediaType', {
         mediaType: '["audio"]',
       })
-      .getOne();
+      .getMany();
 
-    if (!companyAudioCategory) {
+    if ( ! companyAudioCategories.length ) {
       throw new NotFoundException(
         `Category with ID ${categoryId} not found for your company`,
       );
     }
 
+    const categoryIds = companyAudioCategories.map((category) => category.category_id);
+
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
-      .where('audio.categories @> :categoryId::jsonb', {
-        categoryId: JSON.stringify([categoryId]),
-      })
+      // .where('audio.categories @> :categoryId::jsonb', {
+      //   categoryId: JSON.stringify([categoryId]),
+      // })
+      .where(
+        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        { categoryIds: categoryIds },
+      )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .select([
         'audio.id',
@@ -200,9 +207,9 @@ export class AudioService {
     return {
       category: {
         id: categoryId,
-        title:
-          companyAudioCategory?.display_title ??
-          companyAudioCategory?.category?.title,
+        title: categoryId !== 'category_0' 
+          ? (companyAudioCategories?.[0]?.display_title ?? companyAudioCategories?.[0]?.category?.title) 
+          : "All categories"
       },
       data: audios.map((audio) => {
         return {
