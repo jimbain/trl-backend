@@ -5,6 +5,7 @@ import {
   UseGuards,
   Body,
   HttpCode,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ContactUsDto } from './dto/contact-us.dto';
@@ -29,6 +30,10 @@ export class ContactUsController {
       select: ['value'],
       where: { key: 'contact_us_email' },
     });
+
+    if( ! contactUsEmail ){
+      throw new NotFoundException("Contact us admin email is missing in config");
+    }
 
     await this.mailgunService.sendEmail(
       contactUsEmail.value,
