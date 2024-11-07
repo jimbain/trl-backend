@@ -36,6 +36,8 @@ export class Category extends BaseEntity {
 
   @BeforeInsert()
   generateUlid() {
-    this.id = 'category_' + ulid();
+    if (!this.id) {
+      this.id = 'category_' + ulid();
+    }
   }
 }
