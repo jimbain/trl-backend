@@ -31,8 +31,10 @@ export class ContactUsController {
       where: { key: 'contact_us_email' },
     });
 
-    if( ! contactUsEmail ){
-      throw new NotFoundException("Contact us admin email is missing in config");
+    if (!contactUsEmail || !contactUsEmail.value) {
+      throw new NotFoundException(
+        'Contact us admin email is missing in config',
+      );
     }
 
     await this.mailgunService.sendEmail(
