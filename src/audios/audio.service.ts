@@ -100,7 +100,10 @@ export class AudioService {
       userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]),
     );
     const audioRentalExpiresAtMap = new Map(
-      userAudios.map((userAudio) => [userAudio.audio_id, userAudio.rental_expire_at]),
+      userAudios.map((userAudio) => [
+        userAudio.audio_id,
+        userAudio.rental_expire_at,
+      ]),
     );
 
     if (audioIds.length === 0) {
@@ -131,7 +134,7 @@ export class AudioService {
     const audiosWithUpdatedAt = audios.map((audio) => ({
       ...audio,
       updated_at: audioUpdatedAtMap.get(audio.id),
-      rental_expire_at: audioRentalExpiresAtMap.get(audio.id)
+      rental_expires_at: audioRentalExpiresAtMap.get(audio.id),
     }));
 
     return plainToInstance(AudioListDto, audiosWithUpdatedAt, {
