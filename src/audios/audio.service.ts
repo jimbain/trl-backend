@@ -92,12 +92,15 @@ export class AudioService {
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({
       where: { user_id: user.id, status: status },
-      select: ['audio_id', 'updated_at'],
+      select: ['audio_id', 'updated_at', 'rental_expire_at'],
     });
 
     const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
     const audioUpdatedAtMap = new Map(
       userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]),
+    );
+    const audioRentalExpiresAtMap = new Map(
+      userAudios.map((userAudio) => [userAudio.audio_id, userAudio.rental_expire_at]),
     );
 
     if (audioIds.length === 0) {
@@ -128,6 +131,7 @@ export class AudioService {
     const audiosWithUpdatedAt = audios.map((audio) => ({
       ...audio,
       updated_at: audioUpdatedAtMap.get(audio.id),
+      rental_expire_at: audioRentalExpiresAtMap.get(audio.id)
     }));
 
     return plainToInstance(AudioListDto, audiosWithUpdatedAt, {
