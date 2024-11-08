@@ -94,7 +94,8 @@ export class AudioService {
       where: {
         user_id: user.id,
         status: status,
-        rental_expire_at: status === 'rented' ? MoreThanOrEqual(new Date()) : null,
+        rental_expire_at:
+          status === 'rented' ? MoreThanOrEqual(new Date()) : null,
       },
       select: ['audio_id', 'updated_at', 'rental_expire_at'],
     });

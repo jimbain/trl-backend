@@ -55,19 +55,29 @@ export class UserAudioService {
       throw new BadRequestException(`Status unchanged`);
     }
 
+    let rentalExpiresAt = null;
+    if(status === 'rented'){
+      const rentalPeriodInDays = await this.appConfigRepository.findOne({
+        select: ['value'],
+        where: { key: 'audio_rental_period_in_days' },
+      });
+
+      rentalExpiresAt = status === 'rented' ? new Date(new Date().setDate(new Date().getDate() + parseInt(rentalPeriodInDays.value))) : null
+    }
+
     const updatedUserAudio = userAudio
       ? {
           ...userAudio,
           status,
           updated_at: new Date(),
-          rental_expire_at: status === 'rented' ? new Date() : null,
+          rental_expire_at: rentalExpiresAt,
         }
       : this.userAudioStatusRepository.create({
           audio_id: audioId,
           user_id: user.id,
           status,
           updated_at: new Date(),
-          rental_expire_at: status === 'rented' ? new Date() : null,
+          rental_expire_at: rentalExpiresAt,
         });
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
