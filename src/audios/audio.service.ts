@@ -134,7 +134,7 @@ export class AudioService {
     const audiosWithUpdatedAt = audios.map((audio) => ({
       ...audio,
       updated_at: audioUpdatedAtMap.get(audio.id),
-      rental_expires_at: audioRentalExpiresAtMap.get(audio.id),
+      rental_expire_at: audioRentalExpiresAtMap.get(audio.id),
     }));
 
     return plainToInstance(AudioListDto, audiosWithUpdatedAt, {

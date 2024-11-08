@@ -107,5 +107,5 @@ export class AudioListDto {
   updated_at?: Date;
 
   @Expose()
-  rental_expires_at?: Date;
+  rental_expire_at?: Date;
 }
