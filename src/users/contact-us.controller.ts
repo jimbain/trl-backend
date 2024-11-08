@@ -2,19 +2,17 @@ import {
   Controller,
   Request,
   Post,
-  UseGuards,
   Body,
   HttpCode,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ContactUsDto } from './dto/contact-us.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { Repository } from 'typeorm';
 
-@UseGuards(JwtAuthGuard)
+
 @Controller()
 export class ContactUsController {
   constructor(
