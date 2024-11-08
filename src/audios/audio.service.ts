@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository } from 'typeorm';
+import { Brackets, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
@@ -91,7 +91,11 @@ export class AudioService {
     limit: number = null,
   ): Promise<AudioListDto[]> {
     const userAudios = await this.userAudioStatusRepository.find({
-      where: { user_id: user.id, status: status },
+      where: {
+        user_id: user.id,
+        status: status,
+        rental_expire_at: status === 'rented' ? MoreThanOrEqual(new Date()) : null,
+      },
       select: ['audio_id', 'updated_at', 'rental_expire_at'],
     });
 
