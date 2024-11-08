@@ -15,6 +15,14 @@ export class CategorySeeder {
       '###########################  AUDIO CATEGORY SEEDING START  ###########################',
     );
 
+
+    // push All Category
+    const allCategory = this.audioCategoryRepository.create({
+      title: 'All Category',
+      id: 'category_0',
+    });
+    await this.audioCategoryRepository.save(allCategory);
+
     const audioCategories = [
       'Best of TRL',
       'Appearance',
@@ -56,13 +64,6 @@ export class CategorySeeder {
       const audioCategory = this.audioCategoryRepository.create(categoryData);
       await this.audioCategoryRepository.save(audioCategory);
     }
-
-    // push All Category
-    const allCategory = this.audioCategoryRepository.create({
-      title: 'All Category',
-      id: 'category_0',
-    });
-    await this.audioCategoryRepository.save(allCategory);
 
     console.log(
       '###########################  AUDIO CATEGORY SEEDING END  ###########################',

@@ -56,13 +56,20 @@ export class UserAudioService {
     }
 
     let rentalExpiresAt = null;
-    if(status === 'rented'){
+    if (status === 'rented') {
       const rentalPeriodInDays = await this.appConfigRepository.findOne({
         select: ['value'],
         where: { key: 'audio_rental_period_in_days' },
       });
 
-      rentalExpiresAt = status === 'rented' ? new Date(new Date().setDate(new Date().getDate() + parseInt(rentalPeriodInDays.value))) : null
+      rentalExpiresAt =
+        status === 'rented'
+          ? new Date(
+              new Date().setDate(
+                new Date().getDate() + parseInt(rentalPeriodInDays.value),
+              ),
+            )
+          : null;
     }
 
     const updatedUserAudio = userAudio
