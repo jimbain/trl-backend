@@ -13,30 +13,23 @@ export class UpdateProfileDto {
   title: string;
 
   @IsString()
-  @IsNotEmpty()
-  phone: string;
+  phone?: string;
 
   @IsString()
-  @IsNotEmpty()
-  address1: string;
+  address1?: string;
 
   @IsString()
-  @IsNotEmpty()
-  address2: string;
+  address2?: string;
 
   @IsString()
-  @IsNotEmpty()
-  city: string;
+  city?: string;
 
   @IsString()
-  @IsNotEmpty()
-  country: string;
+  country?: string;
 
   @IsString()
-  @IsNotEmpty()
-  state: string;
+  state?: string;
 
   @IsString()
-  @IsNotEmpty()
-  zip: string;
+  zip?: string;
 }

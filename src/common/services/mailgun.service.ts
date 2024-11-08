@@ -91,7 +91,7 @@ export class MailgunService {
             <p style="font-size: 16px; margin: 0;">Thank you!</p>
           </div>
           <div style="background-color: #f8f9fa; color: #888888; padding: 20px; text-align: center;">
-            <p style="font-size: 14px; margin: 0;">&copy; 2024 Your Company. All rights reserved.</p>
+            <p style="font-size: 14px; margin: 0;">&copy; 2024 TRL. All rights reserved.</p>
           </div>
         </div>
       </div>

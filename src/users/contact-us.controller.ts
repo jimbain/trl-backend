@@ -12,7 +12,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { Repository } from 'typeorm';
 
-
 @Controller()
 export class ContactUsController {
   constructor(
