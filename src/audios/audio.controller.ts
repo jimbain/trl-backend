@@ -86,16 +86,16 @@ export class AudioController {
     @Request() req,
     @Param('id') id: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
+    @Query('per_page') per_page: string = '20',
   ) {
     const parsedPage = parseInt(page, 10) || 1;
-    const parsedLimit = parseInt(limit, 10) || 20;
+    const parsedPerPage = parseInt(per_page, 10) || 20;
 
     return this.audioService.findAudiosByCategory(
       req.user.company.id,
       id,
       parsedPage,
-      parsedLimit,
+      parsedPerPage,
     );
   }
 
@@ -104,15 +104,16 @@ export class AudioController {
     @Request() req,
     @Query('query') query: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
+    @Query('per_page') per_page: string = '20',
   ) {
     const parsedPage = parseInt(page, 10) || 1;
-    const parsedLimit = parseInt(limit, 10) || 20;
+    const parsedPerPage = parseInt(per_page, 10) || 20;
+
     return this.audioService.searchAudios(
       req.user.company.id,
       query,
       parsedPage,
-      parsedLimit,
+      parsedPerPage,
     );
   }
 
