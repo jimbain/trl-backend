@@ -35,7 +35,7 @@ export class AudioSeeder {
     const data = JSON.parse(rawData);
     const audioCategories = await this.categoryRepository.find();
 
-    const audioEntities = data.map((audio) => {
+    const audioEntities = data.map((audio: any) => {
       const audiobook = audio.audiobook;
       const library = audio?.active_products?.library;
       const retail = audio?.active_products?.retail;

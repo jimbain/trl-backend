@@ -82,13 +82,33 @@ export class AudioController {
   }
 
   @Get('audio-categories/:id/audios')
-  findAudiosByCategory(@Request() req, @Param('id') id: string) {
-    return this.audioService.findAudiosByCategory(req.user.company.id, id);
+  findAudiosByCategory(
+    @Request() req,
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedLimit = parseInt(limit, 10) || 20;
+
+    return this.audioService.findAudiosByCategory(
+      req.user.company.id,
+      id,
+      parsedPage,
+      parsedLimit,
+    );
   }
 
   @Get('search/audios')
-  search(@Request() req, @Query('query') query: string) {
-    return this.audioService.searchAudios(req.user.company.id, query);
+  search(
+    @Request() req,
+    @Query('query') query: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedLimit = parseInt(limit, 10) || 20;
+    return this.audioService.searchAudios(req.user.company.id, query, parsedPage, parsedLimit);
   }
 
   @Get(':type/audios')
@@ -130,6 +150,11 @@ export class AudioController {
   @Get('audios/:id/reviews')
   findAudioReviews(@Request() req, @Param('id') id: string) {
     return this.audioReviewService.findAudioReviews(id, req.user);
+  }
+
+  @Get('audios/:id/playlist')
+  findAudioPlaylist(@Request() req, @Param('id') id: string) {
+    return this.audioService.findAudioPlaylist(id, req.user);
   }
 
   @Post('audios/:id/reviews')

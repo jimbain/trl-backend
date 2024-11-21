@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
@@ -10,6 +10,8 @@ import { CompanyCategory } from 'src/companies/entities/company_category.entity'
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
+import { AudioEngineService } from 'src/common/services/audio_engine.service';
+import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 
 @Injectable()
 export class AudioService {
@@ -25,7 +27,10 @@ export class AudioService {
   @InjectRepository(UserAudioStatus)
   private readonly userAudioStatusRepository: Repository<UserAudioStatus>;
 
-  constructor(private readonly categoryService: CategoryService) {}
+  constructor(
+    private readonly categoryService: CategoryService,
+    private readonly audioEngineService: AudioEngineService,
+  ) {}
 
   async findById(
     id: string,
@@ -172,8 +177,17 @@ export class AudioService {
     });
   }
 
-  async findAudiosByCategory(companyId: string, categoryId: string) {
-    const companyAudioCategories = await this.companyCategoryRepository
+  async findAudiosByCategory(
+    companyId: string,
+    categoryId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    category: { id: string; title: string };
+    data: AudioListDto[];
+    meta: PaginationMeta;
+  }> {
+      const companyAudioCategories = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
       .where('companyCategory.company_id = :companyId', { companyId })
@@ -197,8 +211,8 @@ export class AudioService {
     const categoryIds = companyAudioCategories.map(
       (category) => category.category_id,
     );
-
-    const audios = await this.audioRepository
+    
+    const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
@@ -215,7 +229,12 @@ export class AudioService {
         'metadata.authors',
         'metadata.cover_url',
       ])
-      .getMany();
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const from = total > 0 ? (page - 1) * limit + 1 : null;
+    const to = Math.min(page * limit, total);
 
     return {
       category: {
@@ -226,25 +245,27 @@ export class AudioService {
               companyAudioCategories?.[0]?.category?.title
             : 'All categories',
       },
-      data: audios.map((audio) => {
-        return {
-          id: audio?.id ?? null,
-          title: audio?.display_title ?? audio?.metadata?.title ?? null,
-          authors: audio?.display_authors ?? audio?.metadata?.authors ?? [],
-          image_url: audio?.metadata?.cover_url ?? null,
-          avg_rating: audio?.avg_rating ?? null,
-        };
-      }),
+      data: plainToInstance(AudioListDto, audios, { excludeExtraneousValues: true }),
+      meta: {
+        current_page: page,
+        per_page: limit,
+        total,
+        last_page: Math.ceil(total / limit),
+        from,
+        to,
+      },
     };
   }
 
   async searchAudios(
     companyId: string,
     query: string,
-  ): Promise<AudioListDto[]> {
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<AudioListDto>> {
     const categories = await this.findAllAudioCategoryIdOfCompany(companyId);
 
-    const audios = await this.audioRepository
+    const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
@@ -269,11 +290,24 @@ export class AudioService {
         'metadata.authors',
         'metadata.cover_url',
       ])
-      .getMany();
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
-    return plainToInstance(AudioListDto, audios, {
-      excludeExtraneousValues: true,
-    });
+    const from = total > 0 ? (page - 1) * limit + 1 : null;
+    const to = Math.min(page * limit, total);
+
+    return {
+      data: plainToInstance(AudioListDto, audios, { excludeExtraneousValues: true }),
+      meta: {
+        current_page: page,
+        per_page: limit,
+        total,
+        last_page: Math.ceil(total / limit),
+        from,
+        to,
+      },
+    };
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
@@ -308,5 +342,34 @@ export class AudioService {
       },
       { excludeExtraneousValues: true },
     );
+  }
+
+  async findAudioPlaylist(
+    audioId: string,
+    user: User,
+  ){
+    const audio = await this.findById(audioId);
+
+    const userAudioStatus = await this.userAudioStatusRepository.findOne({
+      where: { audio_id: audio.id, user_id: user.id, status: In(['rented', 'bookshelved']) },
+    });
+
+    if( ! userAudioStatus ){
+      throw new BadRequestException(`Need to rent or bookself the audio for getting playlist.`);
+    }
+
+    // const sku = audio.sku;
+    const sku = '00037';
+    const data: any = await this.audioEngineService.post(
+      `/audiobooks/${sku}/playlists`, 
+      { license_id: userAudioStatus.license_id },
+      { 'Session-key': await this.audioEngineService.getSessionKey() },
+      true
+    );
+
+    return {
+      audio_metadata: plainToInstance(AudioListDto, audio, { excludeExtraneousValues: true}),
+      ...data
+    }
   }
 }

@@ -9,9 +9,12 @@ import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
+import { AudioEngineService } from 'src/common/services/audio_engine.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
+    HttpModule,
     TypeOrmModule.forFeature([
       Category,
       CompanyCategory,
@@ -21,6 +24,6 @@ import { CategoryService } from 'src/categories/category.service';
     ]),
   ],
   controllers: [AudioController],
-  providers: [AudioService, AudioReviewService, CategoryService],
+  providers: [AudioService, AudioReviewService, CategoryService, AudioEngineService],
 })
 export class AudioModule {}

@@ -32,6 +32,9 @@ export class UserAudioStatus extends BaseEntity {
   })
   status: MediaStatus;
 
+  @Column({nullable: true})
+  license_id: string;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 

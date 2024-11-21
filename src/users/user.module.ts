@@ -13,9 +13,12 @@ import { MailgunService } from 'src/common/services/mailgun.service';
 import { UserActivityLog } from './entities/user_activity_log.entity';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { Company } from 'src/companies/entities/company.entity';
+import { AudioEngineService } from 'src/common/services/audio_engine.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
+    HttpModule,
     TypeOrmModule.forFeature([
       User,
       Audio,
@@ -31,7 +34,7 @@ import { Company } from 'src/companies/entities/company.entity';
     UserController,
     UserAudioController,
   ],
-  providers: [UserService, UserAudioService, MailgunService],
-  exports: [UserService, MailgunService],
+  providers: [UserService, UserAudioService, MailgunService, AudioEngineService],
+  exports: [UserService, MailgunService, AudioEngineService],
 })
 export class UserModule {}
