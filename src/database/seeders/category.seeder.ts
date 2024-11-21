@@ -15,7 +15,6 @@ export class CategorySeeder {
       '###########################  AUDIO CATEGORY SEEDING START  ###########################',
     );
 
-
     // push All Category
     const allCategory = this.audioCategoryRepository.create({
       title: 'All Category',

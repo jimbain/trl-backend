@@ -24,6 +24,11 @@ import { HttpModule } from '@nestjs/axios';
     ]),
   ],
   controllers: [AudioController],
-  providers: [AudioService, AudioReviewService, CategoryService, AudioEngineService],
+  providers: [
+    AudioService,
+    AudioReviewService,
+    CategoryService,
+    AudioEngineService,
+  ],
 })
 export class AudioModule {}

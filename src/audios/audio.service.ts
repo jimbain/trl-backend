@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
@@ -187,7 +191,7 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-      const companyAudioCategories = await this.companyCategoryRepository
+    const companyAudioCategories = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
       .where('companyCategory.company_id = :companyId', { companyId })
@@ -211,7 +215,7 @@ export class AudioService {
     const categoryIds = companyAudioCategories.map(
       (category) => category.category_id,
     );
-    
+
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
@@ -245,7 +249,9 @@ export class AudioService {
               companyAudioCategories?.[0]?.category?.title
             : 'All categories',
       },
-      data: plainToInstance(AudioListDto, audios, { excludeExtraneousValues: true }),
+      data: plainToInstance(AudioListDto, audios, {
+        excludeExtraneousValues: true,
+      }),
       meta: {
         current_page: page,
         per_page: limit,
@@ -298,7 +304,9 @@ export class AudioService {
     const to = Math.min(page * limit, total);
 
     return {
-      data: plainToInstance(AudioListDto, audios, { excludeExtraneousValues: true }),
+      data: plainToInstance(AudioListDto, audios, {
+        excludeExtraneousValues: true,
+      }),
       meta: {
         current_page: page,
         per_page: limit,
@@ -344,32 +352,37 @@ export class AudioService {
     );
   }
 
-  async findAudioPlaylist(
-    audioId: string,
-    user: User,
-  ){
+  async findAudioPlaylist(audioId: string, user: User) {
     const audio = await this.findById(audioId);
 
     const userAudioStatus = await this.userAudioStatusRepository.findOne({
-      where: { audio_id: audio.id, user_id: user.id, status: In(['rented', 'bookshelved']) },
+      where: {
+        audio_id: audio.id,
+        user_id: user.id,
+        status: In(['rented', 'bookshelved']),
+      },
     });
 
-    if( ! userAudioStatus ){
-      throw new BadRequestException(`Need to rent or bookself the audio for getting playlist.`);
+    if (!userAudioStatus) {
+      throw new BadRequestException(
+        `Need to rent or bookself the audio for getting playlist.`,
+      );
     }
 
     // const sku = audio.sku;
     const sku = '00037';
     const data: any = await this.audioEngineService.post(
-      `/audiobooks/${sku}/playlists`, 
+      `/audiobooks/${sku}/playlists`,
       { license_id: userAudioStatus.license_id },
       { 'Session-key': await this.audioEngineService.getSessionKey() },
-      true
+      true,
     );
 
     return {
-      audio_metadata: plainToInstance(AudioListDto, audio, { excludeExtraneousValues: true}),
-      ...data
-    }
+      audio_metadata: plainToInstance(AudioListDto, audio, {
+        excludeExtraneousValues: true,
+      }),
+      ...data,
+    };
   }
 }

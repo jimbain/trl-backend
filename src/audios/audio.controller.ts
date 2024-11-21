@@ -108,7 +108,12 @@ export class AudioController {
   ) {
     const parsedPage = parseInt(page, 10) || 1;
     const parsedLimit = parseInt(limit, 10) || 20;
-    return this.audioService.searchAudios(req.user.company.id, query, parsedPage, parsedLimit);
+    return this.audioService.searchAudios(
+      req.user.company.id,
+      query,
+      parsedPage,
+      parsedLimit,
+    );
   }
 
   @Get(':type/audios')

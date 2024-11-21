@@ -11,7 +11,9 @@ export class AudioEngineService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.apiUrl = this.configService.getOrThrow<string>('AUDIO_ENGINE_API_BASE_URL');
+    this.apiUrl = this.configService.getOrThrow<string>(
+      'AUDIO_ENGINE_API_BASE_URL',
+    );
     this.apiKey = this.configService.getOrThrow<string>('AUDIO_ENGINE_API_KEY');
   }
 
@@ -44,13 +46,15 @@ export class AudioEngineService {
     endpoint: string,
     data: Record<string, any>,
     customHeaders?: Record<string, string>,
-    overwriteHeaders: boolean = false
+    overwriteHeaders: boolean = false,
   ): Promise<T> {
     const url = `${this.apiUrl}${endpoint}`;
 
     try {
       const response = await this.httpService.axiosRef.post(url, data, {
-        headers: overwriteHeaders ? customHeaders : this.getHeaders(customHeaders),
+        headers: overwriteHeaders
+          ? customHeaders
+          : this.getHeaders(customHeaders),
       });
 
       return response.data;
@@ -90,10 +94,14 @@ export class AudioEngineService {
     }
   }
 
-  async getSessionKey(){
-    const session: {key: string} = await this.post("/sessions", {
-      account_ids: [this.configService.getOrThrow<string>('AUDIO_ENGINE_ACCOUNT_ID')],
-      external_listener_id: this.configService.getOrThrow<string>('AUDIO_ENGINE_EXTERNAL_LISTENER_ID')
+  async getSessionKey() {
+    const session: { key: string } = await this.post('/sessions', {
+      account_ids: [
+        this.configService.getOrThrow<string>('AUDIO_ENGINE_ACCOUNT_ID'),
+      ],
+      external_listener_id: this.configService.getOrThrow<string>(
+        'AUDIO_ENGINE_EXTERNAL_LISTENER_ID',
+      ),
     });
 
     return session.key;

@@ -33,16 +33,17 @@ export class UserAudioService {
     private readonly companyRepository: Repository<Company>,
 
     private readonly audioEngineService: AudioEngineService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
   ) {}
 
-  
   async update(
     audioId: string,
     status: 'queued' | 'rented' | 'bookshelved',
     user: User,
   ) {
-    const audioEngineAccountId = this.configService.getOrThrow<string>('AUDIO_ENGINE_ACCOUNT_ID');
+    const audioEngineAccountId = this.configService.getOrThrow<string>(
+      'AUDIO_ENGINE_ACCOUNT_ID',
+    );
 
     const [audio, audioRentalCost, userAudio] = await Promise.all([
       this.audioRepository.findOne({ where: { id: audioId } }),
@@ -59,8 +60,13 @@ export class UserAudioService {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    if( (status === 'bookshelved' || status === 'rented') && (audio.total_rented >= audio.purchased_licenses) ){
-      throw new BadRequestException(`There is no purchased license for this audio book. Please talk to admin.`);
+    if (
+      (status === 'bookshelved' || status === 'rented') &&
+      audio.total_rented >= audio.purchased_licenses
+    ) {
+      throw new BadRequestException(
+        `There is no purchased license for this audio book. Please talk to admin.`,
+      );
     }
 
     if (userAudio && userAudio.status === status) {
@@ -90,7 +96,7 @@ export class UserAudioService {
           status,
           updated_at: new Date(),
           rental_expire_at: rentalExpiresAt,
-          license_id: null
+          license_id: null,
         }
       : this.userAudioStatusRepository.create({
           audio_id: audioId,
@@ -98,14 +104,17 @@ export class UserAudioService {
           status,
           updated_at: new Date(),
           rental_expire_at: rentalExpiresAt,
-          license_id: null
+          license_id: null,
         });
 
-    if( status === 'bookshelved' || status === 'rented' ){
+    if (status === 'bookshelved' || status === 'rented') {
       // const sku = audio.sku;
-      const sku = "00037";
-      const data: any = await this.audioEngineService.get(`/accounts/${audioEngineAccountId}/audiobooks/${sku}`);
-      const license : { id: any, checkout_id: any } = this.findLicenseWithNullCheckoutId(data?.licenses ?? null);
+      const sku = '00037';
+      const data: any = await this.audioEngineService.get(
+        `/accounts/${audioEngineAccountId}/audiobooks/${sku}`,
+      );
+      const license: { id: any; checkout_id: any } =
+        this.findLicenseWithNullCheckoutId(data?.licenses ?? null);
       const checkout = await this.checkoutLicenseOfAudio(sku, license);
       updatedUserAudio.license_id = checkout.checkout.license_id;
     }
@@ -164,29 +173,44 @@ export class UserAudioService {
       where: { audio_id: audioId, user_id: user.id },
     });
   }
-  
-  findLicenseWithNullCheckoutId (licenses: { id: any, checkout_id: any }[] | undefined | null) {
-    if ( ! licenses ){
-      throw new BadRequestException(`There is no available licenses for this audio book.`);
+
+  findLicenseWithNullCheckoutId(
+    licenses: { id: any; checkout_id: any }[] | undefined | null,
+  ) {
+    if (!licenses) {
+      throw new BadRequestException(
+        `There is no available licenses for this audio book.`,
+      );
     }
 
-    const license = licenses.find(license => license.checkout_id === null) || null;
+    const license =
+      licenses.find((license) => license.checkout_id === null) || null;
 
-    if ( ! license ){
-      throw new BadRequestException(`There is no available license for checkout the audio book.`);
+    if (!license) {
+      throw new BadRequestException(
+        `There is no available license for checkout the audio book.`,
+      );
     }
 
     return license;
   }
 
-  async checkoutLicenseOfAudio ( audioId : string, license: { id: any, checkout_id: any }) {
-    const data: any = await this.audioEngineService.post(`/audiobooks/${audioId}/checkout`, {
-      license_id: license.id,
-      external_listener_id: this.configService.getOrThrow<string>('AUDIO_ENGINE_EXTERNAL_LISTENER_ID'),
-      loan_period_minutes: 1500
-    });
-    
-    if( data.checkout.license_id !== license.id ){
+  async checkoutLicenseOfAudio(
+    audioId: string,
+    license: { id: any; checkout_id: any },
+  ) {
+    const data: any = await this.audioEngineService.post(
+      `/audiobooks/${audioId}/checkout`,
+      {
+        license_id: license.id,
+        external_listener_id: this.configService.getOrThrow<string>(
+          'AUDIO_ENGINE_EXTERNAL_LISTENER_ID',
+        ),
+        loan_period_minutes: 1500,
+      },
+    );
+
+    if (data.checkout.license_id !== license.id) {
       throw new BadRequestException(`Invalid license`);
     }
 

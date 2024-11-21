@@ -34,7 +34,12 @@ import { HttpModule } from '@nestjs/axios';
     UserController,
     UserAudioController,
   ],
-  providers: [UserService, UserAudioService, MailgunService, AudioEngineService],
+  providers: [
+    UserService,
+    UserAudioService,
+    MailgunService,
+    AudioEngineService,
+  ],
   exports: [UserService, MailgunService, AudioEngineService],
 })
 export class UserModule {}
