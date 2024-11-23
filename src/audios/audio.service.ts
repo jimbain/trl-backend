@@ -353,7 +353,16 @@ export class AudioService {
   }
 
   async findAudioPlaylist(audioId: string, user: User) {
-    const audio = await this.findById(audioId);
+    const audio = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .where('audio.id = :id', { id: audioId })
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .getOne();
+
+    if (!audio) {
+      throw new NotFoundException(`Audio with ID ${audioId} not found`);
+    }
 
     const userAudioStatus = await this.userAudioStatusRepository.findOne({
       where: {
