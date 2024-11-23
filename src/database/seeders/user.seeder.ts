@@ -49,7 +49,7 @@ export class UserSeeder {
       {
         first_name: 'Mark',
         last_name: 'Ramm',
-        email: 'rjramm@trlonline.com',
+        email: 'test@test.com',
         password: 'test',
       },
     ];
