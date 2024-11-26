@@ -13,9 +13,9 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { ulid } from 'ulidx';
 
 @Entity({ name: 'user_audioplayer_positions' })
-@Unique(['audio_id', 'user_id'])
+@Unique(['user_id', 'audio_id'])
 export class UserAudioplayerPosition extends BaseEntity {
-  @PrimaryColumn({ type: 'varchar', length: 45 })
+  @PrimaryColumn({ type: 'varchar', length: 55 })
   id: string;
 
   @Column()
@@ -25,7 +25,10 @@ export class UserAudioplayerPosition extends BaseEntity {
   audio_id: string;
 
   @Column({ type: 'int', nullable: true })
-  chapter_id: number;
+  part_number: number;
+
+  @Column({ type: 'int', nullable: true })
+  chapter_number: number;
 
   @Column({ type: 'int', nullable: true })
   play_position: number;

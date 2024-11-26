@@ -14,6 +14,7 @@ import { AudioService } from './audio.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AudioReviewService } from './audio_review.service';
 import { CreateAudioReview } from './dto/create_audio_review.dto';
+import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -158,11 +159,6 @@ export class AudioController {
     return this.audioReviewService.findAudioReviews(id, req.user);
   }
 
-  @Get('audios/:id/playlist')
-  findAudioPlaylist(@Request() req, @Param('id') id: string) {
-    return this.audioService.findAudioPlaylist(id, req.user);
-  }
-
   @Post('audios/:id/reviews')
   storeAudioReview(
     @Request() req,
@@ -170,5 +166,19 @@ export class AudioController {
     @Body() payload: CreateAudioReview,
   ) {
     return this.audioReviewService.storeAudioReview(id, payload, req.user);
+  }
+
+  @Get('audios/:id/playlist')
+  findAudioPlaylist(@Request() req, @Param('id') id: string) {
+    return this.audioService.findAudioPlaylist(id, req.user);
+  }
+
+  @Post('audios/:id/trigger-event')
+  triggerAudioPlayerEvent(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() payload: TriggerAudioPlayerEventDto,
+  ) {
+    return this.audioService.triggerAudioPlayerEvent(id, payload, req.user);
   }
 }

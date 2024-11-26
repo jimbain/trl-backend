@@ -11,6 +11,7 @@ import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { HttpModule } from '@nestjs/axios';
+import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { HttpModule } from '@nestjs/axios';
       Audio,
       AudioReview,
       UserAudioStatus,
+      UserAudioplayerPosition
     ]),
   ],
   controllers: [AudioController],

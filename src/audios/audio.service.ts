@@ -16,6 +16,8 @@ import { CategoryService } from 'src/categories/category.service';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
+import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
+import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 
 @Injectable()
 export class AudioService {
@@ -30,6 +32,9 @@ export class AudioService {
 
   @InjectRepository(UserAudioStatus)
   private readonly userAudioStatusRepository: Repository<UserAudioStatus>;
+
+  @InjectRepository(UserAudioplayerPosition)
+  private readonly userAudioplayerPositionRepository: Repository<UserAudioplayerPosition>;
 
   constructor(
     private readonly categoryService: CategoryService,
@@ -378,6 +383,10 @@ export class AudioService {
       );
     }
 
+    const userAudioPosition = await this.userAudioplayerPositionRepository.findOne({
+      where: { audio_id: audioId, user_id: user.id },
+    });
+
     // const sku = audio.sku;
     const sku = '00037';
     const data: any = await this.audioEngineService.post(
@@ -391,7 +400,42 @@ export class AudioService {
       audio_metadata: plainToInstance(AudioListDto, audio, {
         excludeExtraneousValues: true,
       }),
+      audio_player_data: userAudioPosition 
+        ? {
+          chapter_number: userAudioPosition.chapter_number, 
+          part_number: userAudioPosition.part_number, 
+          play_position: userAudioPosition.play_position 
+        } : null,
       ...data,
     };
+  }
+
+  async triggerAudioPlayerEvent(
+    audioId: string,
+    payload: TriggerAudioPlayerEventDto,
+    user: User,
+  ){
+    const existingUserAudioPosition = await this.userAudioplayerPositionRepository.findOne({
+      where: { audio_id: audioId, user_id: user.id },
+    });
+
+    const updatedUserAudioplayerPosition = existingUserAudioPosition
+      ? {
+          ...existingUserAudioPosition,
+          part_number: payload.part_number,
+          chapter_number: payload.chapter_number,
+          play_position: payload.play_position,
+          updated_at: new Date(),
+        }
+      : this.userAudioplayerPositionRepository.create({
+          user_id: user.id,
+          audio_id: audioId,
+          part_number: payload.part_number,
+          chapter_number: payload.chapter_number,
+          play_position: payload.play_position,
+          updated_at: new Date(),
+        });
+
+    return await this.userAudioplayerPositionRepository.save(updatedUserAudioplayerPosition);
   }
 }
