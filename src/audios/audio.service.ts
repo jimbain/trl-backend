@@ -383,9 +383,10 @@ export class AudioService {
       );
     }
 
-    const userAudioPosition = await this.userAudioplayerPositionRepository.findOne({
-      where: { audio_id: audioId, user_id: user.id },
-    });
+    const userAudioPosition =
+      await this.userAudioplayerPositionRepository.findOne({
+        where: { audio_id: audioId, user_id: user.id },
+      });
 
     // const sku = audio.sku;
     const sku = '00037';
@@ -400,12 +401,13 @@ export class AudioService {
       audio_metadata: plainToInstance(AudioListDto, audio, {
         excludeExtraneousValues: true,
       }),
-      audio_player_data: userAudioPosition 
+      audio_player_data: userAudioPosition
         ? {
-          chapter_number: userAudioPosition.chapter_number, 
-          part_number: userAudioPosition.part_number, 
-          play_position: userAudioPosition.play_position 
-        } : null,
+            chapter_number: userAudioPosition.chapter_number,
+            part_number: userAudioPosition.part_number,
+            play_position: userAudioPosition.play_position,
+          }
+        : null,
       ...data,
     };
   }
@@ -414,10 +416,11 @@ export class AudioService {
     audioId: string,
     payload: TriggerAudioPlayerEventDto,
     user: User,
-  ){
-    const existingUserAudioPosition = await this.userAudioplayerPositionRepository.findOne({
-      where: { audio_id: audioId, user_id: user.id },
-    });
+  ) {
+    const existingUserAudioPosition =
+      await this.userAudioplayerPositionRepository.findOne({
+        where: { audio_id: audioId, user_id: user.id },
+      });
 
     const updatedUserAudioplayerPosition = existingUserAudioPosition
       ? {
@@ -436,6 +439,8 @@ export class AudioService {
           updated_at: new Date(),
         });
 
-    return await this.userAudioplayerPositionRepository.save(updatedUserAudioplayerPosition);
+    return await this.userAudioplayerPositionRepository.save(
+      updatedUserAudioplayerPosition,
+    );
   }
 }

@@ -22,7 +22,7 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
       Audio,
       AudioReview,
       UserAudioStatus,
-      UserAudioplayerPosition
+      UserAudioplayerPosition,
     ]),
   ],
   controllers: [AudioController],
