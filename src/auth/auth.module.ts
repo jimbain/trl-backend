@@ -9,10 +9,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { CommonModule } from 'src/common/common.module';
+import { AppConfig } from 'src/app-config/entities/app-config.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PasswordResetToken]),
+    TypeOrmModule.forFeature([PasswordResetToken, AppConfig]),
     UserModule,
     CommonModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),

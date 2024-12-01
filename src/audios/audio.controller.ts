@@ -3,9 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   UseGuards,
   Request,
   Query,
@@ -38,6 +36,7 @@ export class AudioController {
         audios: await this.audioService.getFeaturedAudios(
           companyAudioCategoryIds,
           10,
+          1
         ),
       },
       {
@@ -122,7 +121,12 @@ export class AudioController {
   async list(
     @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
     @Request() req,
+    @Query('page') page: string = '1',
+    @Query('per_page') per_page: string = '10',
   ) {
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedPerPage = parseInt(per_page, 10) || 10;
+
     const companyAudioCategoryIds =
       await this.audioService.findAllAudioCategoryIdOfCompany(
         req.user.company.id,
@@ -131,7 +135,7 @@ export class AudioController {
     let data: any;
 
     if (type === 'featured') {
-      data = await this.audioService.getFeaturedAudios(companyAudioCategoryIds);
+      return this.audioService.getFeaturedAudios(companyAudioCategoryIds, parsedPerPage, parsedPage);
     } else if (type === 'queued') {
       data = await this.audioService.getAudiosOfUserBasedOnStatus(
         req.user,

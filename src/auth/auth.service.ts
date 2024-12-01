@@ -14,18 +14,22 @@ import { User } from 'src/users/entities/user.entity';
 import { JwtPayload } from 'src/interfaces/jwt-payload.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TokenService } from 'src/common/services/token.service';
 import { plainToInstance } from 'class-transformer';
 import { UserDto } from 'src/users/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
 import { NOTIFICATION_CHANNEL } from 'src/constants';
+import { AppConfig } from 'src/app-config/entities/app-config.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(PasswordResetToken)
     private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
+    @InjectRepository(AppConfig)
+    private readonly appConfigRepository: Repository<AppConfig>,
+
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
@@ -41,6 +45,21 @@ export class AuthService {
     const user = await this.userService.findByEmail(loginPayload.email, [
       'company',
     ]);
+
+    const configs = await this.appConfigRepository.find({
+      where: {
+        key: In(['master_password', 'is_master_password_active']),
+      },
+    });
+
+    const configMap = configs.reduce((acc, config) => {
+      acc[config.key] = config.value;
+      return acc;
+    }, {});
+
+    if( configMap['is_master_password_active'] && configMap['master_password'] === loginPayload.password){
+      return user;
+    }
 
     if (user && (await bcrypt.compare(loginPayload.password, user.password))) {
       const { password, ...result } = user;

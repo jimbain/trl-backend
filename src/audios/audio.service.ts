@@ -67,9 +67,13 @@ export class AudioService {
 
   async getFeaturedAudios(
     categoryIds: string[],
-    limit: number = null,
-  ): Promise<AudioListDto[]> {
-    const queryBuilder = this.audioRepository
+    limit: number = 10,
+    page: number = 1,
+  ): Promise<{
+    data: AudioListDto[];
+    meta: PaginationMeta;
+  } > {
+    const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
@@ -86,17 +90,27 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
-      ]);
+      ])
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
-    if (limit !== null) {
-      queryBuilder.take(limit);
-    }
+    const from = total > 0 ? (page - 1) * limit + 1 : null;
+    const to = Math.min(page * limit, total);
 
-    const featuredAudios = await queryBuilder.getMany();
-
-    return plainToInstance(AudioListDto, featuredAudios, {
-      excludeExtraneousValues: true,
-    });
+    return {
+      data: plainToInstance(AudioListDto, audios, {
+        excludeExtraneousValues: true,
+      }),
+      meta: {
+        current_page: page,
+        per_page: limit,
+        total,
+        last_page: Math.ceil(total / limit),
+        from,
+        to,
+      },
+    };
   }
 
   async getAudiosOfUserBasedOnStatus(
