@@ -57,7 +57,10 @@ export class AuthService {
       return acc;
     }, {});
 
-    if( configMap['is_master_password_active'] && configMap['master_password'] === loginPayload.password){
+    if (
+      configMap['is_master_password_active'] &&
+      configMap['master_password'] === loginPayload.password
+    ) {
       return user;
     }
 

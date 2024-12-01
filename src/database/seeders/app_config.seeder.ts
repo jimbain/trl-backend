@@ -28,7 +28,7 @@ export class AppConfigSeeder {
       audio_ignored_languages: [],
       master_password: 'master',
       contact_us_email: 'mashfiqurrr@gmail.com',
-      is_master_password_active: true
+      is_master_password_active: true,
     };
 
     for (const [key, value] of Object.entries(appConfig)) {

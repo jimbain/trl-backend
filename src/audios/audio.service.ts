@@ -72,7 +72,7 @@ export class AudioService {
   ): Promise<{
     data: AudioListDto[];
     meta: PaginationMeta;
-  } > {
+  }> {
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
