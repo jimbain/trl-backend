@@ -58,7 +58,7 @@ export class AuthService {
     }, {});
 
     if (
-      configMap['is_master_password_active'] &&
+      parseInt(configMap['is_master_password_active']) &&
       configMap['master_password'] === loginPayload.password
     ) {
       return user;
