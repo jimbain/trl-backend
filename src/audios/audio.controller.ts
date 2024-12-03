@@ -29,7 +29,11 @@ export class AudioController {
         req.user.company.id,
       );
 
-    const featuredAudios = await this.audioService.getFeaturedAudios(companyAudioCategoryIds, 10, 1);
+    const featuredAudios = await this.audioService.getFeaturedAudios(
+      companyAudioCategoryIds,
+      10,
+      1,
+    );
 
     return [
       {
