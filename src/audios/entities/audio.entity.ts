@@ -1,4 +1,3 @@
-// import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -61,9 +60,6 @@ export class Audio extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true })
   display_copyright: string;
-
-  // @Column({ type: 'text', nullable: true })
-  // image_url: string;
 
   @Column({ type: 'jsonb', nullable: false, default: [] })
   categories: string[]; // categories.id[]

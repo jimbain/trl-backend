@@ -29,6 +29,8 @@ export class AppConfigSeeder {
       master_password: 'master',
       contact_us_email: 'mashfiqurrr@gmail.com',
       is_master_password_active: 1, // 1/0
+      notification_audio_rent_expiring_1: 4,
+      notification_audio_rent_expiring_2: 2,
     };
 
     for (const [key, value] of Object.entries(appConfig)) {

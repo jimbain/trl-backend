@@ -403,3 +403,5 @@ dist
 docker-compose.yml
 docker-compose.yaml
 .vscode
+
+package-lock.json
