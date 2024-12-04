@@ -17,7 +17,8 @@ export class FirebaseService {
     this.SERVICE_ACCOUNT_FILE_PATH = this.configService.getOrThrow<string>(
       'FIREBASE_SERVICE_ACCOUNT_FILE_PATH',
     );
-    this.FCM_URL = 'https://fcm.googleapis.com/v1/projects/trl-app-68d7f/messages:send';
+    this.FCM_URL =
+      'https://fcm.googleapis.com/v1/projects/trl-app-68d7f/messages:send';
   }
 
   async getAccessToken(): Promise<string> {
@@ -41,12 +42,16 @@ export class FirebaseService {
     const message = { message: data };
 
     try {
-      const response = await this.httpService.axiosRef.post(this.FCM_URL, message, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+      const response = await this.httpService.axiosRef.post(
+        this.FCM_URL,
+        message,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      });
+      );
       console.log('Notification sent successfully:', response.data);
     } catch (error) {
       console.error(
