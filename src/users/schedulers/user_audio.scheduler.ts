@@ -152,7 +152,7 @@ export class UserAudioScheduler {
   }
 
   @Cron('0 10 * * *', {
-    name: 'audio_queue_noactivity_in_1_month',
+    name: 'audio_queue_no_activity_in_1_month',
   })
   async handleAudioQueueNoActivityInOneMonth() {
     const userDevices = await this.userDeviceRepository.find({
@@ -196,7 +196,7 @@ export class UserAudioScheduler {
             image: 'http://images.findawayworld.com/v1/image/cover/CD035784',
           },
           data: {
-            type: 'audio_queue_noactivity',
+            type: 'audio_queue_no_activity',
             label: 'Queued Titles',
             slug: 'queued',
           },
