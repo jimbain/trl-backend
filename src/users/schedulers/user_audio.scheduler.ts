@@ -71,8 +71,12 @@ export class UserAudioScheduler {
           data: {
             type: 'audio_rent_expiring',
             audio_id: rentedAudio.audio.id,
-            title: rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
-            author: rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors,
+            title:
+              rentedAudio.audio.metadata.title ??
+              rentedAudio.audio.display_title,
+            author:
+              rentedAudio.audio.metadata.authors ??
+              rentedAudio.audio.display_authors,
             image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
@@ -131,8 +135,12 @@ export class UserAudioScheduler {
           data: {
             type: 'audio_rent_expiring',
             audio_id: rentedAudio.audio.id,
-            title: rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
-            author: rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors,
+            title:
+              rentedAudio.audio.metadata.title ??
+              rentedAudio.audio.display_title,
+            author:
+              rentedAudio.audio.metadata.authors ??
+              rentedAudio.audio.display_authors,
             image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
