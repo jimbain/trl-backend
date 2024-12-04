@@ -38,7 +38,7 @@ export class FirebaseService {
 
   async sendNotification(data: object): Promise<void> {
     const accessToken = await this.getAccessToken();
-    console.log(accessToken)
+    console.log(accessToken);
     const message = { message: data };
 
     try {

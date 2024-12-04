@@ -5,7 +5,7 @@ import { FirebaseService } from './services/firebase.service';
 import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports:[HttpModule],
+  imports: [HttpModule],
   providers: [TokenService, MailgunService, FirebaseService],
   exports: [TokenService, MailgunService, FirebaseService],
 })
