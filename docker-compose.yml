@@ -7,7 +7,7 @@ services:
       - ./:/app
       - /app/node_modules
     ports:
-      - ${APP_PORT}:${APP_PORT}
+      - 8900:${APP_PORT}
     depends_on:
       - trl_db
     networks:

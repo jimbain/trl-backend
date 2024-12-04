@@ -6,12 +6,17 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { User } from 'src/users/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
 import { UserDto } from './dto/user.dto';
+import { UserDevice } from './entities/user_device.entity';
+import { CreateUserDeviceDto } from './dto/create-user_device.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    @InjectRepository(UserDevice)
+    private readonly userDeviceRepository: Repository<UserDevice>,
   ) {}
 
   async create(createUserPayload: CreateUserDto): Promise<any> {
@@ -60,5 +65,14 @@ export class UserService {
     user.password = password;
     await this.userRepository.save(user);
     return user;
+  }
+
+  async storeUserDevice(user: User, data: CreateUserDeviceDto): Promise<UserDevice> {
+    const userDevice = this.userDeviceRepository.create({
+      user_id: user.id,
+      ...data
+    });
+
+    return await this.userDeviceRepository.save(userDevice);
   }
 }

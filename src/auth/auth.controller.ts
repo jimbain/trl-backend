@@ -38,6 +38,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() loginPayload: LoginDto) {
     const user = await this.authService.validateUser(loginPayload);
+    this.authService.storeLoginInfo(user, loginPayload);
     return this.authService.login(user);
   }
 

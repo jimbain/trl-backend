@@ -15,12 +15,16 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { HttpModule } from '@nestjs/axios';
+import { UserDevice } from './entities/user_device.entity';
+import { UserAudioScheduler } from './schedulers/user_audio.scheduler';
+import { FirebaseService } from 'src/common/services/firebase.service';
 
 @Module({
   imports: [
     HttpModule,
     TypeOrmModule.forFeature([
       User,
+      UserDevice,
       Audio,
       UserAudioStatus,
       UserActivityLog,
@@ -39,6 +43,8 @@ import { HttpModule } from '@nestjs/axios';
     UserAudioService,
     MailgunService,
     AudioEngineService,
+    FirebaseService,
+    UserAudioScheduler
   ],
   exports: [UserService, MailgunService, AudioEngineService],
 })

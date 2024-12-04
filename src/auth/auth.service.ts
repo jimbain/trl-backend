@@ -84,6 +84,14 @@ export class AuthService {
     return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
   }
 
+  async storeLoginInfo(user: User, data: LoginDto): Promise<any> {
+    if( ! data.device_id || ! data.fcm_key ){
+      return;
+    }
+    
+    return this.userService.storeUserDevice(user, data);
+  }
+
   async login(user: User) {
     const accessPayload: JwtPayload = {
       id: user.id,

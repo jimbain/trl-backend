@@ -11,6 +11,7 @@ import { CompanyModule } from './companies/company.module';
 import { AudioModule } from './audios/audio.module';
 import { CategoryModule } from './categories/category.module';
 import { AppConfigModule } from './app-config/app-config.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AppConfigModule } from './app-config/app-config.module';
     AudioModule,
     CategoryModule,
     AppConfigModule,
+    ScheduleModule.forRoot()
   ],
   controllers: [AppController],
   providers: [AppService],
