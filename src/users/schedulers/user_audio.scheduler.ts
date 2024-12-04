@@ -61,6 +61,8 @@ export class UserAudioScheduler {
       }
 
       userRentedAudios.forEach(async (rentedAudio) => {
+        const authors = rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors;
+
         const data = {
           token: userDevice.fcm_key, // The recipient device's FCM token
           notification: {
@@ -74,9 +76,7 @@ export class UserAudioScheduler {
             title:
               rentedAudio.audio.metadata.title ??
               rentedAudio.audio.display_title,
-            author:
-              rentedAudio.audio.metadata.authors ??
-              rentedAudio.audio.display_authors,
+            author: authors && Array.isArray(authors) ? JSON.stringify(authors) : null,
             image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
@@ -125,6 +125,8 @@ export class UserAudioScheduler {
       }
 
       userRentedAudios.forEach(async (rentedAudio) => {
+        const authors = rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors;
+
         const data = {
           token: userDevice.fcm_key, // The recipient device's FCM token
           notification: {
@@ -138,9 +140,7 @@ export class UserAudioScheduler {
             title:
               rentedAudio.audio.metadata.title ??
               rentedAudio.audio.display_title,
-            author:
-              rentedAudio.audio.metadata.authors ??
-              rentedAudio.audio.display_authors,
+            author: authors && Array.isArray(authors) ? JSON.stringify(authors) : null,
             image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
