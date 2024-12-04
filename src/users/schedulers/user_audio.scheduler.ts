@@ -53,7 +53,7 @@ export class UserAudioScheduler {
           status: 'rented',
           rental_expire_at: Between(threeDaysLater, fourDaysLater),
         },
-        relations: ['audio'],
+        relations: ['audio', 'audio.metadata'],
       });
 
       if (!userRentedAudios.length) {
@@ -71,9 +71,9 @@ export class UserAudioScheduler {
           data: {
             type: 'audio_rent_expiring',
             audio_id: rentedAudio.audio.id,
-            title: rentedAudio.audio.display_title,
-            author: rentedAudio.audio.display_authors,
-            image: 'http://images.findawayworld.com/v1/image/cover/CD035784',
+            title: rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
+            author: rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors,
+            image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
         };
@@ -113,7 +113,7 @@ export class UserAudioScheduler {
           status: 'rented',
           rental_expire_at: Between(today, twoDaysLater),
         },
-        relations: ['audio'],
+        relations: ['audio', 'audio.metadata'],
       });
 
       if (!userRentedAudios.length) {
@@ -131,9 +131,9 @@ export class UserAudioScheduler {
           data: {
             type: 'audio_rent_expiring',
             audio_id: rentedAudio.audio.id,
-            title: rentedAudio.audio.display_title,
-            author: rentedAudio.audio.display_authors,
-            image: 'http://images.findawayworld.com/v1/image/cover/CD035784',
+            title: rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
+            author: rentedAudio.audio.metadata.authors ?? rentedAudio.audio.display_authors,
+            image: rentedAudio.audio.metadata.cover_url ?? null,
             expired_at: rentedAudio.rental_expire_at,
           },
         };
