@@ -1,21 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { google } from 'googleapis';
-import axios from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class FirebaseService {
-  private readonly SCOPES = [
-    'https://www.googleapis.com/auth/firebase.messaging',
-  ];
-  private readonly SERVICE_ACCOUNT_FILE =
-    '/home/axil-mashfiq/Videos/DEV-DEC/TRL/cred/trl-app-68d7f-firebase-adminsdk-gpx9w-7d87ecd046.json';
-  private readonly FCM_URL =
-    'https://fcm.googleapis.com/v1/projects/trl-app-68d7f/messages:send';
+  private readonly SCOPES: string;
+  private readonly SERVICE_ACCOUNT_FILE_PATH: string;
+  private readonly FCM_URL: string;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.SCOPES = 'https://www.googleapis.com/auth/firebase.messaging';
+    this.SERVICE_ACCOUNT_FILE_PATH = this.configService.getOrThrow<string>(
+      'FIREBASE_SERVICE_ACCOUNT_FILE_PATH',
+    );
+    this.FCM_URL = 'https://fcm.googleapis.com/v1/projects/trl-app-68d7f/messages:send';
+  }
 
   async getAccessToken(): Promise<string> {
     const auth = new google.auth.GoogleAuth({
       scopes: this.SCOPES,
-      keyFile: this.SERVICE_ACCOUNT_FILE,
+      keyFile: this.SERVICE_ACCOUNT_FILE_PATH,
     });
 
     const client = await auth.getClient();
@@ -33,7 +41,7 @@ export class FirebaseService {
     const message = { message: data };
 
     try {
-      const response = await axios.post(this.FCM_URL, message, {
+      const response = await this.httpService.axiosRef.post(this.FCM_URL, message, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
