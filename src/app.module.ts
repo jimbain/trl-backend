@@ -28,7 +28,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     AudioModule,
     CategoryModule,
     AppConfigModule,
-    ScheduleModule.forRoot()
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

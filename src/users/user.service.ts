@@ -67,10 +67,13 @@ export class UserService {
     return user;
   }
 
-  async storeUserDevice(user: User, data: CreateUserDeviceDto): Promise<UserDevice> {
+  async storeUserDevice(
+    user: User,
+    data: CreateUserDeviceDto,
+  ): Promise<UserDevice> {
     const userDevice = this.userDeviceRepository.create({
       user_id: user.id,
-      ...data
+      ...data,
     });
 
     return await this.userDeviceRepository.save(userDevice);

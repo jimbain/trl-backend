@@ -85,10 +85,10 @@ export class AuthService {
   }
 
   async storeLoginInfo(user: User, data: LoginDto): Promise<any> {
-    if( ! data.device_id || ! data.fcm_key ){
+    if (!data.device_id || !data.fcm_key) {
       return;
     }
-    
+
     return this.userService.storeUserDevice(user, data);
   }
 

@@ -44,7 +44,7 @@ import { FirebaseService } from 'src/common/services/firebase.service';
     MailgunService,
     AudioEngineService,
     FirebaseService,
-    UserAudioScheduler
+    UserAudioScheduler,
   ],
   exports: [UserService, MailgunService, AudioEngineService],
 })
