@@ -49,4 +49,13 @@ export class AppController {
       return { message: error.message };
     }
   }
+
+  @Get('get-firebase-auth-token')
+  async getFirebaseAuthToken() {
+    try {
+      return this.firebaseService.getAccessToken();
+    } catch (error) {
+      return { message: error.message };
+    }
+  }
 }

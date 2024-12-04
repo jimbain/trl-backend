@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { google } from 'googleapis';
+import { GoogleAuth } from 'google-auth-library';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 
@@ -22,7 +22,7 @@ export class FirebaseService {
   }
 
   async getAccessToken(): Promise<string> {
-    const auth = new google.auth.GoogleAuth({
+    const auth = new GoogleAuth({
       scopes: this.SCOPES,
       keyFile: this.SERVICE_ACCOUNT_FILE_PATH,
     });
@@ -38,7 +38,6 @@ export class FirebaseService {
 
   async sendNotification(data: object): Promise<void> {
     const accessToken = await this.getAccessToken();
-    console.log(accessToken);
     const message = { message: data };
 
     try {
