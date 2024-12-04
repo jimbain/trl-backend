@@ -1,4 +1,4 @@
-import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
+// import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 import { AudioMetadata } from './audio_metadata.entity';
+import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
@@ -20,8 +21,9 @@ export class Audio extends BaseEntity {
   id: string;
 
   @Column()
-  sku: number;
+  sku: string;
 
+  // @TODO: move to metadata table
   @Column({
     type: 'enum',
     enum: Object.values(MEDIA_AVAILABILITY_TYPE),
@@ -38,6 +40,7 @@ export class Audio extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   is_featured: boolean;
 
+  // @TODO: move to metadata table
   @Column({ type: 'boolean', default: false })
   is_only_for_purchase: boolean;
 

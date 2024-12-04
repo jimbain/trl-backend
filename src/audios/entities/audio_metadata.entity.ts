@@ -1,3 +1,4 @@
+import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 import {
   BaseEntity,
   Column,
@@ -8,8 +9,8 @@ import {
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {
-  @PrimaryColumn({ type: 'int', nullable: false })
-  sku: number; // id
+  @PrimaryColumn({ type: 'varchar', nullable: false })
+  sku: string; // id
 
   @Column({ type: 'varchar', length: 255 })
   title: string;
@@ -93,8 +94,18 @@ export class AudioMetadata extends BaseEntity {
   @Column({ type: 'float', nullable: true })
   findaway_retail_content_cost: number; // retail.content_cost
 
+  // @Column({
+  //   type: 'enum',
+  //   enum: Object.values(MEDIA_AVAILABILITY_TYPE),
+  //   default: MEDIA_AVAILABILITY_TYPE.BOTH,
+  // })
+  // available_for: MediaAvailabilityType;
+
   @Column({ type: 'boolean', nullable: true })
   is_for_sale: boolean; // active_products != empty
+
+  // @Column({ type: 'boolean', default: false })
+  // is_only_for_purchase: boolean;
 
   @Column({ type: 'jsonb', nullable: true })
   sales_locations: string[]; // library.territories

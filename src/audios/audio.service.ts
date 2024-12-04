@@ -350,12 +350,8 @@ export class AudioService {
       select: ['status', 'rental_expire_at'],
     });
 
-    const availableFor =
-      audio.available_for == MEDIA_AVAILABILITY_TYPE.PURCHASABLE
-        ? 'bookshelf'
-        : audio.available_for == MEDIA_AVAILABILITY_TYPE.RENTAL
-          ? 'rent'
-          : 'both';
+    // @TODO: need to update for metadata
+    const availableFor = this.getAvailableFor(audio);
 
     return plainToInstance(
       AudioDto,
@@ -369,6 +365,14 @@ export class AudioService {
       },
       { excludeExtraneousValues: true },
     );
+  }
+
+  getAvailableFor(audio: Audio) {
+    return audio.available_for == MEDIA_AVAILABILITY_TYPE.PURCHASABLE
+      ? 'bookshelf'
+      : audio.available_for == MEDIA_AVAILABILITY_TYPE.RENTAL
+        ? 'rent'
+        : 'both';
   }
 
   async findAudioPlaylist(audioId: string, user: User) {
