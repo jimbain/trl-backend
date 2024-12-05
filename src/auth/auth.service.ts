@@ -80,8 +80,20 @@ export class AuthService {
   }
 
   async checkUser(email: string): Promise<any> {
-    const user = await this.userService.findByEmail(email);
-    return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+    const user = await this.userService.findByEmail(email, ['company']);
+    
+    if ( ! user ) {
+      throw new HttpException(
+        {
+          errors: {
+            email: ["User does not exist"],
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    return { is_sso_login: user.company.is_sso_login };
   }
 
   async storeLoginInfo(user: User, data: LoginDto): Promise<any> {

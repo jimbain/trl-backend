@@ -31,6 +31,7 @@ export class AppConfigSeeder {
       is_master_password_active: 1, // 1/0
       notification_audio_rent_expiring_1: 4,
       notification_audio_rent_expiring_2: 2,
+      notification_audio_queue_noactivity: 30
     };
 
     for (const [key, value] of Object.entries(appConfig)) {

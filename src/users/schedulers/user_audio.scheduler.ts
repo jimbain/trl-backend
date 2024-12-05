@@ -5,10 +5,14 @@ import { UserDevice } from '../entities/user_device.entity';
 import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { UserAudioStatus } from '../entities/user_audio_status.entity';
 import { FirebaseService } from 'src/common/services/firebase.service';
+import { AppConfig } from 'src/app-config/entities/app-config.entity';
 
 @Injectable()
 export class UserAudioScheduler {
   constructor(
+    @InjectRepository(AppConfig)
+    private readonly appConfigRepository: Repository<AppConfig>,
+
     @InjectRepository(UserAudioStatus)
     private readonly userAudioStatusRepository: Repository<UserAudioStatus>,
 
@@ -20,9 +24,16 @@ export class UserAudioScheduler {
 
   // Everyday 10 am UTC time
   @Cron('0 10 * * *', {
-    name: 'audio_rent_expiring_in_4_days',
+    name: 'audio_rent_expiring_1',
   })
   async handleAudioRentExpiringInFourDays() {
+    const notificationAudioRentExpiringConfig = await this.appConfigRepository.findOne({
+      select: ['value'],
+      where: { key: 'notification_audio_rent_expiring_1' },
+    });
+
+    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig ? notificationAudioRentExpiringConfig : 4;
+
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
     });
@@ -35,12 +46,12 @@ export class UserAudioScheduler {
     const threeDaysLater = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + 3,
+      now.getDate() + ( +notificationAudioRentExpiringDay - 1 ),
     );
     const fourDaysLater = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + 4,
+      now.getDate() + ( +notificationAudioRentExpiringDay ),
       23,
       59,
       59,
@@ -93,9 +104,16 @@ export class UserAudioScheduler {
   }
 
   @Cron('0 10 * * *', {
-    name: 'audio_rent_expiring_in_2_days',
+    name: 'audio_rent_expiring_2',
   })
   async handleAudioRentExpiringInTwoDays() {
+    const notificationAudioRentExpiringConfig = await this.appConfigRepository.findOne({
+      select: ['value'],
+      where: { key: 'notification_audio_rent_expiring_2' },
+    });
+
+    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig ? notificationAudioRentExpiringConfig : 2;
+
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
     });
@@ -109,7 +127,7 @@ export class UserAudioScheduler {
     const twoDaysLater = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate() + 2,
+      today.getDate() + (+notificationAudioRentExpiringDay),
       23,
       59,
       59,
@@ -162,9 +180,16 @@ export class UserAudioScheduler {
   }
 
   @Cron('0 10 * * *', {
-    name: 'audio_queue_no_activity_in_1_month',
+    name: 'audio_queue_no_activity',
   })
   async handleAudioQueueNoActivityInOneMonth() {
+    const notificationAudioQueueNoactivityConfig = await this.appConfigRepository.findOne({
+      select: ['value'],
+      where: { key: 'notification_audio_queue_noactivity' },
+    });
+
+    const notificationAudioQueueNoactivityDay = notificationAudioQueueNoactivityConfig ? notificationAudioQueueNoactivityConfig : 30;
+
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
     });
@@ -174,13 +199,10 @@ export class UserAudioScheduler {
     }
 
     const now = new Date();
-    const oneMonthLater = new Date(
+    const nextdayAfterInterval = new Date(
       now.getFullYear(),
-      now.getMonth() + 1,
-      now.getDate(),
-      now.getHours(),
-      now.getMinutes(),
-      now.getSeconds(),
+      now.getMonth(),
+      now.getDate() + ( +notificationAudioQueueNoactivityDay ),
     );
 
     for (const userDevice of userDevices) {
@@ -188,7 +210,7 @@ export class UserAudioScheduler {
         where: {
           user_id: userDevice.user_id,
           status: 'queued',
-          updated_at: MoreThanOrEqual(oneMonthLater),
+          updated_at: MoreThanOrEqual(nextdayAfterInterval),
         },
         relations: ['audio'],
       });

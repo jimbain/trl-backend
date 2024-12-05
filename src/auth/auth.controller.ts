@@ -31,7 +31,7 @@ export class AuthController {
   @Post('check-user')
   @HttpCode(200)
   async checkUser(@Body() checkUserDto: CheckUserDto) {
-    return;
+    return this.authService.checkUser(checkUserDto.email);
   }
 
   @Post('login')

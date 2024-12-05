@@ -302,7 +302,21 @@ export class AudioService {
         new Brackets((qb) => {
           qb.where('audio.display_title ILIKE :query')
             .orWhere('metadata.title ILIKE :query')
-            .orWhere('metadata.description ILIKE :query');
+            .orWhere('metadata.description ILIKE :query')
+            .orWhere(
+              `EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(audio.display_authors) elem
+                WHERE elem ILIKE :query
+              )`,
+            )
+            .orWhere(
+              `EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(metadata.authors) elem
+                WHERE elem ILIKE :query
+              )`,
+            );
         }),
         { query: `%${query}%` },
       )
