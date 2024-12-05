@@ -216,4 +216,40 @@ export class UserAudioService {
 
     return data;
   }
+
+  async renewRentedAudio(
+    audioId: string,
+    user: User,
+  ){
+    const [rentalPeriodConfig, userAudio] = await Promise.all([
+      this.appConfigRepository.findOne({
+        select: ['value'],
+        where: { key: 'audio_rental_period_in_days' },
+      }),
+      this.userAudioStatusRepository.findOne({
+        where: {
+          audio_id: audioId,
+          user_id: user.id,
+          status: 'rented',
+        },
+      }),
+    ]);
+
+    if( ! userAudio ){
+      throw new BadRequestException(
+        `The audio book with ID ${audioId} doesn't exist in your rented list.`,
+      );
+    }
+
+    const rentalPeriodInDays = rentalPeriodConfig
+      ? parseInt(rentalPeriodConfig.value, 10)
+      : 14;
+
+    const newRentalExpireAt = userAudio.rental_expire_at
+      ? new Date(userAudio.rental_expire_at.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000);
+
+    userAudio.rental_expire_at = newRentalExpireAt;
+    return await this.userAudioStatusRepository.save(userAudio);
+  }
 }
