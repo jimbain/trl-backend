@@ -27,12 +27,15 @@ export class UserAudioScheduler {
     name: 'audio_rent_expiring_1',
   })
   async handleAudioRentExpiringInFourDays() {
-    const notificationAudioRentExpiringConfig = await this.appConfigRepository.findOne({
-      select: ['value'],
-      where: { key: 'notification_audio_rent_expiring_1' },
-    });
+    const notificationAudioRentExpiringConfig =
+      await this.appConfigRepository.findOne({
+        select: ['value'],
+        where: { key: 'notification_audio_rent_expiring_1' },
+      });
 
-    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig ? notificationAudioRentExpiringConfig : 4;
+    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig
+      ? notificationAudioRentExpiringConfig
+      : 4;
 
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
@@ -46,12 +49,12 @@ export class UserAudioScheduler {
     const threeDaysLater = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + ( +notificationAudioRentExpiringDay - 1 ),
+      now.getDate() + (+notificationAudioRentExpiringDay - 1),
     );
     const fourDaysLater = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + ( +notificationAudioRentExpiringDay ),
+      now.getDate() + +notificationAudioRentExpiringDay,
       23,
       59,
       59,
@@ -107,12 +110,15 @@ export class UserAudioScheduler {
     name: 'audio_rent_expiring_2',
   })
   async handleAudioRentExpiringInTwoDays() {
-    const notificationAudioRentExpiringConfig = await this.appConfigRepository.findOne({
-      select: ['value'],
-      where: { key: 'notification_audio_rent_expiring_2' },
-    });
+    const notificationAudioRentExpiringConfig =
+      await this.appConfigRepository.findOne({
+        select: ['value'],
+        where: { key: 'notification_audio_rent_expiring_2' },
+      });
 
-    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig ? notificationAudioRentExpiringConfig : 2;
+    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig
+      ? notificationAudioRentExpiringConfig
+      : 2;
 
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
@@ -127,7 +133,7 @@ export class UserAudioScheduler {
     const twoDaysLater = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate() + (+notificationAudioRentExpiringDay),
+      today.getDate() + +notificationAudioRentExpiringDay,
       23,
       59,
       59,
@@ -183,12 +189,16 @@ export class UserAudioScheduler {
     name: 'audio_queue_no_activity',
   })
   async handleAudioQueueNoActivityInOneMonth() {
-    const notificationAudioQueueNoactivityConfig = await this.appConfigRepository.findOne({
-      select: ['value'],
-      where: { key: 'notification_audio_queue_noactivity' },
-    });
+    const notificationAudioQueueNoactivityConfig =
+      await this.appConfigRepository.findOne({
+        select: ['value'],
+        where: { key: 'notification_audio_queue_noactivity' },
+      });
 
-    const notificationAudioQueueNoactivityDay = notificationAudioQueueNoactivityConfig ? notificationAudioQueueNoactivityConfig : 30;
+    const notificationAudioQueueNoactivityDay =
+      notificationAudioQueueNoactivityConfig
+        ? notificationAudioQueueNoactivityConfig
+        : 30;
 
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true },
@@ -202,7 +212,7 @@ export class UserAudioScheduler {
     const nextdayAfterInterval = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + ( +notificationAudioQueueNoactivityDay ),
+      now.getDate() + +notificationAudioQueueNoactivityDay,
     );
 
     for (const userDevice of userDevices) {

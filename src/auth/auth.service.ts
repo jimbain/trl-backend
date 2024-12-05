@@ -81,12 +81,12 @@ export class AuthService {
 
   async checkUser(email: string): Promise<any> {
     const user = await this.userService.findByEmail(email, ['company']);
-    
-    if ( ! user ) {
+
+    if (!user) {
       throw new HttpException(
         {
           errors: {
-            email: ["User does not exist"],
+            email: ['User does not exist'],
           },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
