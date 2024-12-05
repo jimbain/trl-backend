@@ -5,6 +5,7 @@ import {
   UseGuards,
   Request,
   Post,
+  HttpCode,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserAudioService } from './user_audio.service';
@@ -23,6 +24,7 @@ export class UserAudioController {
     return this.userAudioService.update(audioId, status, req.user);
   }
 
+  @HttpCode(200)
   @Post(':audioId/renew')
   renewRentedAudio(@Param('audioId') audioId: string, @Request() req) {
     return this.userAudioService.renewRentedAudio(audioId, req.user);
