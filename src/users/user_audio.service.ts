@@ -217,10 +217,7 @@ export class UserAudioService {
     return data;
   }
 
-  async renewRentedAudio(
-    audioId: string,
-    user: User,
-  ){
+  async renewRentedAudio(audioId: string, user: User) {
     const [rentalPeriodConfig, userAudio] = await Promise.all([
       this.appConfigRepository.findOne({
         select: ['value'],
@@ -235,7 +232,7 @@ export class UserAudioService {
       }),
     ]);
 
-    if( ! userAudio ){
+    if (!userAudio) {
       throw new BadRequestException(
         `The audio book with ID ${audioId} doesn't exist in your rented list.`,
       );
@@ -246,7 +243,10 @@ export class UserAudioService {
       : 14;
 
     const newRentalExpireAt = userAudio.rental_expire_at
-      ? new Date(userAudio.rental_expire_at.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000)
+      ? new Date(
+          userAudio.rental_expire_at.getTime() +
+            rentalPeriodInDays * 24 * 60 * 60 * 1000,
+        )
       : new Date(Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000);
 
     userAudio.rental_expire_at = newRentalExpireAt;

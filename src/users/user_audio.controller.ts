@@ -1,4 +1,11 @@
-import { Controller, Patch, Param, UseGuards, Request, Post } from '@nestjs/common';
+import {
+  Controller,
+  Patch,
+  Param,
+  UseGuards,
+  Request,
+  Post,
+} from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserAudioService } from './user_audio.service';
 
@@ -17,10 +24,7 @@ export class UserAudioController {
   }
 
   @Post(':audioId/renew')
-  renewRentedAudio(
-    @Param('audioId') audioId: string,
-    @Request() req,
-  ) {
+  renewRentedAudio(@Param('audioId') audioId: string, @Request() req) {
     return this.userAudioService.renewRentedAudio(audioId, req.user);
   }
 }
