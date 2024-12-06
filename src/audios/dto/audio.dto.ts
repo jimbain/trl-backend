@@ -60,7 +60,7 @@ export class AudioDto {
   is_premium: boolean;
 
   @Expose()
-  available_for: 'rent' | 'bookshelf' | 'both';
+  available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
   @Transform(({ obj }) => {

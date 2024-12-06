@@ -382,6 +382,10 @@ export class AudioService {
   }
 
   getAvailableFor(audio: Audio) {
+    if( audio.total_rented >= audio.purchased_licenses ){
+      return null;
+    }
+    
     return audio.available_for == MEDIA_AVAILABILITY_TYPE.PURCHASABLE
       ? 'bookshelf'
       : audio.available_for == MEDIA_AVAILABILITY_TYPE.RENTAL

@@ -116,6 +116,11 @@ export class UserAudioService {
         this.findLicenseWithNullCheckoutId(data?.licenses ?? null);
       const checkout = await this.checkoutLicenseOfAudio(sku, license);
       updatedUserAudio.license_id = checkout.checkout.license_id;
+
+      await this.audioRepository.update(
+        { id: audioId },
+        { total_rented: (audio.total_rented || 0) + 1 }
+      );
     }
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
