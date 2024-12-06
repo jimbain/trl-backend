@@ -420,8 +420,7 @@ export class AudioService {
         where: { audio_id: audioId, user_id: user.id },
       });
 
-    // const sku = audio.sku;
-    const sku = '00037';
+    const sku = audio.sku;
     const data: any = await this.audioEngineService.post(
       `/audiobooks/${sku}/playlists`,
       { license_id: userAudioStatus.license_id },

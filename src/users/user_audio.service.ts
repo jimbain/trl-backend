@@ -108,8 +108,7 @@ export class UserAudioService {
         });
 
     if (status === 'bookshelved' || status === 'rented') {
-      // const sku = audio.sku;
-      const sku = '00037';
+      const sku = audio.sku;
       const data: any = await this.audioEngineService.get(
         `/accounts/${audioEngineAccountId}/audiobooks/${sku}`,
       );
