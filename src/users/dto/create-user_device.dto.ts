@@ -2,7 +2,7 @@ import { IsNotEmpty, IsString, IsEmail } from 'class-validator';
 
 export class CreateUserDeviceDto {
   device_os?: string;
-  
+
   @IsString()
   @IsNotEmpty()
   os: string;

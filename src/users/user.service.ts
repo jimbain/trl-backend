@@ -72,12 +72,12 @@ export class UserService {
     data: CreateUserDeviceDto,
   ): Promise<UserDevice> {
     data.device_os = data.os;
-    
+
     const existingUserDevice = await this.userDeviceRepository.findOne({
       where: {
         user_id: user.id,
-        device_id: data.device_id
-      }
+        device_id: data.device_id,
+      },
     });
 
     let userDevice: UserDevice;
@@ -91,7 +91,7 @@ export class UserService {
         ...data,
       });
     }
-    
+
     return this.userDeviceRepository.save(userDevice);
   }
 }
