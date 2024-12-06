@@ -119,7 +119,7 @@ export class UserAudioService {
 
       await this.audioRepository.update(
         { id: audioId },
-        { total_rented: (audio.total_rented || 0) + 1 }
+        { total_rented: (audio.total_rented || 0) + 1 },
       );
     }
 
