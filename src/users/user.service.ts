@@ -71,11 +71,27 @@ export class UserService {
     user: User,
     data: CreateUserDeviceDto,
   ): Promise<UserDevice> {
-    const userDevice = this.userDeviceRepository.create({
-      user_id: user.id,
-      ...data,
+    data.device_os = data.os;
+    
+    const existingUserDevice = await this.userDeviceRepository.findOne({
+      where: {
+        user_id: user.id,
+        device_id: data.device_id
+      }
     });
 
-    return await this.userDeviceRepository.save(userDevice);
+    let userDevice: UserDevice;
+
+    if (existingUserDevice) {
+      userDevice = existingUserDevice;
+      this.userDeviceRepository.merge(userDevice, data);
+    } else {
+      userDevice = this.userDeviceRepository.create({
+        user_id: user.id,
+        ...data,
+      });
+    }
+    
+    return this.userDeviceRepository.save(userDevice);
   }
 }
