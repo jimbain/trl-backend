@@ -122,9 +122,10 @@ export class AudioSeeder {
         audioCategories[_.random(audioCategories.length - 1)].id,
       ];
       audioEntity.suggestions = [];
-      audioEntity.purchased_licenses = _.random(1, 10);
-      audioEntity.purchased_license_limit =
-        audioEntity.purchased_licenses + _.random(0, 5);
+      audioEntity.purchased_licenses = audio.licenses.filter(
+        (license) => license.checkout_id === null,
+      ).length;
+      audioEntity.purchased_license_limit = audio.licenses.length;
 
       return { audioMeta, audioEntity };
     });
