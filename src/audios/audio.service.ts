@@ -67,12 +67,22 @@ export class AudioService {
 
   async getFeaturedAudios(
     categoryIds: string[],
+    user: User,
     limit: number = 10,
     page: number = 1,
   ): Promise<{
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
+    const userAudios = await this.userAudioStatusRepository.find({
+      where: {
+        user_id: user.id,
+      },
+      select: ['audio_id'],
+    });
+
+    const audioIds = userAudios.map((userAudio: UserAudioStatus) => userAudio.audio_id);
+
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
@@ -82,6 +92,7 @@ export class AudioService {
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
       .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('audio.id NOT IN (:...audioIds)', { audioIds })
       .select([
         'audio.id',
         'audio.display_title',

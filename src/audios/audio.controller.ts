@@ -31,6 +31,7 @@ export class AudioController {
 
     const featuredAudios = await this.audioService.getFeaturedAudios(
       companyAudioCategoryIds,
+      req.user,
       10,
       1,
     );
@@ -139,6 +140,7 @@ export class AudioController {
     if (type === 'featured') {
       return this.audioService.getFeaturedAudios(
         companyAudioCategoryIds,
+        req.user,
         parsedPerPage,
         parsedPage,
       );
