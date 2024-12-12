@@ -23,7 +23,7 @@ export class UserAudioController {
   ) {
     return this.userAudioService.update(audioId, status, req.user);
   }
-  
+
   @HttpCode(200)
   @Post(':audioId/dequeue')
   dequeueAudio(@Param('audioId') audioId: string, @Request() req) {

@@ -59,10 +59,10 @@ export class UserAudioService {
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
-    
+
     if (
       (status === 'bookshelved' || status === 'rented') &&
-      (audio.total_rented >= audio.purchased_licenses)
+      audio.total_rented >= audio.purchased_licenses
     ) {
       throw new BadRequestException(
         `There is no purchased license for this audio book. Please talk to admin.`,
@@ -238,7 +238,9 @@ export class UserAudioService {
 
     await this.userAudioStatusRepository.remove(queuedAudio);
 
-    return { message: `The audio book with ID ${audioId} has been removed from your queued list.` };
+    return {
+      message: `The audio book with ID ${audioId} has been removed from your queued list.`,
+    };
   }
 
   async renewRentedAudio(audioId: string, user: User) {
