@@ -9,10 +9,10 @@ import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UserAudioStatus } from './entities/user_audio_status.entity';
 import { UserActivityLog } from './entities/user_activity_log.entity';
-import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { ConfigService } from '@nestjs/config';
+import { AppConfigService } from 'src/app-config/app-config.service';
 
 @Injectable()
 export class UserAudioService {
@@ -26,12 +26,10 @@ export class UserAudioService {
     @InjectRepository(UserActivityLog)
     private readonly userActivityLogRepository: Repository<UserActivityLog>,
 
-    @InjectRepository(AppConfig)
-    private readonly appConfigRepository: Repository<AppConfig>,
-
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
 
+    private readonly appConfigService: AppConfigService,
     private readonly audioEngineService: AudioEngineService,
     private readonly configService: ConfigService,
   ) {}
@@ -45,19 +43,29 @@ export class UserAudioService {
       'AUDIO_ENGINE_ACCOUNT_ID',
     );
 
-    const [audio, audioRentalCost, userAudio] = await Promise.all([
+    const [audio, appConfigs, userAudio, rentedAudioCount] = await Promise.all([
       this.audioRepository.findOne({ where: { id: audioId } }),
-      this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'audio_rental_credit_cost' },
-      }),
+      this.appConfigService.getAppConfigs([
+        'audio_rental_credit_cost', 
+        'audio_rental_period_in_days',
+        'max_rental_items_on_hand'
+      ]),
       this.userAudioStatusRepository.findOne({
         where: { audio_id: audioId, user_id: user.id },
       }),
+      this.userAudioStatusRepository.count({
+        where: { user_id: user.id, status: 'rented' },
+      })
     ]);
 
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
+    }
+
+    const maxRentalItemsOnHand = parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
+
+    if(status === 'rented' && rentedAudioCount >= maxRentalItemsOnHand){
+      throw new BadRequestException(`You are allowed to rent ${maxRentalItemsOnHand} items on hand.`);
     }
 
     if (
@@ -74,17 +82,17 @@ export class UserAudioService {
     }
 
     let rentalExpiresAt = null;
+    
     if (status === 'rented') {
-      const rentalPeriodInDays = await this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'audio_rental_period_in_days' },
-      });
+      const rentalPeriodInDays = appConfigs.audio_rental_period_in_days
+        ? parseInt(appConfigs.audio_rental_period_in_days, 10)
+        : 14;
 
       rentalExpiresAt =
         status === 'rented'
           ? new Date(
               new Date().setDate(
-                new Date().getDate() + parseInt(rentalPeriodInDays.value),
+                new Date().getDate() + rentalPeriodInDays,
               ),
             )
           : null;
@@ -129,7 +137,7 @@ export class UserAudioService {
       queued: { action_type: 'queue', credit_used: 0 },
       rented: {
         action_type: 'rent',
-        credit_used: parseInt(audioRentalCost?.value.toString() || '0', 10),
+        credit_used: parseInt(appConfigs.audio_rental_credit_cost?.toString() || '0', 10) ?? 1,
       },
       bookshelved: { action_type: 'keep', credit_used: audio.trl_cost || 0 },
     };
@@ -244,11 +252,10 @@ export class UserAudioService {
   }
 
   async renewRentedAudio(audioId: string, user: User) {
-    const [rentalPeriodConfig, userAudio] = await Promise.all([
-      this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'audio_rental_period_in_days' },
-      }),
+    const [appConfigs, userAudio] = await Promise.all([
+      this.appConfigService.getAppConfigs([
+        'audio_rental_period_in_days'
+      ]),
       this.userAudioStatusRepository.findOne({
         where: {
           audio_id: audioId,
@@ -264,8 +271,8 @@ export class UserAudioService {
       );
     }
 
-    const rentalPeriodInDays = rentalPeriodConfig
-      ? parseInt(rentalPeriodConfig.value, 10)
+    const rentalPeriodInDays = appConfigs.audio_rental_period_in_days
+      ? parseInt(appConfigs.audio_rental_period_in_days, 10)
       : 14;
 
     if (userAudio.rental_expire_at) {

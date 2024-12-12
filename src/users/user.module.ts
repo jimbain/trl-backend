@@ -18,6 +18,7 @@ import { HttpModule } from '@nestjs/axios';
 import { UserDevice } from './entities/user_device.entity';
 import { UserAudioScheduler } from './schedulers/user_audio.scheduler';
 import { FirebaseService } from 'src/common/services/firebase.service';
+import { AppConfigService } from 'src/app-config/app-config.service';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { FirebaseService } from 'src/common/services/firebase.service';
     AudioEngineService,
     FirebaseService,
     UserAudioScheduler,
+    AppConfigService
   ],
   exports: [UserService, MailgunService, AudioEngineService],
 })
