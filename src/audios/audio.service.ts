@@ -82,7 +82,7 @@ export class AudioService {
 
     const audioIds = userAudios.map((userAudio: UserAudioStatus) => userAudio.audio_id);
 
-    const [audios, total] = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
@@ -90,8 +90,13 @@ export class AudioService {
         { categoryIds: categoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .andWhere('audio.id NOT IN (:...audioIds)', { audioIds })
+      .andWhere('audio.is_active = :isActive', { isActive: true });
+
+    if (audioIds.length > 0) {
+      queryBuilder.andWhere('audio.id NOT IN (:...audioIds)', { audioIds });
+    }
+
+    const [audios, total] = await queryBuilder
       .select([
         'audio.id',
         'audio.display_title',
