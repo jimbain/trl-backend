@@ -48,8 +48,7 @@ export class UserAudioService {
       this.appConfigService.getAppConfigs([
         'audio_rental_credit_cost', 
         'audio_rental_period_in_days',
-        'max_rental_items_on_hand',
-        'rental_period_unit'
+        'max_rental_items_on_hand'
       ]),
       this.userAudioStatusRepository.findOne({
         where: { audio_id: audioId, user_id: user.id },
@@ -66,7 +65,7 @@ export class UserAudioService {
     const maxRentalItemsOnHand = parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
 
     if(status === 'rented' && rentedAudioCount >= maxRentalItemsOnHand){
-      throw new BadRequestException(`You are allowed to rent ${maxRentalItemsOnHand} item(s) per ${appConfigs.rental_period_unit}.`);
+      throw new BadRequestException(`You are allowed to rent ${maxRentalItemsOnHand} item(s).`);
     }
 
     if (
