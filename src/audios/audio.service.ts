@@ -13,7 +13,6 @@ import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
-import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
@@ -98,6 +97,9 @@ export class AudioService {
         'audio.display_title',
         'audio.display_authors',
         'audio.avg_rating',
+        'audio.total_rented',
+        'audio.purchased_licenses',
+        'audio.available_for',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
@@ -164,6 +166,9 @@ export class AudioService {
         'audio.display_title',
         'audio.display_authors',
         'audio.avg_rating',
+        'audio.total_rented',
+        'audio.purchased_licenses',
+        'audio.available_for',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
@@ -375,33 +380,17 @@ export class AudioService {
       select: ['status', 'rental_expire_at'],
     });
 
-    // @TODO: need to update for metadata
-    const availableFor = this.getAvailableFor(audio);
-
     return plainToInstance(
       AudioDto,
       {
         ...audio,
         ...{
-          available_for: availableFor,
           status: userAudio?.status ?? null,
           rental_expires_at: userAudio?.rental_expire_at ?? null,
         },
       },
       { excludeExtraneousValues: true },
     );
-  }
-
-  getAvailableFor(audio: Audio) {
-    if (audio.total_rented >= audio.purchased_licenses) {
-      return null;
-    }
-
-    return audio.available_for == MEDIA_AVAILABILITY_TYPE.PURCHASABLE
-      ? 'bookshelf'
-      : audio.available_for == MEDIA_AVAILABILITY_TYPE.RENTAL
-        ? 'rent'
-        : 'both';
   }
 
   async findAudioPlaylist(audioId: string, user: User) {

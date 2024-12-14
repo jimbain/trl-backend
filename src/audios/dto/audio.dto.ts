@@ -1,4 +1,17 @@
 import { Expose, Transform } from 'class-transformer';
+import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
+
+export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | null {
+  if (audio?.total_rented >= audio?.purchased_licenses) {
+    return null;
+  }
+
+  return audio?.available_for === MEDIA_AVAILABILITY_TYPE.PURCHASABLE
+    ? 'bookshelf'
+    : audio?.available_for === MEDIA_AVAILABILITY_TYPE.RENTAL
+    ? 'rent'
+    : 'both';
+}
 
 export class AudioDto {
   @Expose()
@@ -60,6 +73,7 @@ export class AudioDto {
   is_premium: boolean;
 
   @Expose()
+  @Transform(({ obj }) => getAvailableFor(obj))
   available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
@@ -102,6 +116,10 @@ export class AudioListDto {
 
   @Expose()
   avg_rating: number;
+
+  @Expose()
+  @Transform(({ obj }) => getAvailableFor(obj))
+  available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
   updated_at?: Date;
