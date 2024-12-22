@@ -10,12 +10,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { CommonModule } from 'src/common/common.module';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { OktaStrategy } from './okta.strategy';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PasswordResetToken, AppConfig]),
     UserModule,
     CommonModule,
+    HttpModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       global: true,
@@ -34,6 +37,6 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, OktaStrategy, JwtStrategy],
 })
 export class AuthModule {}

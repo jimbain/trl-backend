@@ -1,3 +1,4 @@
+import session from 'express-session';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -35,6 +36,17 @@ async function bootstrap() {
 
   // Integrate NestJS dependency injection container with class-validator. This is for custom validators
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
+
+  app.use(
+    session({
+      secret: configService.get<string>('SESSION_SECRET') || 'defaultSecret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      },
+    }),
+  );
 
   await app.listen(port);
 }

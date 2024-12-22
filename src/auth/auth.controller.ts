@@ -17,6 +17,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ForgotPasswordOtpVerifyDto } from './dto/forgot-password-otp-verify.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -40,6 +41,18 @@ export class AuthController {
     const user = await this.authService.validateUser(loginPayload);
     this.authService.storeLoginInfo(user, loginPayload);
     return this.authService.login(user);
+  }
+
+  @Get('okta')
+  @UseGuards(AuthGuard('okta'))
+  async oktaLogin() {
+    // Redirect to Okta login page
+  }
+
+  @Get('okta/callback')
+  @UseGuards(AuthGuard('okta'))
+  async oktaCallback(@Request() req) {
+    return req.user;
   }
 
   @UseGuards(JwtAuthGuard)

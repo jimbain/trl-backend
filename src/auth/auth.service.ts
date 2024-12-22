@@ -21,6 +21,7 @@ import { UserDto } from 'src/users/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
 import { NOTIFICATION_CHANNEL } from 'src/constants';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
     private readonly mailgunService: MailgunService,
+    private readonly httpService: HttpService,
   ) {}
 
   async signup(registerPayload: RegisterDto) {
@@ -77,6 +79,29 @@ export class AuthService {
       },
       HttpStatus.UNPROCESSABLE_ENTITY,
     );
+  }
+
+  async validateOktaUser(profile: any, accessToken: string) {
+    try {
+      const issuerURL = this.config.getOrThrow<string>('OKTA_ISSUER_URL');
+      // Get user info from Okta using the access token
+      const userInfo = await this.httpService.axiosRef.get(
+        `${issuerURL}/v1/userinfo`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      console.log("userInfo", userInfo)
+
+      // Process user info, e.g., create a new user or return an existing user
+      // Here, you can integrate the Okta user info with your backend logic (e.g., creating a user in DB)
+      return userInfo.data;
+    } catch (error) {
+      throw new Error('Error fetching user info from Okta');
+    }
   }
 
   async checkUser(email: string): Promise<any> {
