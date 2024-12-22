@@ -1,7 +1,9 @@
 import { Expose, Transform } from 'class-transformer';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 
-export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | null {
+export function getAvailableFor(
+  audio: any,
+): 'rent' | 'bookshelf' | 'both' | null {
   if (audio?.total_rented >= audio?.purchased_licenses) {
     return null;
   }
@@ -9,8 +11,8 @@ export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | nul
   return audio?.available_for === MEDIA_AVAILABILITY_TYPE.PURCHASABLE
     ? 'bookshelf'
     : audio?.available_for === MEDIA_AVAILABILITY_TYPE.RENTAL
-    ? 'rent'
-    : 'both';
+      ? 'rent'
+      : 'both';
 }
 
 export class AudioDto {

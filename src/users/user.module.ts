@@ -46,7 +46,7 @@ import { AppConfigService } from 'src/app-config/app-config.service';
     AudioEngineService,
     FirebaseService,
     UserAudioScheduler,
-    AppConfigService
+    AppConfigService,
   ],
   exports: [UserService, MailgunService, AudioEngineService],
 })

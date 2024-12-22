@@ -80,7 +80,9 @@ export class AudioService {
       select: ['audio_id'],
     });
 
-    const audioIds = userAudios.map((userAudio: UserAudioStatus) => userAudio.audio_id);
+    const audioIds = userAudios.map(
+      (userAudio: UserAudioStatus) => userAudio.audio_id,
+    );
 
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
@@ -285,8 +287,8 @@ export class AudioService {
         id: categoryId,
         title:
           categoryId !== 'category_0'
-            ? companyAudioCategories?.[0]?.display_title ??
-              companyAudioCategories?.[0]?.category?.title
+            ? (companyAudioCategories?.[0]?.display_title ??
+              companyAudioCategories?.[0]?.category?.title)
             : 'All categories',
       },
       data: plainToInstance(AudioListDto, audios, {

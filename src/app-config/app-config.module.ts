@@ -5,11 +5,7 @@ import { AppConfigController } from './app-config.controller';
 import { AppConfig } from './entities/app-config.entity';
 
 @Module({
-  imports:[
-    TypeOrmModule.forFeature([
-      AppConfig,
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([AppConfig])],
   controllers: [AppConfigController],
   providers: [AppConfigService],
 })

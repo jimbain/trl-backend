@@ -21,7 +21,12 @@ export class OktaStrategy extends PassportStrategy(Strategy, 'okta') {
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: any, done: VerifyCallback) {
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: any,
+    done: VerifyCallback,
+  ) {
     // Handle the user info and validation logic here
     const user = await this.authService.validateOktaUser(profile, accessToken);
     done(null, user);

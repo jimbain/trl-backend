@@ -46,27 +46,30 @@ export class UserAudioService {
     const [audio, appConfigs, userAudio, rentedAudioCount] = await Promise.all([
       this.audioRepository.findOne({ where: { id: audioId } }),
       this.appConfigService.getAppConfigs([
-        'audio_rental_credit_cost', 
+        'audio_rental_credit_cost',
         'audio_rental_period_in_days',
         'max_rental_items_on_hand',
-        'rental_period_unit'
+        'rental_period_unit',
       ]),
       this.userAudioStatusRepository.findOne({
         where: { audio_id: audioId, user_id: user.id },
       }),
       this.userAudioStatusRepository.count({
         where: { user_id: user.id, status: 'rented' },
-      })
+      }),
     ]);
 
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
     }
 
-    const maxRentalItemsOnHand = parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
+    const maxRentalItemsOnHand =
+      parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
 
-    if(status === 'rented' && rentedAudioCount >= maxRentalItemsOnHand){
-      throw new BadRequestException(`You are allowed to rent ${maxRentalItemsOnHand} item(s) per ${appConfigs?.rental_period_unit ?? ''}.`);
+    if (status === 'rented' && rentedAudioCount >= maxRentalItemsOnHand) {
+      throw new BadRequestException(
+        `You are allowed to rent ${maxRentalItemsOnHand} item(s) per ${appConfigs?.rental_period_unit ?? ''}.`,
+      );
     }
 
     if (
@@ -83,7 +86,7 @@ export class UserAudioService {
     }
 
     let rentalExpiresAt = null;
-    
+
     if (status === 'rented') {
       const rentalPeriodInDays = appConfigs.audio_rental_period_in_days
         ? parseInt(appConfigs.audio_rental_period_in_days, 10)
@@ -92,9 +95,7 @@ export class UserAudioService {
       rentalExpiresAt =
         status === 'rented'
           ? new Date(
-              new Date().setDate(
-                new Date().getDate() + rentalPeriodInDays,
-              ),
+              new Date().setDate(new Date().getDate() + rentalPeriodInDays),
             )
           : null;
     }
@@ -138,7 +139,11 @@ export class UserAudioService {
       queued: { action_type: 'queue', credit_used: 0 },
       rented: {
         action_type: 'rent',
-        credit_used: parseInt(appConfigs.audio_rental_credit_cost?.toString() || '0', 10) ?? 1,
+        credit_used:
+          parseInt(
+            appConfigs.audio_rental_credit_cost?.toString() || '0',
+            10,
+          ) ?? 1,
       },
       bookshelved: { action_type: 'keep', credit_used: audio.trl_cost || 0 },
     };
@@ -254,9 +259,7 @@ export class UserAudioService {
 
   async renewRentedAudio(audioId: string, user: User) {
     const [appConfigs, userAudio] = await Promise.all([
-      this.appConfigService.getAppConfigs([
-        'audio_rental_period_in_days'
-      ]),
+      this.appConfigService.getAppConfigs(['audio_rental_period_in_days']),
       this.userAudioStatusRepository.findOne({
         where: {
           audio_id: audioId,

@@ -94,7 +94,7 @@ export class AuthService {
         },
       );
 
-      console.log("userInfo", userInfo)
+      console.log('userInfo', userInfo);
 
       // Process user info, e.g., create a new user or return an existing user
       // Here, you can integrate the Okta user info with your backend logic (e.g., creating a user in DB)
