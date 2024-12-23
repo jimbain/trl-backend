@@ -94,7 +94,7 @@ export class AudioController {
     const parsedPerPage = parseInt(per_page, 10) || 20;
 
     return this.audioService.findAudiosByCategory(
-      req.user.company.id,
+      req.user,
       id,
       parsedPage,
       parsedPerPage,

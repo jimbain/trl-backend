@@ -209,6 +209,7 @@ export class AudioService {
         'metadata.authors',
         'metadata.cover_url',
         'userAudioStatus.status',
+        'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
       ]);
 
@@ -231,36 +232,23 @@ export class AudioService {
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
-    const userAudios = await this.userAudioStatusRepository.find({
-      where: {
-        user_id: user.id,
-        status: status,
-        rental_expire_at:
-          status === 'rented' ? MoreThanOrEqual(new Date()) : null,
-      },
-      select: ['audio_id', 'updated_at', 'rental_expire_at'],
-    });
-
-    const audioIds = userAudios.map((userAudio) => userAudio.audio_id);
-    const audioUpdatedAtMap = new Map(
-      userAudios.map((userAudio) => [userAudio.audio_id, userAudio.updated_at]),
-    );
-    const audioRentalExpiresAtMap = new Map(
-      userAudios.map((userAudio) => [
-        userAudio.audio_id,
-        userAudio.rental_expire_at,
-      ]),
-    );
-
-    if (audioIds.length === 0) {
-      return [];
-    }
-
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        `userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId`,
+        {
+          userId: user.id,
+        },
+      )
       .andWhere('audio.is_active = :isActive', { isActive: true })
-      .andWhere('audio.id IN (:...audioIds)', { audioIds })
+      .andWhere('userAudioStatus.status = :status', { status })
+      .andWhere('userAudioStatus.rental_expire_at = :rentalExpireAt', { 
+        rentalExpireAt: status === 'rented' ? MoreThanOrEqual(new Date()) : null,
+      })
       .select([
         'audio.id',
         'audio.display_title',
@@ -272,21 +260,18 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'userAudioStatus.status',
+        'userAudioStatus.updated_at',
+        'userAudioStatus.rental_expire_at',
       ]);
 
-    if (limit !== null) {
+    if (limit) {
       queryBuilder.take(limit);
     }
 
     const audios = await queryBuilder.getMany();
 
-    const audiosWithUpdatedAt = audios.map((audio) => ({
-      ...audio,
-      updated_at: audioUpdatedAtMap.get(audio.id),
-      rental_expires_at: audioRentalExpiresAtMap.get(audio.id),
-    }));
-
-    return plainToInstance(AudioListDto, audiosWithUpdatedAt, {
+    return plainToInstance(AudioListDto, audios, {
       excludeExtraneousValues: true,
     });
   }
@@ -317,7 +302,7 @@ export class AudioService {
   }
 
   async findAudiosByCategory(
-    companyId: string,
+    user: User,
     categoryId: string,
     page: number = 1,
     limit: number = 10,
@@ -329,7 +314,7 @@ export class AudioService {
     const companyAudioCategories = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
-      .where('companyCategory.company_id = :companyId', { companyId })
+      .where('companyCategory.company_id = :companyId', { companyId: user.company.id })
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
       .andWhere(
@@ -354,6 +339,13 @@ export class AudioService {
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categoryIds },
@@ -367,6 +359,9 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'userAudioStatus.status',
+        'userAudioStatus.updated_at',
+        'userAudioStatus.rental_expire_at',
       ])
       .skip((page - 1) * limit)
       .take(limit)
@@ -454,6 +449,7 @@ export class AudioService {
         'metadata.authors',
         'metadata.cover_url',
         'userAudioStatus.status',
+        'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
       ])
       .skip((page - 1) * limit)

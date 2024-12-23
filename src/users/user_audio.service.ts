@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UserAudioStatus } from './entities/user_audio_status.entity';
@@ -192,7 +192,7 @@ export class UserAudioService {
         where: { audio_id: audioId, user_id: user.id },
       }),
       this.userAudioStatusRepository.count({
-        where: { user_id: user.id, status: 'rented' },
+        where: { user_id: user.id, status: 'rented', rental_expire_at: MoreThanOrEqual(new Date()) },
       }),
     ]);
 

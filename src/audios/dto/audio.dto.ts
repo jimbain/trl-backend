@@ -137,7 +137,7 @@ export class AudioListDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.rental_expires_at ?? null;
+    return obj?.userAudioStatus?.rental_expire_at ?? null;
   })
   rental_expires_at?: Date;
 }
