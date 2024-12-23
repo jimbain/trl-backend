@@ -155,7 +155,7 @@ export class AuthService {
     };
   }
 
-  async getAccessTokenForOktaSsoLoginThroughEmail(email: string) {
+  async getTokensForOktaSsoLoginThroughEmail(email: string) {
     const user = await this.userService.findByEmail(email, ['company']);
 
     if (!user) {
@@ -186,9 +186,23 @@ export class AuthService {
       isRefreshToken: false,
     };
 
-    return this.jwtService.sign(accessPayload, {
+    const refreshPayload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      isRefreshToken: true,
+    };
+
+    const accessToken = this.jwtService.sign(accessPayload, {
       expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN'),
     });
+    const refreshToken = this.jwtService.sign(refreshPayload, {
+      expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
+    });
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
   }
 
   async refreshToken(token: string, reqestedUser: User) {
