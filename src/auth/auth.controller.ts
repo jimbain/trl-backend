@@ -122,7 +122,7 @@ export class AuthController {
   @HttpCode(200)
   getProfile(@Request() req) {
     return {
-      user: req.user
+      user: req.user,
     };
   }
 }
