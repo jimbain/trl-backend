@@ -246,10 +246,10 @@ export class AudioService {
       )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere('userAudioStatus.status = :status', { status })
-      .andWhere('userAudioStatus.rental_expire_at = :rentalExpireAt', {
-        rentalExpireAt:
-          status === 'rented' ? MoreThanOrEqual(new Date()) : null,
-      })
+      .andWhere(
+        `(userAudioStatus.status != 'rented' OR userAudioStatus.rental_expire_at >= :currentDate)`,
+        { currentDate: new Date() },
+      )
       .select([
         'audio.id',
         'audio.display_title',
