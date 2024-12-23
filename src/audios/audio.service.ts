@@ -246,8 +246,9 @@ export class AudioService {
       )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere('userAudioStatus.status = :status', { status })
-      .andWhere('userAudioStatus.rental_expire_at = :rentalExpireAt', { 
-        rentalExpireAt: status === 'rented' ? MoreThanOrEqual(new Date()) : null,
+      .andWhere('userAudioStatus.rental_expire_at = :rentalExpireAt', {
+        rentalExpireAt:
+          status === 'rented' ? MoreThanOrEqual(new Date()) : null,
       })
       .select([
         'audio.id',
@@ -314,7 +315,9 @@ export class AudioService {
     const companyAudioCategories = await this.companyCategoryRepository
       .createQueryBuilder('companyCategory')
       .leftJoinAndSelect('companyCategory.category', 'category')
-      .where('companyCategory.company_id = :companyId', { companyId: user.company.id })
+      .where('companyCategory.company_id = :companyId', {
+        companyId: user.company.id,
+      })
       .andWhere('companyCategory.is_active = :isActive', { isActive: true })
       .andWhere('category.is_active = :isActive', { isActive: true })
       .andWhere(

@@ -192,7 +192,11 @@ export class UserAudioService {
         where: { audio_id: audioId, user_id: user.id },
       }),
       this.userAudioStatusRepository.count({
-        where: { user_id: user.id, status: 'rented', rental_expire_at: MoreThanOrEqual(new Date()) },
+        where: {
+          user_id: user.id,
+          status: 'rented',
+          rental_expire_at: MoreThanOrEqual(new Date()),
+        },
       }),
     ]);
 
