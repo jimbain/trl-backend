@@ -18,28 +18,23 @@ export class UserAudioController {
   @HttpCode(200)
   @Post(':audioId/actions/:action')
   audioAction(
-    @Param('audioId') audioId: string, 
+    @Param('audioId') audioId: string,
     @Param() params: UserAudioActionParamsDto,
-    @Request() req
+    @Request() req,
   ) {
     const { action } = params;
 
-    if(action === 'queue'){
+    if (action === 'queue') {
       return this.userAudioService.queueAudio(audioId, req.user);
-    }
-    else if(action === 'dequeue'){
+    } else if (action === 'dequeue') {
       return this.userAudioService.dequeueAudio(audioId, req.user);
-    }
-    else if(action === 'renew'){
+    } else if (action === 'renew') {
       return this.userAudioService.renewRentedAudio(audioId, req.user);
-    }
-    else if(action === 'return'){
+    } else if (action === 'return') {
       return this.userAudioService.returnRentedAudio(audioId, req.user);
-    }
-    else if(action === 'rent'){
+    } else if (action === 'rent') {
       return this.userAudioService.rentAudio(audioId, req.user);
-    }
-    else if(action === 'bookself'){
+    } else if (action === 'bookself') {
       return this.userAudioService.bookselfAudio(audioId, req.user);
     }
   }

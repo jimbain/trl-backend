@@ -33,7 +33,7 @@ import { AudioModule } from 'src/audios/audio.module';
       AppConfig,
       Company,
     ]),
-    AudioModule
+    AudioModule,
   ],
   controllers: [
     ContactUsController,

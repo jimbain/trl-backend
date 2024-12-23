@@ -137,31 +137,31 @@ export class AudioService {
   async getContinueListeningAudiosOfUser(
     user: User,
     limit: number = 10,
-  ): Promise<AudioListDto[]> 
-  {
-    const userAudioplayerPositions = await this.userAudioplayerPositionRepository.find({
-      where: { user_id: user.id },
-      order: { updated_at: 'DESC' },
-      take: limit,
-    });
-  
+  ): Promise<AudioListDto[]> {
+    const userAudioplayerPositions =
+      await this.userAudioplayerPositionRepository.find({
+        where: { user_id: user.id },
+        order: { updated_at: 'DESC' },
+        take: limit,
+      });
+
     const list1AudioIds = userAudioplayerPositions.map(
       (position) => position.audio_id,
     );
-  
+
     const userAudioStatuses = await this.userAudioStatusRepository.find({
       where: { user_id: user.id, status: USER_MEDIA_STATUS.RENTED },
     });
-  
+
     const list2AudioIds = userAudioStatuses.map((status) => status.audio_id);
-  
+
     const missingAudioIds = list2AudioIds.filter(
       (audioId) => !list1AudioIds.includes(audioId),
     );
-  
+
     const audioIds = [...list1AudioIds, ...missingAudioIds];
 
-    if(!audioIds.length){
+    if (!audioIds.length) {
       return [];
     }
 
@@ -197,7 +197,9 @@ export class AudioService {
     }
 
     const audios = await queryBuilder.getMany();
-    const sortedAudios = audioIds.map(id => audios.find(audio => audio.id === id));
+    const sortedAudios = audioIds.map((id) =>
+      audios.find((audio) => audio.id === id),
+    );
 
     return plainToInstance(AudioListDto, sortedAudios, {
       excludeExtraneousValues: true,
@@ -382,7 +384,9 @@ export class AudioService {
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<AudioListDto>> {
-    const categories = await this.findAllAudioCategoryIdOfCompany(user.company.id);
+    const categories = await this.findAllAudioCategoryIdOfCompany(
+      user.company.id,
+    );
 
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')

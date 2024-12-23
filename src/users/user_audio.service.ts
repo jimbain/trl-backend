@@ -37,7 +37,9 @@ export class UserAudioService {
     private readonly audioEngineService: AudioEngineService,
     private readonly configService: ConfigService,
   ) {
-    this.audioEngineAccountId = this.configService.getOrThrow<string>('AUDIO_ENGINE_ACCOUNT_ID');
+    this.audioEngineAccountId = this.configService.getOrThrow<string>(
+      'AUDIO_ENGINE_ACCOUNT_ID',
+    );
   }
 
   findLicenseWithNullCheckoutId(
@@ -87,7 +89,7 @@ export class UserAudioService {
     user: User,
     audio: Audio,
     action: 'queue' | 'rent' | 'keep',
-    credit: number = 0
+    credit: number = 0,
   ) {
     const userActivityLog = this.userActivityLogRepository.create({
       user_id: user.id,
@@ -133,9 +135,9 @@ export class UserAudioService {
       this.userAudioStatusRepository.findOne({
         where: {
           audio_id: audioId,
-          user_id: user.id
+          user_id: user.id,
         },
-      })
+      }),
     ]);
 
     if (userAudio) {
@@ -194,13 +196,14 @@ export class UserAudioService {
       }),
     ]);
 
-    if ( audio.total_rented >= audio.purchased_licenses) {
+    if (audio.total_rented >= audio.purchased_licenses) {
       throw new BadRequestException(
         `There is no purchased license for this audio book. Please talk to admin.`,
       );
     }
 
-    const maxRentalItemsOnHand = parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
+    const maxRentalItemsOnHand =
+      parseInt(appConfigs.max_rental_items_on_hand?.toString()) ?? 1;
 
     if (rentedAudioCount >= maxRentalItemsOnHand) {
       throw new BadRequestException(
@@ -253,10 +256,10 @@ export class UserAudioService {
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
     await this.storeUserActivityLog(
-      user, 
-      audio, 
-      'rent', 
-      parseInt(appConfigs.audio_rental_credit_cost?.toString() || '0', 10) ?? 1
+      user,
+      audio,
+      'rent',
+      parseInt(appConfigs.audio_rental_credit_cost?.toString() || '0', 10) ?? 1,
     );
 
     return this.userAudioStatusRepository.findOne({
@@ -308,12 +311,7 @@ export class UserAudioService {
     );
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
-    await this.storeUserActivityLog(
-      user, 
-      audio, 
-      'keep', 
-      audio.trl_cost || 0
-    );
+    await this.storeUserActivityLog(user, audio, 'keep', audio.trl_cost || 0);
 
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },

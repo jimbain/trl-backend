@@ -32,6 +32,6 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
     CategoryService,
     AudioEngineService,
   ],
-  exports: [AudioService]
+  exports: [AudioService],
 })
 export class AudioModule {}
