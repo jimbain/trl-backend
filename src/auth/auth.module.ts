@@ -10,8 +10,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { CommonModule } from 'src/common/common.module';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
-import { OktaStrategy } from './okta.strategy';
 import { HttpModule } from '@nestjs/axios';
+import { OktaStrategy } from './okta.strategy';
 
 @Module({
   imports: [

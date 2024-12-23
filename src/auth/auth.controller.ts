@@ -6,6 +6,7 @@ import {
   Body,
   Get,
   HttpCode,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -18,10 +19,14 @@ import { ForgotPasswordOtpVerifyDto } from './dto/forgot-password-otp-verify.dto
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('signup')
   @HttpCode(200)
@@ -44,15 +49,17 @@ export class AuthController {
   }
 
   @Get('okta')
-  @UseGuards(AuthGuard('okta'))
-  async oktaLogin() {
-    // Redirect to Okta login page
+  @UseGuards(AuthGuard('saml'))
+  samlLogin() {
+    // Redirects to Okta SAML login page
   }
 
-  @Get('okta/callback')
-  @UseGuards(AuthGuard('okta'))
-  async oktaCallback(@Request() req) {
-    return req.user;
+  @Post('okta/callback')
+  @UseGuards(AuthGuard('saml'))
+  async samlCallback(@Request() req, @Res() res) {
+    const token = await this.authService.getAccessTokenForOktaSsoLoginThroughEmail(req.user.id);
+    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+    res.redirect(`${frontendUrl}?token=${token}`);
   }
 
   @UseGuards(JwtAuthGuard)

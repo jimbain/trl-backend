@@ -155,6 +155,42 @@ export class AuthService {
     };
   }
 
+  async getAccessTokenForOktaSsoLoginThroughEmail(email: string){
+    const user = await this.userService.findByEmail(email, ['company']);
+
+    if(!user){
+      throw new HttpException(
+        {
+          errors: {
+            email: ["User does not exist."],
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if(!user.company.is_sso_login){
+      throw new HttpException(
+        {
+          errors: {
+            email: ["User's company does not have sso login."],
+          },
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const accessPayload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      isRefreshToken: false,
+    };
+
+    return this.jwtService.sign(accessPayload, {
+      expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN'),
+    });
+  }
+
   async refreshToken(token: string, reqestedUser: User) {
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);

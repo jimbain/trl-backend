@@ -52,6 +52,12 @@ export class UserSeeder {
         email: 'test@test.com',
         password: 'test',
       },
+      {
+        first_name: 'SSO',
+        last_name: 'User',
+        email: 'bulajeju@teleg.eu',
+        password: 'test',
+      },
     ];
 
     for (const user of users) {
