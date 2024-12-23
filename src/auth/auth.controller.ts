@@ -57,12 +57,13 @@ export class AuthController {
   @Post('okta/callback')
   @UseGuards(AuthGuard('saml'))
   async samlCallback(@Request() req, @Res() res) {
-    const tokens =
-      await this.authService.getTokensForOktaSsoLoginThroughEmail(
-        req.user.id,
-      );
+    const tokens = await this.authService.getTokensForOktaSsoLoginThroughEmail(
+      req.user.id,
+    );
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
-    res.redirect(`${frontendUrl}/okta-signin?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`);
+    res.redirect(
+      `${frontendUrl}/okta-signin?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
