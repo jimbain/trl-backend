@@ -124,7 +124,9 @@ export class AuthController {
   @HttpCode(200)
   getProfile(@Request() req) {
     return {
-      user: plainToInstance(UserDto, req.user, { excludeExtraneousValues: true }),
+      user: plainToInstance(UserDto, req.user, {
+        excludeExtraneousValues: true,
+      }),
     };
   }
 }
