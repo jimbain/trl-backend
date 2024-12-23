@@ -150,10 +150,10 @@ export class AudioService {
     );
 
     const userAudioStatuses = await this.userAudioStatusRepository.find({
-      where: { 
-        user_id: user.id, 
+      where: {
+        user_id: user.id,
         status: USER_MEDIA_STATUS.RENTED,
-        rental_expire_at: MoreThanOrEqual(new Date()), 
+        rental_expire_at: MoreThanOrEqual(new Date()),
       },
     });
 
