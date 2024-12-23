@@ -493,7 +493,7 @@ export class AudioService {
     let status = userAudio?.status ?? null;
     let rentalExpiresAt = userAudio?.rental_expire_at ?? null;
 
-    if(status === 'rented' && rentalExpiresAt <= new Date()){
+    if (status === 'rented' && rentalExpiresAt <= new Date()) {
       status = null;
       rentalExpiresAt = null;
     }
