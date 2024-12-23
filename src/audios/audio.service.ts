@@ -490,13 +490,21 @@ export class AudioService {
       select: ['status', 'rental_expire_at'],
     });
 
+    let status = userAudio?.status ?? null;
+    let rentalExpiresAt = userAudio?.rental_expire_at ?? null;
+
+    if(status === 'rented' && rentalExpiresAt <= new Date()){
+      status = null;
+      rentalExpiresAt = null;
+    }
+
     return plainToInstance(
       AudioDto,
       {
         ...audio,
         ...{
-          status: userAudio?.status ?? null,
-          rental_expires_at: userAudio?.rental_expire_at ?? null,
+          status: status,
+          rental_expires_at: rentalExpiresAt,
         },
       },
       { excludeExtraneousValues: true },
