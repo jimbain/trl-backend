@@ -17,9 +17,21 @@ export class OktaStrategy extends PassportStrategy(Strategy, 'saml') {
   validate(profile: any) {
     return {
       id: profile.nameID,
-      email: profile['email'] || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
-      firstName: profile['firstName'] || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'],
-      lastName: profile['lastName'] || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'],
+      email:
+        profile['email'] ||
+        profile[
+          'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'
+        ],
+      firstName:
+        profile['firstName'] ||
+        profile[
+          'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'
+        ],
+      lastName:
+        profile['lastName'] ||
+        profile[
+          'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'
+        ],
     };
   }
 }

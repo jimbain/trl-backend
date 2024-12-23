@@ -155,21 +155,21 @@ export class AuthService {
     };
   }
 
-  async getAccessTokenForOktaSsoLoginThroughEmail(email: string){
+  async getAccessTokenForOktaSsoLoginThroughEmail(email: string) {
     const user = await this.userService.findByEmail(email, ['company']);
 
-    if(!user){
+    if (!user) {
       throw new HttpException(
         {
           errors: {
-            email: ["User does not exist."],
+            email: ['User does not exist.'],
           },
         },
         HttpStatus.NOT_FOUND,
       );
     }
 
-    if(!user.company.is_sso_login){
+    if (!user.company.is_sso_login) {
       throw new HttpException(
         {
           errors: {

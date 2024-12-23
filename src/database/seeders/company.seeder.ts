@@ -26,7 +26,7 @@ export class CompanySeeder {
         name: `Demo company ${i + 1}`,
         // logo_url: faker.image.url(),
         is_active: true,
-        domain: `https://biz${i+1}.trainingresourcelibrary.com`,
+        domain: `https://biz${i + 1}.trainingresourcelibrary.com`,
         description: faker.company.catchPhrase(),
         is_sso_login: i % 2 ? true : false,
         available_medias: [MEDIA.AUDIO, MEDIA.VIDEO, MEDIA.PHARMA],
