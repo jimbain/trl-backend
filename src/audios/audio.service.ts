@@ -17,6 +17,7 @@ import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
+import { USER_MEDIA_STATUS } from 'src/constants';
 
 @Injectable()
 export class AudioService {
@@ -45,7 +46,7 @@ export class AudioService {
     relations: string[] = [],
   ): Promise<Audio | undefined> {
     const audio = await this.audioRepository.findOne({
-      where: { id },
+      where: { id: id, is_active: true },
       relations: relations.length ? relations : undefined,
     });
 
@@ -131,6 +132,76 @@ export class AudioService {
         to,
       },
     };
+  }
+
+  async getContinueListeningAudiosOfUser(
+    user: User,
+    limit: number = 10,
+  ): Promise<AudioListDto[]> 
+  {
+    const userAudioplayerPositions = await this.userAudioplayerPositionRepository.find({
+      where: { user_id: user.id },
+      order: { updated_at: 'DESC' },
+      take: limit,
+    });
+  
+    const list1AudioIds = userAudioplayerPositions.map(
+      (position) => position.audio_id,
+    );
+  
+    const userAudioStatuses = await this.userAudioStatusRepository.find({
+      where: { user_id: user.id, status: USER_MEDIA_STATUS.RENTED },
+    });
+  
+    const list2AudioIds = userAudioStatuses.map((status) => status.audio_id);
+  
+    const missingAudioIds = list2AudioIds.filter(
+      (audioId) => !list1AudioIds.includes(audioId),
+    );
+  
+    const audioIds = [...list1AudioIds, ...missingAudioIds];
+
+    if(!audioIds.length){
+      return [];
+    }
+
+    const queryBuilder = this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('audio.id IN (:...audioIds)', { audioIds })
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'audio.total_rented',
+        'audio.purchased_licenses',
+        'audio.available_for',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+        'userAudioStatus.status',
+        'userAudioStatus.rental_expire_at',
+      ]);
+
+    if (limit) {
+      queryBuilder.take(limit);
+    }
+
+    const audios = await queryBuilder.getMany();
+    const sortedAudios = audioIds.map(id => audios.find(audio => audio.id === id));
+
+    return plainToInstance(AudioListDto, sortedAudios, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async getAudiosOfUserBasedOnStatus(
@@ -306,16 +377,23 @@ export class AudioService {
   }
 
   async searchAudios(
-    companyId: string,
+    user: User,
     query: string,
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<AudioListDto>> {
-    const categories = await this.findAllAudioCategoryIdOfCompany(companyId);
+    const categories = await this.findAllAudioCategoryIdOfCompany(user.company.id);
 
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categories },
@@ -351,6 +429,8 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'userAudioStatus.status',
+        'userAudioStatus.rental_expire_at',
       ])
       .skip((page - 1) * limit)
       .take(limit)

@@ -19,6 +19,7 @@ import { UserDevice } from './entities/user_device.entity';
 import { UserAudioScheduler } from './schedulers/user_audio.scheduler';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { AudioModule } from 'src/audios/audio.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AppConfigService } from 'src/app-config/app-config.service';
       AppConfig,
       Company,
     ]),
+    AudioModule
   ],
   controllers: [
     ContactUsController,

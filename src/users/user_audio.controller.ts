@@ -1,6 +1,5 @@
 import {
   Controller,
-  Patch,
   Param,
   UseGuards,
   Request,
@@ -9,30 +8,39 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserAudioService } from './user_audio.service';
+import { UserAudioActionParamsDto } from './dto/user-audio-action-params.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('user-audios')
 export class UserAudioController {
   constructor(private readonly userAudioService: UserAudioService) {}
 
-  @Patch(':audioId/status/:status')
-  update(
-    @Param('audioId') audioId: string,
-    @Param('status') status: 'queued' | 'rented' | 'bookshelved',
-    @Request() req,
+  @HttpCode(200)
+  @Post(':audioId/actions/:action')
+  audioAction(
+    @Param('audioId') audioId: string, 
+    @Param() params: UserAudioActionParamsDto,
+    @Request() req
   ) {
-    return this.userAudioService.update(audioId, status, req.user);
-  }
+    const { action } = params;
 
-  @HttpCode(200)
-  @Post(':audioId/dequeue')
-  dequeueAudio(@Param('audioId') audioId: string, @Request() req) {
-    return this.userAudioService.dequeueAudio(audioId, req.user);
-  }
-
-  @HttpCode(200)
-  @Post(':audioId/renew')
-  renewRentedAudio(@Param('audioId') audioId: string, @Request() req) {
-    return this.userAudioService.renewRentedAudio(audioId, req.user);
+    if(action === 'queue'){
+      return this.userAudioService.queueAudio(audioId, req.user);
+    }
+    else if(action === 'dequeue'){
+      return this.userAudioService.dequeueAudio(audioId, req.user);
+    }
+    else if(action === 'renew'){
+      return this.userAudioService.renewRentedAudio(audioId, req.user);
+    }
+    else if(action === 'return'){
+      return this.userAudioService.returnRentedAudio(audioId, req.user);
+    }
+    else if(action === 'rent'){
+      return this.userAudioService.rentAudio(audioId, req.user);
+    }
+    else if(action === 'bookself'){
+      return this.userAudioService.bookselfAudio(audioId, req.user);
+    }
   }
 }

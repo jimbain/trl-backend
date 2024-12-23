@@ -124,8 +124,20 @@ export class AudioListDto {
   available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.userAudioStatus?.updated_at ?? null;
+  })
   updated_at?: Date;
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.userAudioStatus?.status ?? null;
+  })
+  status?: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    return obj?.userAudioStatus?.rental_expires_at ?? null;
+  })
   rental_expires_at?: Date;
 }

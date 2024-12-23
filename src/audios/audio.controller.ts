@@ -45,9 +45,8 @@ export class AudioController {
       {
         label: 'Continue Listening',
         slug: 'continue_listening',
-        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
+        audios: await this.audioService.getContinueListeningAudiosOfUser(
           req.user,
-          'rented',
           10,
         ),
       },
@@ -113,7 +112,7 @@ export class AudioController {
     const parsedPerPage = parseInt(per_page, 10) || 20;
 
     return this.audioService.searchAudios(
-      req.user.company.id,
+      req.user,
       query,
       parsedPage,
       parsedPerPage,
