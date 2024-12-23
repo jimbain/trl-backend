@@ -20,6 +20,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
+import { plainToInstance } from 'class-transformer';
+import { UserDto } from 'src/users/dto/user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -122,7 +124,7 @@ export class AuthController {
   @HttpCode(200)
   getProfile(@Request() req) {
     return {
-      user: req.user,
+      user: plainToInstance(UserDto, req.user, { excludeExtraneousValues: true }),
     };
   }
 }
