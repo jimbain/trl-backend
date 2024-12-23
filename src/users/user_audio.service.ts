@@ -344,21 +344,6 @@ export class UserAudioService {
       ? parseInt(appConfigs.audio_rental_period_in_days, 10)
       : 14;
 
-    if (userAudio.rental_expire_at) {
-      const currentTime = new Date();
-      const rentalExpiredAt = new Date(userAudio.rental_expire_at);
-
-      const timeDifferenceInDays =
-        (rentalExpiredAt.getTime() - currentTime.getTime()) /
-        (1000 * 60 * 60 * 24);
-
-      if (timeDifferenceInDays > 4) {
-        throw new BadRequestException(
-          `The audio book with ID ${audioId} will not be available for renewal.`,
-        );
-      }
-    }
-
     const newRentalExpireAt = userAudio.rental_expire_at
       ? new Date(
           userAudio.rental_expire_at.getTime() +

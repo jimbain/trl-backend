@@ -62,7 +62,7 @@ export class AuthController {
         req.user.id,
       );
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
-    res.redirect(`${frontendUrl}?token=${token}`);
+    res.redirect(`${frontendUrl}/okta-signin?token=${token}`);
   }
 
   @UseGuards(JwtAuthGuard)

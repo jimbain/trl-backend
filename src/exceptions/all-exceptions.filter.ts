@@ -39,7 +39,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else {
       // For all other status codes, send the default message
       response.status(status).json({
-        message: message,
+        message: message?.message ?? message,
       });
     }
   }
