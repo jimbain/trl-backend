@@ -21,8 +21,6 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
-import { plainToInstance } from 'class-transformer';
-import { UserDto } from 'src/users/dto/user.dto';
 import { UserService } from 'src/users/user.service';
 
 @Controller('auth')
@@ -149,16 +147,5 @@ export class AuthController {
   async resetPassword(@Body() payload: ResetPasswordDto) {
     await this.authService.resetPassword(payload.token, payload.password);
     return;
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @HttpCode(200)
-  getProfile(@Request() req) {
-    return {
-      user: plainToInstance(UserDto, req.user, {
-        excludeExtraneousValues: true,
-      }),
-    };
   }
 }

@@ -46,6 +46,12 @@ export class ProfileDto {
 
   @Expose()
   @Transform(({ obj }) => {
+    return obj?.company?.is_sso_login ?? false;
+  })
+  is_sso_login: boolean;
+
+  @Expose()
+  @Transform(({ obj }) => {
     return obj?.company?.available_credits ?? null;
   })
   available_credits: number;
