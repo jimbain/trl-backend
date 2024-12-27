@@ -7,6 +7,7 @@ import {
   Get,
   HttpCode,
   Res,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -22,12 +23,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { UserDto } from 'src/users/dto/user.dto';
+import { UserService } from 'src/users/user.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly config: ConfigService,
+    private readonly userService: UserService,
   ) {}
 
   @Post('signup')
@@ -52,20 +55,49 @@ export class AuthController {
 
   @Get('okta')
   @UseGuards(AuthGuard('saml'))
-  samlLogin() {
+  oktaLogin() {
     // Redirects to Okta SAML login page
   }
 
   @Post('okta/callback')
   @UseGuards(AuthGuard('saml'))
-  async samlCallback(@Request() req, @Res() res) {
-    const tokens = await this.authService.getTokensForOktaSsoLoginThroughEmail(
-      req.user.id,
+  async oktaCallback(@Request() req, @Res() res) {
+    const user = await this.userService.findByEmail(req.user.id, ['company']);
+
+    if (!user) {
+      res.redirect(
+        '/api/v1/auth/okta/callback/error?message=User does not exist',
+      );
+    }
+
+    if (!user.company.is_sso_login) {
+      res.redirect(
+        "/api/v1/auth/okta/callback/error?message=User's company does not have sso login",
+      );
+    }
+
+    const tokens = await this.authService.login(user);
+    res.redirect(
+      `/api/v1/auth/okta/callback/success?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`,
     );
+  }
+
+  @Get('okta/callback/success')
+  async oktaCallbackSuccess(
+    @Query('access_token') accessToken: string,
+    @Query('refresh_token') refreshToken: string,
+    @Res() res,
+  ) {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
     res.redirect(
-      `${frontendUrl}/okta-signin?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`,
+      `${frontendUrl}/okta-signin?access_token=${accessToken}&refresh_token=${refreshToken}`,
     );
+  }
+
+  @Get('okta/callback/error')
+  async oktaCallbackError(@Query('message') message: string, @Res() res) {
+    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+    res.redirect(`${frontendUrl}/okta-signin?message=${message}`);
   }
 
   @UseGuards(JwtAuthGuard)

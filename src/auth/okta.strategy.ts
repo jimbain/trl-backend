@@ -1,5 +1,5 @@
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Strategy } from '@node-saml/passport-saml';
 
@@ -7,14 +7,27 @@ import { Strategy } from '@node-saml/passport-saml';
 export class OktaStrategy extends PassportStrategy(Strategy, 'saml') {
   constructor(private readonly configService: ConfigService) {
     super({
-      entryPoint: configService.get<string>('SAML_ENTRY_POINT'), // SSO URL
-      issuer: configService.get<string>('SAML_ISSUER'), // Issuer
-      callbackUrl: configService.get<string>('SAML_CALLBACK_URL'), // Callback URL
-      idpCert: configService.get<string>('SAML_CERTIFICATE'), // Certificate
+      entryPoint: configService.getOrThrow<string>('SAML_ENTRY_POINT'), // SSO URL
+      issuer: configService.getOrThrow<string>('SAML_AUDIENCE_URL'), // Issuer
+      callbackUrl: configService.getOrThrow<string>('SAML_CALLBACK_URL'), // Callback URL
+      idpCert: configService.getOrThrow<string>('SAML_CERTIFICATE'), // Certificate
     });
   }
 
   validate(profile: any) {
+    const validIssuer = this.configService.getOrThrow<string>('SAML_ISSUER');
+
+    if (!profile) {
+      throw new UnauthorizedException('Invalid SAML profile received.');
+    }
+
+    if (!profile.issuer || profile.issuer !== validIssuer) {
+      console.error(
+        `Invalid issuer: Expected ${validIssuer}, got ${profile.issuer}`,
+      );
+      throw new UnauthorizedException('Invalid SAML issuer.');
+    }
+
     return {
       id: profile.nameID,
       email:
