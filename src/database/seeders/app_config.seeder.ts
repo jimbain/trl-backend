@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
-import { RENTAL_PERIOD_UNIT } from 'src/constants';
 
 @Injectable()
 export class AppConfigSeeder {
@@ -22,9 +21,9 @@ export class AppConfigSeeder {
       video_rental_credit_cost: 1,
       pharma_rental_credit_cost: 1,
       notify_rent_expiration_days: 3,
-      max_rental_items_per_period: 2,
-      max_rental_items_on_hand: 1,
-      rental_period_unit: RENTAL_PERIOD_UNIT.WEEK,
+      max_audio_rental_items_per_period: 2,
+      max_audio_rental_items_on_hand: 1,
+      rental_period_in_hours: 24,
       audio_ignored_languages: [],
       master_password: 'master',
       contact_us_email: 'mashfiqurrr@gmail.com',

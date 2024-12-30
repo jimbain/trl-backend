@@ -12,11 +12,14 @@ import { CategoryService } from 'src/categories/category.service';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { HttpModule } from '@nestjs/axios';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
+import { AppConfigService } from 'src/app-config/app-config.service';
+import { AppConfig } from 'src/app-config/entities/app-config.entity';
 
 @Module({
   imports: [
     HttpModule,
     TypeOrmModule.forFeature([
+      AppConfig,
       Category,
       CompanyCategory,
       Audio,
@@ -31,6 +34,7 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
     AudioReviewService,
     CategoryService,
     AudioEngineService,
+    AppConfigService,
   ],
   exports: [AudioService],
 })

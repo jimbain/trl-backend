@@ -1,19 +1,40 @@
 import { Expose, Transform } from 'class-transformer';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 
-export function getAvailableFor(
-  audio: any,
-): 'rent' | 'bookshelf' | 'both' | null {
-  if (audio?.total_rented >= audio?.purchased_licenses) {
+export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | null {
+  if (!audio?.available_for) {
     return null;
   }
 
-  return audio?.available_for === MEDIA_AVAILABILITY_TYPE.PURCHASABLE
-    ? 'bookshelf'
-    : audio?.available_for === MEDIA_AVAILABILITY_TYPE.RENTAL
-      ? 'rent'
-      : 'both';
+  const { 
+    available_for, 
+    total_rented, 
+    purchased_rental_license_limit, 
+    is_only_for_purchase, 
+    rental_credit_cost, 
+    bookshelf_credit_cost 
+  } = audio;
+
+  const canRent = total_rented < purchased_rental_license_limit;
+
+  switch (available_for) {
+    case MEDIA_AVAILABILITY_TYPE.RENTAL:
+      return canRent ? 'rent' : null;
+
+    case MEDIA_AVAILABILITY_TYPE.PURCHASABLE:
+      return is_only_for_purchase ? 'bookshelf' : null;
+
+    case MEDIA_AVAILABILITY_TYPE.BOTH:
+      if (canRent && rental_credit_cost < bookshelf_credit_cost) {
+        return 'both';
+      }
+      return 'bookshelf';
+
+    default:
+      return null;
+  }
 }
+
 
 export class AudioDto {
   @Expose()
@@ -71,7 +92,7 @@ export class AudioDto {
   is_featured: boolean;
 
   @Expose()
-  @Transform(({ obj }) => obj?.trl_cost > 1)
+  @Transform(({ obj }) => obj?.bookshelf_credit_cost > 1)
   is_premium: boolean;
 
   @Expose()

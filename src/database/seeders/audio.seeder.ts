@@ -114,7 +114,7 @@ export class AudioSeeder {
       // audioMeta.is_only_for_purchase =
       //   retail !== undefined && library === undefined;
 
-      audioEntity.trl_cost =
+      audioEntity.bookshelf_credit_cost =
         audioMeta.findaway_content_cost &&
         Math.floor(audioMeta.findaway_content_cost / 10);
 
@@ -122,10 +122,10 @@ export class AudioSeeder {
         audioCategories[_.random(audioCategories.length - 1)].id,
       ];
       audioEntity.suggestions = [];
-      audioEntity.purchased_licenses = audio.licenses.filter(
-        (license) => license.checkout_id === null,
+      audioEntity.purchased_rental_licenses = audio.licenses.filter(
+        (license: any) => license.checkout_id === null,
       ).length;
-      audioEntity.purchased_license_limit = audio.licenses.length;
+      audioEntity.purchased_rental_license_limit = audio.licenses.length;
 
       return { audioMeta, audioEntity };
     });

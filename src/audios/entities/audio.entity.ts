@@ -40,11 +40,11 @@ export class Audio extends BaseEntity {
   is_featured: boolean;
 
   // @TODO: move to metadata table
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: 'boolean', default: true })
   is_only_for_purchase: boolean;
 
   @Column({ type: 'int', default: 0 })
-  trl_cost: number;
+  bookshelf_credit_cost: number;
 
   @Column({ type: 'varchar', nullable: true })
   display_title: string;
@@ -68,13 +68,16 @@ export class Audio extends BaseEntity {
   suggestions: string[]; // audios.id[]
 
   @Column({ type: 'int', default: 0 })
-  purchased_licenses: number; // QTO
+  purchased_rental_licenses: number;
 
   @Column({ type: 'int', default: 0 })
-  purchased_license_limit: number; // QTO limit
+  purchased_rental_license_limit: number;
 
   @Column({ type: 'int', default: 0 })
-  total_rented: number; // QOH
+  total_rented: number;
+
+  @Column({ type: 'int', default: 0 })
+  total_played: number;
 
   @Column({ type: 'float', default: 0 })
   avg_rating: number;

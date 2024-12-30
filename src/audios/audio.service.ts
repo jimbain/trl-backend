@@ -18,6 +18,7 @@ import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { USER_MEDIA_STATUS } from 'src/constants';
+import { AppConfigService } from 'src/app-config/app-config.service';
 
 @Injectable()
 export class AudioService {
@@ -39,6 +40,7 @@ export class AudioService {
   constructor(
     private readonly categoryService: CategoryService,
     private readonly audioEngineService: AudioEngineService,
+    private readonly appConfigService: AppConfigService,
   ) {}
 
   async findById(
@@ -74,13 +76,18 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    const userAudios = await this.userAudioStatusRepository.find({
-      where: {
-        user_id: user.id,
-      },
-      select: ['audio_id'],
-    });
-
+    const [appConfigs, userAudios] = await Promise.all([
+      this.appConfigService.getAppConfigs([
+        'audio_rental_credit_cost'
+      ]),
+      this.userAudioStatusRepository.find({
+        where: {
+          user_id: user.id,
+        },
+        select: ['audio_id'],
+      })
+    ]);
+    
     const audioIds = userAudios.map(
       (userAudio: UserAudioStatus) => userAudio.audio_id,
     );
@@ -106,7 +113,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_licenses',
+        'audio.purchased_rental_licenses',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
@@ -119,10 +126,16 @@ export class AudioService {
     const from = total > 0 ? (page - 1) * limit + 1 : null;
     const to = Math.min(page * limit, total);
 
+    const data = audios.map((audio) =>
+      plainToInstance(
+        AudioListDto,
+        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        { excludeExtraneousValues: true },
+      ),
+    );
+
     return {
-      data: plainToInstance(AudioListDto, audios, {
-        excludeExtraneousValues: true,
-      }),
+      data: data,
       meta: {
         current_page: page,
         per_page: limit,
@@ -203,7 +216,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_licenses',
+        'audio.purchased_rental_licenses',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
@@ -256,7 +269,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_licenses',
+        'audio.purchased_rental_licenses',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
