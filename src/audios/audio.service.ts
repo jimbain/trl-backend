@@ -111,7 +111,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_rental_licenses',
+        'audio.purchased_rental_license_limit',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
@@ -149,8 +149,9 @@ export class AudioService {
     user: User,
     limit: number = 10,
   ): Promise<AudioListDto[]> {
-    const userAudioplayerPositions =
-      await this.userAudioplayerPositionRepository
+    const [appConfigs, userAudioplayerPositions] = await Promise.all([
+      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+      this.userAudioplayerPositionRepository
         .createQueryBuilder('position')
         .innerJoin(
           UserAudioStatus,
@@ -168,7 +169,8 @@ export class AudioService {
         .where('position.user_id = :userId', { userId: user.id })
         .orderBy('position.updated_at', 'DESC')
         .take(limit)
-        .getMany();
+        .getMany()
+    ]);
 
     const list1AudioIds = userAudioplayerPositions.map(
       (position) => position.audio_id,
@@ -214,7 +216,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_rental_licenses',
+        'audio.purchased_rental_license_limit',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
@@ -229,9 +231,14 @@ export class AudioService {
     }
 
     const audios = await queryBuilder.getMany();
-    const sortedAudios = audioIds.map((id) =>
-      audios.find((audio) => audio.id === id),
-    );
+    
+    const sortedAudios = audioIds.map((id) => {
+      const media = audios.find((audio) => audio.id === id);
+      return {
+        ...media,
+        rental_credit_cost: appConfigs.audio_rental_credit_cost,
+      };
+    });
 
     return plainToInstance(AudioListDto, sortedAudios, {
       excludeExtraneousValues: true,
@@ -243,6 +250,7 @@ export class AudioService {
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
+    const appConfigs = await this.appConfigService.getAppConfigs(['audio_rental_credit_cost']);
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
@@ -267,7 +275,7 @@ export class AudioService {
         'audio.display_authors',
         'audio.avg_rating',
         'audio.total_rented',
-        'audio.purchased_rental_licenses',
+        'audio.purchased_rental_license_limit',
         'audio.available_for',
         'metadata.title',
         'metadata.authors',
@@ -283,9 +291,13 @@ export class AudioService {
 
     const audios = await queryBuilder.getMany();
 
-    return plainToInstance(AudioListDto, audios, {
-      excludeExtraneousValues: true,
-    });
+    return audios.map((audio) =>
+      plainToInstance(
+        AudioListDto,
+        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        { excludeExtraneousValues: true },
+      ),
+    );
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {

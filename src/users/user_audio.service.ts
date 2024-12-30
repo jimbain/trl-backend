@@ -126,7 +126,6 @@ export class UserAudioService {
     license: AudioFindawayworldLicense,
     loanPeriodMinutes: number = 1500,
   ) {
-    console.log(`/audiobooks/${audio.sku}/checkout`);
     const payload = {
       license_id: license.id,
       external_listener_id: this.configService.getOrThrow<string>(
@@ -134,12 +133,12 @@ export class UserAudioService {
       ),
       loan_period_minutes: loanPeriodMinutes + 1,
     };
-    console.log('checkout payload', payload);
+
     const data: any = await this.audioEngineService.post(
       `/audiobooks/${audio.sku}/checkout`,
       payload,
     );
-
+      console.log("data", data)
     if (data.checkout.license_id !== license.id) {
       throw new BadRequestException(`Invalid license`);
     }
@@ -351,18 +350,19 @@ export class UserAudioService {
     );
     updatedUserAudio.license_id = checkout.license_id;
 
-    await this.userAudioStatusRepository.save(updatedUserAudio);
-    await this.audioRepository.update(
-      { id: audioId },
-      { total_rented: (audio.total_rented || 0) + 1 },
-    );
-
-    await this.storeUserActivityLog(
-      user,
-      audio,
-      'rent',
-      parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
-    );
+    await Promise.all([
+      this.userAudioStatusRepository.save(updatedUserAudio),
+      this.audioRepository.update(
+        { id: audioId },
+        { total_rented: (audio.total_rented || 0) + 1 },
+      ),
+      this.storeUserActivityLog(
+        user,
+        audio,
+        'rent',
+        parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
+      ),
+    ]);
 
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },
@@ -429,7 +429,8 @@ export class UserAudioService {
   }
 
   async renewRentedAudio(audioId: string, user: User) {
-    const [appConfigs, userAudio] = await Promise.all([
+    const [audio, appConfigs, userAudio] = await Promise.all([
+      this.audioService.findById(audioId, ['metadata']),
       this.appConfigService.getAppConfigs(['audio_rental_period_in_days']),
       this.userAudioStatusRepository.findOne({
         where: {
@@ -439,13 +440,30 @@ export class UserAudioService {
         },
       }),
     ]);
-
+    
     if (!userAudio) {
       throw new BadRequestException(
         `The audio book with ID ${audioId} doesn't exist in your rented list.`,
       );
     }
 
+    if (audio.total_rented >= audio.purchased_rental_license_limit) {
+      throw new BadRequestException(
+        `You can't renew the book. Please talk to admin.`,
+      );
+    }
+    
+    if (audio.total_rented >= audio.purchased_rental_licenses) {
+      await this.purchaseLicenseOfAudio(
+        audio.sku,
+        1,
+        audio.metadata.product_id,
+        audio.metadata.findaway_price,
+        'US',
+      );
+    }
+
+    const remainingTimeInMinutes = Math.max(0, Math.floor((new Date(userAudio.rental_expire_at).getTime() - Date.now()) / (1000 * 60)));
     const rentalPeriodInDays = appConfigs.audio_rental_period_in_days
       ? parseInt(appConfigs.audio_rental_period_in_days, 10)
       : 14;
@@ -458,7 +476,32 @@ export class UserAudioService {
       : new Date(Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000);
 
     userAudio.rental_expire_at = newRentalExpireAt;
-    return this.userAudioStatusRepository.save(userAudio);
+
+    const license = await this.getLicenseForCheckoutToRentAudio(audio.sku);
+    const checkout = await this.checkoutLicenseOfAudio(
+      audio,
+      license,
+      ((rentalPeriodInDays * 1440) + remainingTimeInMinutes),
+    );
+    userAudio.license_id = checkout.license_id;
+    
+    await Promise.all([
+      this.userAudioStatusRepository.save(userAudio),
+      this.audioRepository.update(
+        { id: audioId },
+        { total_rented: (audio.total_rented || 0) + 1 },
+      ),
+      this.storeUserActivityLog(
+        user,
+        audio,
+        'rent',
+        parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
+      ),
+    ]);
+
+    return this.userAudioStatusRepository.findOne({
+      where: { audio_id: audioId, user_id: user.id },
+    });
   }
 
   async returnRentedAudio(audioId: string, user: User) {
