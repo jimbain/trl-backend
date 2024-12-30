@@ -473,7 +473,8 @@ export class UserAudioService {
           (1000 * 60),
       ),
     );
-    const rentalPeriodInDays = parseInt(appConfigs.audio_rental_period_in_days, 10) ?? 14;
+    const rentalPeriodInDays =
+      parseInt(appConfigs.audio_rental_period_in_days, 10) ?? 14;
     const newRentalExpireAt = userAudio.rental_expire_at
       ? new Date(
           userAudio.rental_expire_at.getTime() +
