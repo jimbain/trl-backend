@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { Brackets, In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
@@ -79,11 +79,18 @@ export class AudioService {
     const [appConfigs, userAudios] = await Promise.all([
       this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
       this.userAudioStatusRepository.find({
-        where: {
-          user_id: user.id,
-        },
+        where: [
+          {
+            user_id: user.id,
+            rental_expire_at: IsNull(),
+          },
+          {
+            user_id: user.id,
+            rental_expire_at: MoreThanOrEqual(new Date()),
+          },
+        ],
         select: ['audio_id'],
-      }),
+      })
     ]);
 
     const audioIds = userAudios.map(
