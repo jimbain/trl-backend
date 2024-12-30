@@ -431,7 +431,10 @@ export class UserAudioService {
   async renewRentedAudio(audioId: string, user: User) {
     const [audio, appConfigs, userAudio] = await Promise.all([
       this.audioService.findById(audioId, ['metadata']),
-      this.appConfigService.getAppConfigs(['audio_rental_period_in_days', 'audio_rental_credit_cost']),
+      this.appConfigService.getAppConfigs([
+        'audio_rental_period_in_days',
+        'audio_rental_credit_cost',
+      ]),
       this.userAudioStatusRepository.findOne({
         where: {
           audio_id: audioId,
