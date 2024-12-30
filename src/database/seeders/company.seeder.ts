@@ -18,7 +18,7 @@ export class CompanySeeder {
     );
 
     const companies = [];
-    const numberOfCompanies = 3;
+    const numberOfCompanies = 2;
 
     for (let i = 0; i < numberOfCompanies; i++) {
       companies.push({
@@ -28,7 +28,7 @@ export class CompanySeeder {
         is_active: true,
         domain: `https://biz${i + 1}.trainingresourcelibrary.com`,
         description: faker.company.catchPhrase(),
-        is_sso_login: i % 2 ? true : false,
+        is_sso_login: i % 2 ? false : true,
         available_medias: [MEDIA.AUDIO, MEDIA.VIDEO, MEDIA.PHARMA],
         available_credits: 100,
         created_at: new Date(),

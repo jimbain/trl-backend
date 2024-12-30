@@ -33,40 +33,45 @@ export class UserSeeder {
         last_name: 'Rahman',
         email: 'mashfiqurrr@gmail.com',
         password: 'test',
+        is_sso: false,
       },
       {
         first_name: 'Rakibul',
         last_name: 'Hasan',
         email: 'rhasan082@gmail.com',
         password: 'test',
+        is_sso: false,
       },
       {
         first_name: 'Tanvir Anwar',
         last_name: 'Rafi',
         email: 'tanviranwarrafi@gmail.com',
         password: 'test',
+        is_sso: false,
       },
       {
         first_name: 'Mark',
         last_name: 'Ramm',
         email: 'test@test.com',
         password: 'test',
+        is_sso: false,
       },
       {
         first_name: 'SSO',
         last_name: 'User',
         email: 'bulajeju@teleg.eu',
         password: 'test',
+        is_sso: true,
       },
     ];
 
-    for (const user of users) {
-      const randomCompany =
-        companies[Math.floor(Math.random() * companies.length)];
+    const regularCompany = companies[0];
+    const ssoCompany = companies[1];
 
+    for (const user of users) {
       const userEntity = this.userRepository.create({
         ...user,
-        company: randomCompany,
+        company: user.is_sso ? ssoCompany : regularCompany,
       });
 
       await this.userRepository.save(userEntity);

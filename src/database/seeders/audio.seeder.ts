@@ -123,7 +123,8 @@ export class AudioSeeder {
       ];
       audioEntity.suggestions = [];
       audioEntity.purchased_rental_licenses = audio.licenses.filter(
-        (license: any) => license.checkout_id === null,
+        (license: any) =>
+          license.checkout_id === null && license.business_model === 'library',
       ).length;
       audioEntity.purchased_rental_license_limit = audio.licenses.length;
 
