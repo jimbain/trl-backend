@@ -169,7 +169,7 @@ export class AudioService {
         .where('position.user_id = :userId', { userId: user.id })
         .orderBy('position.updated_at', 'DESC')
         .take(limit)
-        .getMany()
+        .getMany(),
     ]);
 
     const list1AudioIds = userAudioplayerPositions.map(
@@ -231,7 +231,7 @@ export class AudioService {
     }
 
     const audios = await queryBuilder.getMany();
-    
+
     const sortedAudios = audioIds.map((id) => {
       const media = audios.find((audio) => audio.id === id);
       return {
@@ -250,7 +250,9 @@ export class AudioService {
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
-    const appConfigs = await this.appConfigService.getAppConfigs(['audio_rental_credit_cost']);
+    const appConfigs = await this.appConfigService.getAppConfigs([
+      'audio_rental_credit_cost',
+    ]);
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')

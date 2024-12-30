@@ -138,7 +138,7 @@ export class UserAudioService {
       `/audiobooks/${audio.sku}/checkout`,
       payload,
     );
-      console.log("data", data)
+    console.log('data', data);
     if (data.checkout.license_id !== license.id) {
       throw new BadRequestException(`Invalid license`);
     }
@@ -440,7 +440,7 @@ export class UserAudioService {
         },
       }),
     ]);
-    
+
     if (!userAudio) {
       throw new BadRequestException(
         `The audio book with ID ${audioId} doesn't exist in your rented list.`,
@@ -452,7 +452,7 @@ export class UserAudioService {
         `You can't renew the book. Please talk to admin.`,
       );
     }
-    
+
     if (audio.total_rented >= audio.purchased_rental_licenses) {
       await this.purchaseLicenseOfAudio(
         audio.sku,
@@ -463,7 +463,13 @@ export class UserAudioService {
       );
     }
 
-    const remainingTimeInMinutes = Math.max(0, Math.floor((new Date(userAudio.rental_expire_at).getTime() - Date.now()) / (1000 * 60)));
+    const remainingTimeInMinutes = Math.max(
+      0,
+      Math.floor(
+        (new Date(userAudio.rental_expire_at).getTime() - Date.now()) /
+          (1000 * 60),
+      ),
+    );
     const rentalPeriodInDays = appConfigs.audio_rental_period_in_days
       ? parseInt(appConfigs.audio_rental_period_in_days, 10)
       : 14;
@@ -481,10 +487,10 @@ export class UserAudioService {
     const checkout = await this.checkoutLicenseOfAudio(
       audio,
       license,
-      ((rentalPeriodInDays * 1440) + remainingTimeInMinutes),
+      rentalPeriodInDays * 1440 + remainingTimeInMinutes,
     );
     userAudio.license_id = checkout.license_id;
-    
+
     await Promise.all([
       this.userAudioStatusRepository.save(userAudio),
       this.audioRepository.update(
