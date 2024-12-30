@@ -23,7 +23,7 @@ export class CompanySeeder {
     for (let i = 0; i < numberOfCompanies; i++) {
       companies.push({
         id: '',
-        name: `Demo company ${i + 1}`,
+        name: i % 2 ? `Demo company` : `SSO company`,
         // logo_url: faker.image.url(),
         is_active: true,
         domain: `https://biz${i + 1}.trainingresourcelibrary.com`,

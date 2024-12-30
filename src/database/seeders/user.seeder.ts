@@ -20,9 +20,15 @@ export class UserSeeder {
       '###########################  USER SEEDING START  ###########################',
     );
 
-    const companies = await this.companyRepository.find();
+    const regularCompany = await this.companyRepository.findOne({
+      where: { is_sso_login: false },
+    });
 
-    if (companies.length === 0) {
+    const ssoCompany = await this.companyRepository.findOne({
+      where: { is_sso_login: true },
+    });
+
+    if (!regularCompany || !ssoCompany) {
       console.log('No companies found to assign users to');
       return;
     }
@@ -64,9 +70,6 @@ export class UserSeeder {
         is_sso: true,
       },
     ];
-
-    const regularCompany = companies[0];
-    const ssoCompany = companies[1];
 
     for (const user of users) {
       const userEntity = this.userRepository.create({
