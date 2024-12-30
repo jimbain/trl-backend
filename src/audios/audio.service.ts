@@ -77,17 +77,15 @@ export class AudioService {
     meta: PaginationMeta;
   }> {
     const [appConfigs, userAudios] = await Promise.all([
-      this.appConfigService.getAppConfigs([
-        'audio_rental_credit_cost'
-      ]),
+      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
       this.userAudioStatusRepository.find({
         where: {
           user_id: user.id,
         },
         select: ['audio_id'],
-      })
+      }),
     ]);
-    
+
     const audioIds = userAudios.map(
       (userAudio: UserAudioStatus) => userAudio.audio_id,
     );

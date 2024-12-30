@@ -15,29 +15,29 @@ import { ConfigService } from '@nestjs/config';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioService } from 'src/audios/audio.service';
 
-interface AudioFindawayworldLicensePurchase{
-  id: string,
-  account_id?: string,
-  ext_purchase_id?: string,
-  product_id?: string,
-  promotion_code?: string | null,
-  purchase_date?: string,
-  purchase_price?: number,
-  quantity?: number,
-  territory?: string,
-  modified_date?: string,
-  invoice_cost?: number
+interface AudioFindawayworldLicensePurchase {
+  id: string;
+  account_id?: string;
+  ext_purchase_id?: string;
+  product_id?: string;
+  promotion_code?: string | null;
+  purchase_date?: string;
+  purchase_price?: number;
+  quantity?: number;
+  territory?: string;
+  modified_date?: string;
+  invoice_cost?: number;
 }
 
-interface AudioFindawayworldLicense{
-  id: string,
-  checkout_id: string | null,
-  account_id?: string,
-  product_id?: string,
-  content_id?: string,
-  business_model?: string,
-  territory?: string,
-  modified_date?: string
+interface AudioFindawayworldLicense {
+  id: string;
+  checkout_id: string | null;
+  account_id?: string;
+  product_id?: string;
+  content_id?: string;
+  business_model?: string;
+  territory?: string;
+  modified_date?: string;
 }
 
 @Injectable()
@@ -76,30 +76,41 @@ export class UserAudioService {
   ): Promise<AudioFindawayworldLicense[]> {
     const purchaseData = {
       quantity: quantity,
-      account_id: this.configService.getOrThrow<string>('AUDIO_ENGINE_ACCOUNT_ID'),
+      account_id: this.configService.getOrThrow<string>(
+        'AUDIO_ENGINE_ACCOUNT_ID',
+      ),
       product_id: productId,
       purchase_price: purchasePrice,
       territory: territory,
     };
-    
-    const data: {purchase: AudioFindawayworldLicensePurchase, licenses: AudioFindawayworldLicense[]} = await this.audioEngineService.post(`/audiobooks/${id}/purchase`, purchaseData);
+
+    const data: {
+      purchase: AudioFindawayworldLicensePurchase;
+      licenses: AudioFindawayworldLicense[];
+    } = await this.audioEngineService.post(
+      `/audiobooks/${id}/purchase`,
+      purchaseData,
+    );
     return data.licenses;
   }
 
-  async getLicenseForCheckoutToRentAudio(id: string): Promise<AudioFindawayworldLicense> {
+  async getLicenseForCheckoutToRentAudio(
+    id: string,
+  ): Promise<AudioFindawayworldLicense> {
     const audioDetails: any = await this.audioEngineService.get(
       `/accounts/${this.audioEngineAccountId}/audiobooks/${id}`,
     );
 
     const licenses: AudioFindawayworldLicense[] = audioDetails?.licenses ?? [];
-    
+
     if (!licenses.length) {
       throw new BadRequestException(
         `There is no available licenses. Please talk to admin.`,
       );
     }
 
-    const license = licenses.find((license) => license.checkout_id === null) ?? null;
+    const license =
+      licenses.find((license) => license.checkout_id === null) ?? null;
 
     if (!license) {
       throw new BadRequestException(
@@ -110,19 +121,23 @@ export class UserAudioService {
     return license;
   }
 
-  async checkoutLicenseOfAudio(audio: Audio, license: AudioFindawayworldLicense, loanPeriodMinutes: number = 1500) {
-    console.log(`/audiobooks/${audio.sku}/checkout`)
-    const payload =  {
+  async checkoutLicenseOfAudio(
+    audio: Audio,
+    license: AudioFindawayworldLicense,
+    loanPeriodMinutes: number = 1500,
+  ) {
+    console.log(`/audiobooks/${audio.sku}/checkout`);
+    const payload = {
       license_id: license.id,
       external_listener_id: this.configService.getOrThrow<string>(
         'AUDIO_ENGINE_EXTERNAL_LISTENER_ID',
       ),
       loan_period_minutes: loanPeriodMinutes + 1,
-    }
-    console.log("checkout payload", payload)
+    };
+    console.log('checkout payload', payload);
     const data: any = await this.audioEngineService.post(
       `/audiobooks/${audio.sku}/checkout`,
-      payload
+      payload,
     );
 
     if (data.checkout.license_id !== license.id) {
@@ -232,33 +247,39 @@ export class UserAudioService {
       'audio_rental_period_in_days',
       'max_audio_rental_items_on_hand',
       'rental_period_in_hours',
-      'max_audio_rental_items_per_period'
+      'max_audio_rental_items_per_period',
     ]);
 
-    const rentalPeriodInHours = parseInt(appConfigs['rental_period_in_hours'], 10);
-    const intervalStartTime = new Date(Date.now() - rentalPeriodInHours * 60 * 60 * 1000);
+    const rentalPeriodInHours = parseInt(
+      appConfigs['rental_period_in_hours'],
+      10,
+    );
+    const intervalStartTime = new Date(
+      Date.now() - rentalPeriodInHours * 60 * 60 * 1000,
+    );
     const currentTime = new Date();
 
-    const [audio, userAudio, rentedAudioCount, rentedAudioPerPeriodCount] = await Promise.all([
-      this.audioService.findById(audioId, ['metadata']),
-      this.userAudioStatusRepository.findOne({
-        where: { audio_id: audioId, user_id: user.id },
-      }),
-      this.userAudioStatusRepository.count({
-        where: {
-          user_id: user.id,
-          status: 'rented',
-          rental_expire_at: MoreThanOrEqual(new Date()),
-        },
-      }),
-      this.userAudioStatusRepository.count({
-        where: {
-          user_id: user.id,
-          status: 'rented',
-          updated_at: Between(intervalStartTime, currentTime),
-        },
-      }),
-    ]);
+    const [audio, userAudio, rentedAudioCount, rentedAudioPerPeriodCount] =
+      await Promise.all([
+        this.audioService.findById(audioId, ['metadata']),
+        this.userAudioStatusRepository.findOne({
+          where: { audio_id: audioId, user_id: user.id },
+        }),
+        this.userAudioStatusRepository.count({
+          where: {
+            user_id: user.id,
+            status: 'rented',
+            rental_expire_at: MoreThanOrEqual(new Date()),
+          },
+        }),
+        this.userAudioStatusRepository.count({
+          where: {
+            user_id: user.id,
+            status: 'rented',
+            updated_at: Between(intervalStartTime, currentTime),
+          },
+        }),
+      ]);
 
     if (audio.total_rented >= audio.purchased_rental_license_limit) {
       throw new BadRequestException(
@@ -266,19 +287,21 @@ export class UserAudioService {
       );
     }
 
-    const maxRentalItemsOnHand = parseInt(appConfigs['max_audio_rental_items_on_hand'], 10) ?? 1;
+    const maxRentalItemsOnHand =
+      parseInt(appConfigs['max_audio_rental_items_on_hand'], 10) ?? 1;
 
     if (rentedAudioCount >= maxRentalItemsOnHand) {
       throw new BadRequestException(
-        `You already have rented ${maxRentalItemsOnHand} books, please return one book`
+        `You already have rented ${maxRentalItemsOnHand} books, please return one book`,
       );
     }
 
-    const maxRentalItemsPerPeriodOnHand = parseInt(appConfigs['max_audio_rental_items_per_period'], 10) ?? 1;
+    const maxRentalItemsPerPeriodOnHand =
+      parseInt(appConfigs['max_audio_rental_items_per_period'], 10) ?? 1;
 
-    if(rentedAudioPerPeriodCount >= maxRentalItemsPerPeriodOnHand){
+    if (rentedAudioPerPeriodCount >= maxRentalItemsPerPeriodOnHand) {
       throw new BadRequestException(
-        `You can't rent more than ${maxRentalItemsPerPeriodOnHand} books within ${rentalPeriodInHours} hours.`
+        `You can't rent more than ${maxRentalItemsPerPeriodOnHand} books within ${rentalPeriodInHours} hours.`,
       );
     }
 
@@ -287,10 +310,17 @@ export class UserAudioService {
     }
 
     if (audio.total_rented >= audio.purchased_rental_licenses) {
-      await this.purchaseLicenseOfAudio(audio.sku, 1, audio.metadata.product_id, audio.metadata.findaway_price, 'US');
+      await this.purchaseLicenseOfAudio(
+        audio.sku,
+        1,
+        audio.metadata.product_id,
+        audio.metadata.findaway_price,
+        'US',
+      );
     }
 
-    const rentalPeriodInDays = parseInt(appConfigs['audio_rental_period_in_days'], 10) ?? 14;
+    const rentalPeriodInDays =
+      parseInt(appConfigs['audio_rental_period_in_days'], 10) ?? 14;
 
     const rentalExpiresAt = new Date(
       new Date().setDate(new Date().getDate() + rentalPeriodInDays),
@@ -312,9 +342,13 @@ export class UserAudioService {
           rental_expire_at: rentalExpiresAt,
           license_id: null,
         });
-    
+
     const license = await this.getLicenseForCheckoutToRentAudio(audio.sku);
-    const checkout = await this.checkoutLicenseOfAudio(audio, license, rentalPeriodInDays * 1440);
+    const checkout = await this.checkoutLicenseOfAudio(
+      audio,
+      license,
+      rentalPeriodInDays * 1440,
+    );
     updatedUserAudio.license_id = checkout.license_id;
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
@@ -327,7 +361,7 @@ export class UserAudioService {
       user,
       audio,
       'rent',
-      parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1
+      parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
     );
 
     return this.userAudioStatusRepository.findOne({
@@ -347,10 +381,18 @@ export class UserAudioService {
       throw new BadRequestException(`Status unchanged`);
     }
 
-    const licenses = await this.purchaseLicenseOfAudio(audio.sku, 1, audio.metadata.retail_product_id, audio.metadata.findaway_retail_price, 'US');
-    
-    if(licenses.length !== 1){
-      throw new BadRequestException(`There is an issue while purchasing retail license.`);
+    const licenses = await this.purchaseLicenseOfAudio(
+      audio.sku,
+      1,
+      audio.metadata.retail_product_id,
+      audio.metadata.findaway_retail_price,
+      'US',
+    );
+
+    if (licenses.length !== 1) {
+      throw new BadRequestException(
+        `There is an issue while purchasing retail license.`,
+      );
     }
 
     const updatedUserAudio = userAudio
@@ -374,7 +416,12 @@ export class UserAudioService {
     updatedUserAudio.license_id = license.id;
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
-    await this.storeUserActivityLog(user, audio, 'keep', audio.bookshelf_credit_cost || 0);
+    await this.storeUserActivityLog(
+      user,
+      audio,
+      'keep',
+      audio.bookshelf_credit_cost || 0,
+    );
 
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },

@@ -1,18 +1,20 @@
 import { Expose, Transform } from 'class-transformer';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 
-export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | null {
+export function getAvailableFor(
+  audio: any,
+): 'rent' | 'bookshelf' | 'both' | null {
   if (!audio?.available_for) {
     return null;
   }
 
-  const { 
-    available_for, 
-    total_rented, 
-    purchased_rental_license_limit, 
-    is_only_for_purchase, 
-    rental_credit_cost, 
-    bookshelf_credit_cost 
+  const {
+    available_for,
+    total_rented,
+    purchased_rental_license_limit,
+    is_only_for_purchase,
+    rental_credit_cost,
+    bookshelf_credit_cost,
   } = audio;
 
   const canRent = total_rented < purchased_rental_license_limit;
@@ -34,7 +36,6 @@ export function getAvailableFor(audio: any): 'rent' | 'bookshelf' | 'both' | nul
       return null;
   }
 }
-
 
 export class AudioDto {
   @Expose()
