@@ -90,7 +90,7 @@ export class AudioService {
           },
         ],
         select: ['audio_id'],
-      })
+      }),
     ]);
 
     const audioIds = userAudios.map(
