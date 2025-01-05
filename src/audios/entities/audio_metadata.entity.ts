@@ -1,10 +1,5 @@
 import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
-import {
-  BaseEntity,
-  Column,
-  Entity,
-  PrimaryColumn,
-} from 'typeorm';
+import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {

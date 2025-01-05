@@ -88,14 +88,15 @@ export class AudioSeedService {
   }
 
   async seed() {
-    const audios = await this.audioEngineService.get<AudioEngineAudio[]>(`/audiobooks`);
-    console.log("Count of audioList", audios.length);
+    const audios =
+      await this.audioEngineService.get<AudioEngineAudio[]>(`/audiobooks`);
+    console.log('Count of audioList', audios.length);
 
     for (const audio of audios) {
-      console.log("SKU", audio.audiobook.id);
+      console.log('SKU', audio.audiobook.id);
       const audioByAccount = await this.getAudioByAccount(audio.audiobook.id);
       if (!audioByAccount) continue;
-      console.log("audioByAccount", audioByAccount)
+      console.log('audioByAccount', audioByAccount);
 
       const audioMetadata = await this.syncAudioMetadata(audio, audioByAccount);
       await this.syncAudioData(audioMetadata, audioByAccount);
@@ -112,9 +113,14 @@ export class AudioSeedService {
     }
   }
 
-  async syncAudioMetadata(audio: AudioEngineAudio, audioByAccount: any): Promise<AudioMetadata> {
+  async syncAudioMetadata(
+    audio: AudioEngineAudio,
+    audioByAccount: any,
+  ): Promise<AudioMetadata> {
     const { audiobook } = audio;
-    const existingMetadata = await this.audioMetadataService.findOne(audiobook.id);
+    const existingMetadata = await this.audioMetadataService.findOne(
+      audiobook.id,
+    );
 
     const payload = await this.getMetadataPayload(audio, audioByAccount);
 
@@ -123,13 +129,19 @@ export class AudioSeedService {
     }
 
     if (existingMetadata.metadata_signature !== audiobook.metadata_sig) {
-      return await this.audioMetadataService.update(existingMetadata.sku, payload);
+      return await this.audioMetadataService.update(
+        existingMetadata.sku,
+        payload,
+      );
     }
 
     return existingMetadata;
   }
 
-  private async getMetadataPayload(audio: AudioEngineAudio, audioByAccount: any) {
+  private async getMetadataPayload(
+    audio: AudioEngineAudio,
+    audioByAccount: any,
+  ) {
     const { audiobook, active_products } = audio;
     const library = active_products?.library?.[0];
     const retail = active_products?.retail?.[0];
@@ -154,11 +166,12 @@ export class AudioSeedService {
       findaway_content_cost: library?.content_cost || null,
       findaway_retail_price: retail?.list_price || null,
       findaway_retail_content_cost: retail?.content_cost || null,
-      available_for: library && retail
-        ? MEDIA_AVAILABILITY_TYPE.BOTH
-        : library
-        ? MEDIA_AVAILABILITY_TYPE.RENTAL
-        : MEDIA_AVAILABILITY_TYPE.PURCHASABLE,
+      available_for:
+        library && retail
+          ? MEDIA_AVAILABILITY_TYPE.BOTH
+          : library
+            ? MEDIA_AVAILABILITY_TYPE.RENTAL
+            : MEDIA_AVAILABILITY_TYPE.PURCHASABLE,
       is_for_sale: !!library,
       sales_locations: library?.territories || null,
       retail_sales_locations: retail?.territories || null,
@@ -185,7 +198,8 @@ export class AudioSeedService {
     ).length;
 
     if (existingAudio) {
-      existingAudio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
+      existingAudio.purchased_rental_license_limit =
+        metadata.purchased_rental_licenses;
       existingAudio.total_rented = rentedLicenses;
       await this.audioRepository.save(existingAudio);
     } else {
@@ -194,7 +208,10 @@ export class AudioSeedService {
     }
   }
 
-  private createAudioEntity(metadata: AudioMetadata, totalRented: number): Audio {
+  private createAudioEntity(
+    metadata: AudioMetadata,
+    totalRented: number,
+  ): Audio {
     const audio = new Audio();
     audio.sku = metadata.sku;
     audio.is_active = metadata.is_for_sale;

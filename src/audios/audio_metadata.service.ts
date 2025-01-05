@@ -7,7 +7,6 @@ import { UpdateAudioMetadataDto } from './dto/update-audio-metadata.dto';
 
 @Injectable()
 export class AudioMetadataService {
-
   @InjectRepository(AudioMetadata)
   private readonly audioMetadataRepository: Repository<AudioMetadata>;
 
