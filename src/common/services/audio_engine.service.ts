@@ -38,7 +38,7 @@ export class AudioEngineService {
       });
       return response.data;
     } catch (error) {
-      throw new BadRequestException(`GET request failed: ${error.message}`);
+      throw error;
     }
   }
 

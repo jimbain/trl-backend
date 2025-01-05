@@ -14,6 +14,9 @@ import { HttpModule } from '@nestjs/axios';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { AudioSeedService } from './audio_seed.service';
+import { AudioMetadata } from './entities/audio_metadata.entity';
+import { AudioMetadataService } from './audio_metadata.service';
 
 @Module({
   imports: [
@@ -23,6 +26,7 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
       Category,
       CompanyCategory,
       Audio,
+      AudioMetadata,
       AudioReview,
       UserAudioStatus,
       UserAudioplayerPosition,
@@ -31,6 +35,8 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
   controllers: [AudioController],
   providers: [
     AudioService,
+    AudioMetadataService,
+    AudioSeedService,
     AudioReviewService,
     CategoryService,
     AudioEngineService,

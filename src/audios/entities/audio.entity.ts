@@ -22,14 +22,6 @@ export class Audio extends BaseEntity {
   @Column()
   sku: string;
 
-  // @TODO: move to metadata table
-  @Column({
-    type: 'enum',
-    enum: Object.values(MEDIA_AVAILABILITY_TYPE),
-    default: MEDIA_AVAILABILITY_TYPE.BOTH,
-  })
-  available_for: MediaAvailabilityType;
-
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
@@ -39,9 +31,8 @@ export class Audio extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   is_featured: boolean;
 
-  // @TODO: move to metadata table
-  @Column({ type: 'boolean', default: true })
-  is_only_for_purchase: boolean;
+  // @Column({ type: 'boolean', default: true })
+  // is_only_for_purchase: boolean;
 
   @Column({ type: 'int', default: 0 })
   bookshelf_credit_cost: number;
@@ -61,6 +52,27 @@ export class Audio extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   display_copyright: string;
 
+  @Column({ type: 'int', default: 0 })
+  purchased_rental_license_limit: number;
+
+  @Column({ type: 'int', default: 0 })
+  total_rented: number;
+
+  @Column({ type: 'float', default: 0 })
+  avg_rating: number;
+
+  @Column({ type: 'text', nullable: true })
+  deep_link: string;
+
+  @Column({ type: 'boolean', default: true })
+  is_only_for_purchase: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_new_trl: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_curated: boolean;
+
   @Column({ type: 'jsonb', nullable: false, default: [] })
   categories: string[]; // categories.id[]
 
@@ -68,22 +80,7 @@ export class Audio extends BaseEntity {
   suggestions: string[]; // audios.id[]
 
   @Column({ type: 'int', default: 0 })
-  purchased_rental_licenses: number;
-
-  @Column({ type: 'int', default: 0 })
-  purchased_rental_license_limit: number;
-
-  @Column({ type: 'int', default: 0 })
-  total_rented: number;
-
-  @Column({ type: 'int', default: 0 })
   total_played: number;
-
-  @Column({ type: 'float', default: 0 })
-  avg_rating: number;
-
-  @Column({ type: 'text', nullable: true })
-  deep_link: string;
 
   @CreateDateColumn()
   created_at: Date;

@@ -308,7 +308,7 @@ export class UserAudioService {
       throw new BadRequestException(`Status unchanged`);
     }
 
-    if (audio.total_rented >= audio.purchased_rental_licenses) {
+    if (audio.total_rented >= audio.metadata.purchased_rental_licenses) {
       await this.purchaseLicenseOfAudio(
         audio.sku,
         1,
@@ -456,7 +456,7 @@ export class UserAudioService {
       );
     }
 
-    if (audio.total_rented >= audio.purchased_rental_licenses) {
+    if (audio.total_rented >= audio.metadata.purchased_rental_licenses) {
       await this.purchaseLicenseOfAudio(
         audio.sku,
         1,

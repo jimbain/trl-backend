@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AudioReviewService } from './audio_review.service';
 import { CreateAudioReview } from './dto/create_audio_review.dto';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
+import { AudioSeedService } from './audio_seed.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -20,6 +21,7 @@ export class AudioController {
   constructor(
     private readonly audioService: AudioService,
     private readonly audioReviewService: AudioReviewService,
+    private readonly audioSeedService: AudioSeedService,
   ) {}
 
   @Get('audio/home')
@@ -191,5 +193,10 @@ export class AudioController {
     @Body() payload: TriggerAudioPlayerEventDto,
   ) {
     return this.audioService.triggerAudioPlayerEvent(id, payload, req.user);
+  }
+
+  @Get('seed-audios')
+  seedAudio() {
+    return this.audioSeedService.seed();
   }
 }

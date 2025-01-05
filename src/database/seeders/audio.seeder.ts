@@ -80,13 +80,13 @@ export class AudioSeeder {
       audioMeta.copyright = audiobookMetadata.copyright;
       audioMeta.chapters = audiobookMetadata.chapters;
       audioMeta.sub_title = audiobookMetadata.sub_title;
-      audioMeta.street_date = audiobookMetadata.street_date;
-      audioMeta.modified_date = audiobookMetadata.modified_date;
+      // audioMeta.street_date = audiobookMetadata.street_date;
+      // audioMeta.modified_date = audiobookMetadata.modified_date;
       audioMeta.language = audiobookMetadata.language;
       audioMeta.authors = audiobookMetadata.authors;
       audioMeta.narrators = audiobookMetadata.narrators;
       audioMeta.bisac_codes = audiobookMetadata.bisac_codes;
-      audioMeta.product_signature = audiobookMetadata.metadata_sig;
+      // audioMeta.product_signature = audiobookMetadata.metadata_sig;
       audioMeta.isbn = library && library[0].isbn;
       audioMeta.product_id = library && library[0].id;
       audioMeta.retail_product_id = retail && retail[0].id;
@@ -96,7 +96,17 @@ export class AudioSeeder {
       audioMeta.findaway_retail_content_cost = retail && retail[0].content_cost;
       audioMeta.is_for_sale = library !== undefined;
       audioMeta.sales_locations = library && library[0].territories;
-      audioMeta.sales_location_exclusions = null;
+      // audioMeta.sales_location_exclusions = null;
+      audioMeta.available_for =
+        library && retail
+          ? MEDIA_AVAILABILITY_TYPE.BOTH
+          : library
+            ? MEDIA_AVAILABILITY_TYPE.RENTAL
+            : MEDIA_AVAILABILITY_TYPE.PURCHASABLE;
+      audioMeta.purchased_rental_licenses = audio.licenses.filter(
+        (license: any) =>
+          license.checkout_id === null && license.business_model === 'library',
+      ).length;
 
       // audio
       const audioEntity = new Audio();
@@ -104,12 +114,7 @@ export class AudioSeeder {
       audioEntity.is_active = audioMeta.is_for_sale;
       audioEntity.is_excluded = !audioEntity.is_active;
       audioEntity.is_featured = Math.random() >= 0.5;
-      audioEntity.available_for =
-        library && retail
-          ? MEDIA_AVAILABILITY_TYPE.BOTH
-          : library
-            ? MEDIA_AVAILABILITY_TYPE.RENTAL
-            : MEDIA_AVAILABILITY_TYPE.PURCHASABLE;
+      
 
       // audioMeta.is_only_for_purchase =
       //   retail !== undefined && library === undefined;
@@ -122,10 +127,6 @@ export class AudioSeeder {
         audioCategories[_.random(audioCategories.length - 1)].id,
       ];
       audioEntity.suggestions = [];
-      audioEntity.purchased_rental_licenses = audio.licenses.filter(
-        (license: any) =>
-          license.checkout_id === null && license.business_model === 'library',
-      ).length;
       audioEntity.purchased_rental_license_limit = audio.licenses.length;
 
       return { audioMeta, audioEntity };
