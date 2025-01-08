@@ -34,38 +34,40 @@ export class AudioSeedService {
   async seed() {
     let currentPage = 1;
     const pageSize = 1000;
-  
+
     while (true) {
       console.log(`Fetching page ${currentPage}`);
       const response = await this.audioEngineService.get<AudioEngineAudio[]>(
-        `/audiobooks?page=${currentPage}&page_size=${pageSize}`
+        `/audiobooks?page=${currentPage}&page_size=${pageSize}`,
       );
-  
+
       const audios = response; // Assuming the API returns an array of audios directly.
       console.log('Count of audioList for current page', audios.length);
-  
+
       // If there are no audios, exit the loop.
       if (audios.length === 0) {
         console.log('No more audios to process. Exiting...');
         break;
       }
-  
+
       // Process each audio in the current page.
       for (const audio of audios) {
         console.log('Processing SKU', audio.audiobook.id);
         const audioByAccount = await this.getAudioByAccount(audio);
-        const audioMetadata = await this.syncAudioMetadata(audio, audioByAccount);
+        const audioMetadata = await this.syncAudioMetadata(
+          audio,
+          audioByAccount,
+        );
         await this.syncAudioData(audioMetadata, audioByAccount);
       }
-  
+
       // Move to the next page.
       currentPage++;
     }
   }
-  
 
   private async getAudioByAccount(audio: AudioEngineAudio): Promise<any> {
-    if( ! audio.active_products.library ){
+    if (!audio.active_products.library) {
       return null;
     }
 
@@ -110,7 +112,7 @@ export class AudioSeedService {
     const { audiobook, active_products } = audio;
     const library = active_products?.library?.[0];
     const retail = active_products?.retail?.[0];
-    
+
     return {
       sku: audiobook.id,
       title: audiobook.title,
@@ -145,10 +147,13 @@ export class AudioSeedService {
       cover_url: audiobook.cover_url,
       sub_title: audiobook.sub_title,
       chapters: audiobook.chapters,
-      purchased_rental_licenses: audioByAccount ? audioByAccount.licenses.filter(
-        (license: any) =>
-          license.checkout_id === null && license.business_model === 'library',
-      ).length : 0,
+      purchased_rental_licenses: audioByAccount
+        ? audioByAccount.licenses.filter(
+            (license: any) =>
+              license.checkout_id === null &&
+              license.business_model === 'library',
+          ).length
+        : 0,
     };
   }
 
@@ -157,10 +162,13 @@ export class AudioSeedService {
       where: { sku: metadata.sku },
     });
 
-    const rentedLicenses = audioByAccount ? audioByAccount.licenses.filter(
-      (license: any) =>
-        license.checkout_id !== null && license.business_model === 'library',
-    ).length : 0;
+    const rentedLicenses = audioByAccount
+      ? audioByAccount.licenses.filter(
+          (license: any) =>
+            license.checkout_id !== null &&
+            license.business_model === 'library',
+        ).length
+      : 0;
 
     if (existingAudio) {
       existingAudio.purchased_rental_license_limit =
