@@ -192,7 +192,7 @@ export class AudioSeedService {
     audio.is_featured = Math.random() >= 0.5;
     audio.bookshelf_credit_cost = metadata.findaway_content_cost
       ? Math.floor(metadata.findaway_content_cost / 10)
-      : null;
+      : 0;
     audio.total_rented = totalRented;
     audio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
     return audio;
