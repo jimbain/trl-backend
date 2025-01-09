@@ -52,7 +52,7 @@ export class AudioService {
   ): Promise<{
     data: AudioListDto[];
     meta: PaginationMeta;
-  }>{
+  }> {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
 
@@ -95,7 +95,9 @@ export class AudioService {
       ]);
 
     if (query.ids?.length > 0) {
-      queryBuilder.andWhere('audio.id IN (:...audioIds)', { audioIds: query.ids });
+      queryBuilder.andWhere('audio.id IN (:...audioIds)', {
+        audioIds: query.ids,
+      });
     }
 
     const [audios, total] = await queryBuilder
@@ -208,7 +210,7 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
-        'metadata.chapters'
+        'metadata.chapters',
       ])
       .skip((page - 1) * limit)
       .take(limit)
