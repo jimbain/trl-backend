@@ -114,6 +114,12 @@ export class AudioDto {
 
   @Expose()
   rental_expires_at: Date;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    return obj?.metadata?.chapters?.length ?? 0;
+  })
+  total_chapters: number;
 }
 
 export class AudioListDto {
@@ -162,4 +168,10 @@ export class AudioListDto {
     return obj?.userAudioStatus?.rental_expire_at ?? null;
   })
   rental_expires_at?: Date;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    return obj?.metadata?.chapters?.length ?? 0;
+  })
+  total_chapters: number;
 }

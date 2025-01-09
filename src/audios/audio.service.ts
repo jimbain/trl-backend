@@ -20,11 +20,14 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
 import { USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
 
+export interface AudioSearch {
+  ids?: string[];
+  per_page?: number;
+  page?: number;
+}
+
 @Injectable()
 export class AudioService {
-  @InjectRepository(Category)
-  private readonly audioCategoryRepository: Repository<Category>;
-
   @InjectRepository(CompanyCategory)
   private readonly companyCategoryRepository: Repository<CompanyCategory>;
 
@@ -42,6 +45,87 @@ export class AudioService {
     private readonly audioEngineService: AudioEngineService,
     private readonly appConfigService: AppConfigService,
   ) {}
+
+  async findAll(
+    user: User,
+    query: AudioSearch = {},
+  ): Promise<{
+    data: AudioListDto[];
+    meta: PaginationMeta;
+  }>{
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+
+    const [appConfigs, companyAudioCategoryIds] = await Promise.all([
+      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+      this.findAllAudioCategoryIdOfCompany(user.company.id),
+    ]);
+
+    const queryBuilder = this.audioRepository
+      .createQueryBuilder('audio')
+      .where(
+        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        { categoryIds: companyAudioCategoryIds },
+      )
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'audio.total_rented',
+        'audio.purchased_rental_license_limit',
+        'metadata.available_for',
+        'audio.bookshelf_credit_cost',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+        'metadata.chapters',
+        'userAudioStatus.status',
+        'userAudioStatus.updated_at',
+        'userAudioStatus.rental_expire_at',
+      ]);
+
+    if (query.ids?.length > 0) {
+      queryBuilder.andWhere('audio.id IN (:...audioIds)', { audioIds: query.ids });
+    }
+
+    const [audios, total] = await queryBuilder
+      .skip((page - 1) * perPage)
+      .take(perPage)
+      .getManyAndCount();
+
+    const from = total > 0 ? (page - 1) * perPage + 1 : null;
+    const to = Math.min(page * perPage, total);
+
+    const data = audios.map((audio) =>
+      plainToInstance(
+        AudioListDto,
+        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        { excludeExtraneousValues: true },
+      ),
+    );
+
+    return {
+      data: data,
+      meta: {
+        current_page: page,
+        per_page: perPage,
+        total,
+        last_page: Math.ceil(total / perPage),
+        from,
+        to,
+      },
+    };
+  }
 
   async findById(
     id: string,
@@ -119,11 +203,12 @@ export class AudioService {
         'audio.avg_rating',
         'audio.total_rented',
         'audio.purchased_rental_license_limit',
-        'audio.available_for',
         'audio.bookshelf_credit_cost',
+        'metadata.available_for',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'metadata.chapters'
       ])
       .skip((page - 1) * limit)
       .take(limit)
@@ -225,11 +310,12 @@ export class AudioService {
         'audio.avg_rating',
         'audio.total_rented',
         'audio.purchased_rental_license_limit',
-        'audio.available_for',
+        'metadata.available_for',
         'audio.bookshelf_credit_cost',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'metadata.chapters',
         'userAudioStatus.status',
         'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
@@ -287,11 +373,12 @@ export class AudioService {
         'audio.avg_rating',
         'audio.total_rented',
         'audio.purchased_rental_license_limit',
-        'audio.available_for',
+        'metadata.available_for',
         'audio.bookshelf_credit_cost',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'metadata.chapters',
         'userAudioStatus.status',
         'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
@@ -397,6 +484,7 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'metadata.chapters',
         'userAudioStatus.status',
         'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
@@ -486,6 +574,7 @@ export class AudioService {
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
+        'metadata.chapters',
         'userAudioStatus.status',
         'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
@@ -513,17 +602,13 @@ export class AudioService {
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
-    const audio = await this.audioRepository
-      .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata')
-      .where('audio.id = :id', { id })
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .getOne();
-
-    const userAudio = await this.userAudioStatusRepository.findOne({
-      where: { user_id: user.id, audio_id: id },
-      select: ['status', 'rental_expire_at'],
-    });
+    const [audio, userAudio] = await Promise.all([
+      this.findById(id, ['metadata']),
+      this.userAudioStatusRepository.findOne({
+        where: { user_id: user.id, audio_id: id },
+        select: ['status', 'rental_expire_at'],
+      }),
+    ]);
 
     let status = userAudio?.status ?? null;
     let rentalExpiresAt = userAudio?.rental_expire_at ?? null;

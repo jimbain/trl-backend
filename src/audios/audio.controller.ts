@@ -24,6 +24,11 @@ export class AudioController {
     private readonly audioSeedService: AudioSeedService,
   ) {}
 
+  @Get('audios')
+  findAll(@Request() req, @Query() query: object) {
+    return this.audioService.findAll(req.user, query);
+  }
+
   @Get('audio/home')
   async getAudioHomeList(@Request() req) {
     const companyAudioCategoryIds =
