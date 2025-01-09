@@ -35,26 +35,26 @@ export class AudioSeedService {
     let currentPage = 1;
     const pageSize = 1000;
     const batchSize = 10;
-  
+
     while (true) {
       console.log(`Fetching page ${currentPage}`);
       const response = await this.audioEngineService.get<AudioEngineAudio[]>(
         `/audiobooks?page=${currentPage}&page_size=${pageSize}`,
       );
-  
+
       const audios = response; // Assuming the API returns an array of audios directly.
       console.log('Count of audioList for current page', audios.length);
-  
+
       // If there are no audios, exit the loop.
       if (audios.length === 0) {
         console.log('No more audios to process. Exiting...');
         break;
       }
-  
+
       // Process audios in batches
       for (let i = 0; i < audios.length; i += batchSize) {
         const batch = audios.slice(i, i + batchSize);
-  
+
         await Promise.all(
           batch.map(async (audio) => {
             try {
@@ -73,7 +73,7 @@ export class AudioSeedService {
           }),
         );
       }
-  
+
       // Move to the next page.
       currentPage++;
     }
