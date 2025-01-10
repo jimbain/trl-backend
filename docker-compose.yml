@@ -1,0 +1,41 @@
+services:
+  trl_backend_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    ports:
+      - ${APP_PORT}:${APP_PORT}
+    environment:
+      - DB_HOST=trl_db
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_DATABASE}
+    depends_on:
+      - trl_db
+    networks:
+      - trl-net
+
+  trl_db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: '${DB_USERNAME}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD}'
+      POSTGRES_DB: '${DB_DATABASE}'
+    volumes:
+      - trl-pgsql:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - trl-net
+
+networks:
+  trl-net:
+    driver: bridge
+
+volumes:
+  trl-pgsql:
+    driver: local
