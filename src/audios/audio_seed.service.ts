@@ -34,7 +34,7 @@ export class AudioSeedService {
   async seed() {
     let currentPage = 1;
     const pageSize = 1000;
-    const batchSize = 10;
+    const batchSize = 20;
 
     while (true) {
       console.log(`Fetching page ${currentPage}`);
@@ -80,7 +80,7 @@ export class AudioSeedService {
   }
 
   private async getAudioByAccount(audio: AudioEngineAudio): Promise<any> {
-    if (!audio.active_products.library) {
+    if (!audio?.active_products?.library) {
       return null;
     }
 
@@ -185,6 +185,7 @@ export class AudioSeedService {
 
     if (existingAudio) {
       existingAudio.purchased_rental_license_limit =
+        existingAudio.purchased_rental_license_limit ??
         metadata.purchased_rental_licenses;
       existingAudio.total_rented = rentedLicenses;
       await this.audioRepository.save(existingAudio);
@@ -200,9 +201,9 @@ export class AudioSeedService {
   ): Audio {
     const audio = new Audio();
     audio.sku = metadata.sku;
-    audio.is_active = metadata.is_for_sale;
-    audio.is_excluded = !audio.is_active;
-    audio.is_featured = Math.random() >= 0.5;
+    audio.is_active = false; // metadata.is_for_sale;
+    audio.is_excluded = false;
+    audio.is_featured = false;
     audio.bookshelf_credit_cost = metadata.findaway_content_cost
       ? Math.floor(metadata.findaway_content_cost / 10)
       : 0;
