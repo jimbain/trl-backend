@@ -14,10 +14,11 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  const frontendUrls = configService.getOrThrow<string>('FRONTEND_APP_URL');
+
   app.enableCors({
     origin: [
-      configService.get<string>('FRONTEND_APP_URL'),
-      'http://localhost:3000',
+      ...frontendUrls.split(", ").map(url => url.trim()),
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
