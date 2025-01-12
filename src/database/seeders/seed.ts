@@ -13,12 +13,12 @@ async function bootstrap() {
   console.info('Database seeding start!🤫');
 
   const seeders = [
-    app.get(CompanySeeder),
-    app.get(UserSeeder),
-    app.get(CategorySeeder),
-    app.get(CompanyCategorySeeder),
-    app.get(AudioSeeder),
     app.get(AppConfigSeeder),
+    // app.get(CompanySeeder),
+    // app.get(UserSeeder),
+    // app.get(CategorySeeder),
+    // app.get(CompanyCategorySeeder),
+    // app.get(AudioSeeder),
   ];
 
   // Execute seed method for each seeder
