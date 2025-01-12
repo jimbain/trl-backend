@@ -14,11 +14,11 @@ async function bootstrap() {
 
   const seeders = [
     app.get(AppConfigSeeder),
-    // app.get(CompanySeeder),
-    // app.get(UserSeeder),
-    // app.get(CategorySeeder),
-    // app.get(CompanyCategorySeeder),
-    // app.get(AudioSeeder),
+    app.get(CompanySeeder),
+    app.get(UserSeeder),
+    app.get(CategorySeeder),
+    app.get(CompanyCategorySeeder),
+    app.get(AudioSeeder),
   ];
 
   // Execute seed method for each seeder
