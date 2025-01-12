@@ -17,7 +17,7 @@ async function bootstrap() {
   const frontendUrls = configService.getOrThrow<string>('FRONTEND_APP_URL');
 
   app.enableCors({
-    origin: frontendUrls?.split(', ')?.map((url) => url?.trim()) ?? [],
+    origin: frontendUrls?.replace(/\s+/g, '')?.split(',') ?? [],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
