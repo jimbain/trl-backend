@@ -3,9 +3,7 @@ import { AudioSeedService } from 'src/audios/audio_seed.service';
 
 @Injectable()
 export class AudioSeeder {
-  constructor(
-    private readonly audioSeedService: AudioSeedService,
-  ) {}
+  constructor(private readonly audioSeedService: AudioSeedService) {}
 
   async seed() {
     console.log(
@@ -13,7 +11,7 @@ export class AudioSeeder {
     );
 
     await this.audioSeedService.seed();
-    
+
     console.log(
       '###########################  AUDIO SEEDING END  ###########################',
     );

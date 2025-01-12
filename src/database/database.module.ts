@@ -34,7 +34,7 @@ import { AudioModule } from 'src/audios/audio.module';
       AudioMetadata,
       AppConfig,
     ]),
-    AudioModule
+    AudioModule,
   ],
   providers: [
     CompanySeeder,

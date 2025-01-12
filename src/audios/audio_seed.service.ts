@@ -49,7 +49,7 @@ export class AudioSeedService {
 
     this.audioCategories = await this.categoryRepository
       .createQueryBuilder('category')
-      .where("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .where('category.media_types @> :mediaType', { mediaType: '["audio"]' })
       .getMany();
 
     while (true) {
