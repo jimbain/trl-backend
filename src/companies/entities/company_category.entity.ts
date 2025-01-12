@@ -39,6 +39,9 @@ export class CompanyCategory extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  is_internal: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

@@ -147,7 +147,7 @@ export class AudioService {
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
     const companyAudioCategories = await this.companyCategoryRepository.find({
-      where: { company_id: companyId, is_active: true },
+      where: { company_id: companyId, is_active: true, is_internal: false },
     });
 
     return companyAudioCategories.map((category) => category.category_id);

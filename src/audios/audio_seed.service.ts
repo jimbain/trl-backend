@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { AudioService } from './audio.service';
 import { AudioMetadata } from './entities/audio_metadata.entity';
@@ -9,10 +9,14 @@ import { AudioMetadataService } from './audio_metadata.service';
 import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 import { ConfigService } from '@nestjs/config';
 import { AudioEngineAudio } from 'src/common/interfaces';
+import { Category } from 'src/categories/entities/category.entity';
+import _ from 'lodash';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class AudioSeedService {
   private readonly audioEngineAccountId: string;
+  public audioCategories: Category[];
 
   constructor(
     @InjectRepository(AudioMetadata)
@@ -20,6 +24,9 @@ export class AudioSeedService {
 
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
+
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
 
     private readonly audioService: AudioService,
     private readonly audioMetadataService: AudioMetadataService,
@@ -31,10 +38,19 @@ export class AudioSeedService {
     );
   }
 
+  // UTC time 2am
+  @Cron('0 2 * * *', {
+    name: 'audio_sync',
+  })
   async seed() {
     let currentPage = 1;
     const pageSize = 1000;
     const batchSize = 20;
+
+    this.audioCategories = await this.categoryRepository
+      .createQueryBuilder('category')
+      .where("category.media_types @> :mediaType", { mediaType: '["audio"]' })
+      .getMany();
 
     while (true) {
       console.log(`Fetching page ${currentPage}`);
@@ -209,6 +225,9 @@ export class AudioSeedService {
       : 0;
     audio.total_rented = totalRented;
     audio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
+    audio.categories = [
+      this.audioCategories[_.random(this.audioCategories.length - 1)].id,
+    ];
     return audio;
   }
 }

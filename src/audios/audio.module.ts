@@ -42,6 +42,6 @@ import { AudioMetadataService } from './audio_metadata.service';
     AudioEngineService,
     AppConfigService,
   ],
-  exports: [AudioService],
+  exports: [AudioService, AudioSeedService],
 })
 export class AudioModule {}

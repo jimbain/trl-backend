@@ -15,6 +15,7 @@ import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategorySeeder } from './seeders/company_category.seeder';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { AppConfigSeeder } from './seeders/app_config.seeder';
+import { AudioModule } from 'src/audios/audio.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AppConfigSeeder } from './seeders/app_config.seeder';
       AudioMetadata,
       AppConfig,
     ]),
+    AudioModule
   ],
   providers: [
     CompanySeeder,
