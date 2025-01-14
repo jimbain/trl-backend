@@ -4,30 +4,17 @@ import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 export function getAvailableFor(
   audio: any,
 ): 'rent' | 'bookshelf' | 'both' | null {
-  if (!audio?.available_for) {
-    return null;
-  }
+  const canRent = audio.total_rented < audio.purchased_rental_license_limit;
 
-  const {
-    available_for,
-    total_rented,
-    purchased_rental_license_limit,
-    is_only_for_purchase,
-    rental_credit_cost,
-    bookshelf_credit_cost,
-  } = audio;
-
-  const canRent = total_rented < purchased_rental_license_limit;
-
-  switch (available_for) {
+  switch (audio?.metadata?.available_for) {
     case MEDIA_AVAILABILITY_TYPE.RENTAL:
       return canRent ? 'rent' : null;
 
     case MEDIA_AVAILABILITY_TYPE.PURCHASABLE:
-      return is_only_for_purchase ? 'bookshelf' : null;
+      return audio.is_only_for_purchase ? 'bookshelf' : null;
 
     case MEDIA_AVAILABILITY_TYPE.BOTH:
-      if (canRent && rental_credit_cost < bookshelf_credit_cost) {
+      if (canRent && audio.rental_credit_cost < audio.bookshelf_credit_cost) {
         return 'both';
       }
       return 'bookshelf';
