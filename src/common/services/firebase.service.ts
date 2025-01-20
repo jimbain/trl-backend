@@ -13,7 +13,7 @@ export class FirebaseService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.SCOPES = 'https://www.googleapis.com/auth/firebase.messaging';
+    this.SCOPES = this.configService.getOrThrow<string>('FIREBASE_SCOPES');
     this.SERVICE_ACCOUNT_FILE_PATH = this.configService.getOrThrow<string>(
       'FIREBASE_SERVICE_ACCOUNT_FILE_PATH',
     );
