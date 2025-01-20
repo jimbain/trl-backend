@@ -1,10 +1,4 @@
-import {
-  IsDate,
-  IsIn,
-  IsNotEmpty,
-  IsObject,
-  IsString,
-} from 'class-validator';
+import { IsDate, IsIn, IsNotEmpty, IsObject, IsString } from 'class-validator';
 
 export class CreateNotificationDto {
   @IsString()

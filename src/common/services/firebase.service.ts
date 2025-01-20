@@ -17,9 +17,7 @@ export class FirebaseService {
     this.SERVICE_ACCOUNT_FILE_PATH = this.configService.getOrThrow<string>(
       'FIREBASE_SERVICE_ACCOUNT_FILE_PATH',
     );
-    this.FCM_URL = this.configService.getOrThrow<string>(
-      'FIREBASE_FCM_URL',
-    );
+    this.FCM_URL = this.configService.getOrThrow<string>('FIREBASE_FCM_URL');
   }
 
   async getAccessToken(): Promise<string> {

@@ -19,7 +19,7 @@ export class UserAudioScheduler {
     @InjectRepository(UserAudioplayerPosition)
     private readonly userAudioplayerPositionRepository: Repository<UserAudioplayerPosition>,
 
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
   ) {}
 
   // Everyday 01:05 am UTC time
@@ -70,9 +70,8 @@ export class UserAudioScheduler {
         data: {
           audio_id: rentedAudio.audio.id,
           title:
-            rentedAudio.audio.metadata.title ??
-            rentedAudio.audio.display_title,
-          author: 
+            rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
+          author:
             rentedAudio.audio.metadata.authors ??
             rentedAudio.audio.display_authors,
           image: rentedAudio.audio.metadata.cover_url ?? null,
@@ -135,9 +134,8 @@ export class UserAudioScheduler {
         data: {
           audio_id: rentedAudio.audio.id,
           title:
-            rentedAudio.audio.metadata.title ??
-            rentedAudio.audio.display_title,
-          author: 
+            rentedAudio.audio.metadata.title ?? rentedAudio.audio.display_title,
+          author:
             rentedAudio.audio.metadata.authors ??
             rentedAudio.audio.display_authors,
           image: rentedAudio.audio.metadata.cover_url ?? null,
@@ -179,7 +177,7 @@ export class UserAudioScheduler {
       now.getDate() + +notificationAudioQueueNoactivityDay,
     );
 
-    const userAudioplayerPositions = await this.userAudioplayerPositionRepository.find();
-    
+    const userAudioplayerPositions =
+      await this.userAudioplayerPositionRepository.find();
   }
 }

@@ -12,7 +12,7 @@ import { HttpModule } from '@nestjs/axios';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 
 @Module({
-  imports:[
+  imports: [
     HttpModule,
     TypeOrmModule.forFeature([
       AppConfig,
@@ -22,11 +22,7 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
       UserAudioStatus,
     ]),
   ],
-  providers: [
-    NotificationService, 
-    UserAudioScheduler, 
-    FirebaseService
-  ],
-  controllers: [NotificationController]
+  providers: [NotificationService, UserAudioScheduler, FirebaseService],
+  controllers: [NotificationController],
 })
 export class NotificationModule {}
