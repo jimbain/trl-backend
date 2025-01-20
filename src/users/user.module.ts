@@ -16,7 +16,6 @@ import { Company } from 'src/companies/entities/company.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { HttpModule } from '@nestjs/axios';
 import { UserDevice } from './entities/user_device.entity';
-import { UserAudioScheduler } from './schedulers/user_audio.scheduler';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioModule } from 'src/audios/audio.module';
@@ -47,7 +46,6 @@ import { AudioModule } from 'src/audios/audio.module';
     MailgunService,
     AudioEngineService,
     FirebaseService,
-    UserAudioScheduler,
     AppConfigService,
   ],
   exports: [UserService, MailgunService, AudioEngineService],

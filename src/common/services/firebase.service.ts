@@ -17,8 +17,9 @@ export class FirebaseService {
     this.SERVICE_ACCOUNT_FILE_PATH = this.configService.getOrThrow<string>(
       'FIREBASE_SERVICE_ACCOUNT_FILE_PATH',
     );
-    this.FCM_URL =
-      'https://fcm.googleapis.com/v1/projects/trl-app-68d7f/messages:send';
+    this.FCM_URL = this.configService.getOrThrow<string>(
+      'FIREBASE_FCM_URL',
+    );
   }
 
   async getAccessToken(): Promise<string> {

@@ -12,6 +12,7 @@ import { AudioModule } from './audios/audio.module';
 import { CategoryModule } from './categories/category.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     CategoryModule,
     AppConfigModule,
     ScheduleModule.forRoot(),
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

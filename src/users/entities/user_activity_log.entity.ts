@@ -5,6 +5,8 @@ import {
   ManyToOne,
   JoinColumn,
   PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { MEDIA, Media, USER_ACTITIVITY, UserActivity } from 'src/constants';
@@ -36,6 +38,12 @@ export class UserActivityLog extends BaseEntity {
 
   @Column({ type: 'int', default: 0 })
   credit_used: number;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   @ManyToOne(() => User, (user) => user.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
