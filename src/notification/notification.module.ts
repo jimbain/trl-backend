@@ -26,10 +26,10 @@ import { User } from 'src/users/entities/user.entity';
     ]),
   ],
   providers: [
-    NotificationService, 
+    NotificationService,
     NotificationScheduler,
-    UserAudioScheduler, 
-    FirebaseService
+    UserAudioScheduler,
+    FirebaseService,
   ],
   controllers: [NotificationController],
 })

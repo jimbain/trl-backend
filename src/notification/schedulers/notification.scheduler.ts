@@ -30,31 +30,34 @@ export class NotificationScheduler {
   })
   async handleAudioRentExpiringNotificationOne() {
     const notifications = await this.notificationRepository.find({
-        where: {
-          event_type: "audio_rent_expiring_1"
-        }
+      where: {
+        event_type: 'audio_rent_expiring_1',
+      },
     });
 
     if (!notifications.length) {
-        return;
+      return;
     }
 
     const body = {
       title: 'Expiring within 4 days',
       body: 'The audio book is expiring within 4 days. Please check.',
       image: 'http://images.findawayworld.com/v1/image/cover/CD035784',
-    } 
+    };
 
     notifications.forEach(async (notification: Notification) => {
-      if(notification.recipient_type === 'user'){
-        await this.sendFirebaseNotification(notification, notification.recipient_id, body);
-      }
-      else if(notification.recipient_type === 'company'){
-        let users = await this.userRepository.find({
-          where:{ company_id: notification.recipient_id, is_active: true }
+      if (notification.recipient_type === 'user') {
+        await this.sendFirebaseNotification(
+          notification,
+          notification.recipient_id,
+          body,
+        );
+      } else if (notification.recipient_type === 'company') {
+        const users = await this.userRepository.find({
+          where: { company_id: notification.recipient_id, is_active: true },
         });
 
-        for(let user of users){
+        for (const user of users) {
           await this.sendFirebaseNotification(notification, user.id, body);
         }
       }
@@ -67,38 +70,45 @@ export class NotificationScheduler {
   })
   async handleAudioRentExpiringNotificationTwo() {
     const notifications = await this.notificationRepository.find({
-        where: {
-          event_type: "audio_rent_expiring_2"
-        }
+      where: {
+        event_type: 'audio_rent_expiring_2',
+      },
     });
 
     if (!notifications.length) {
-        return;
+      return;
     }
 
     const body = {
       title: 'Expiring within 2 days',
       body: 'The audio book is expiring within 2 days. Please check.',
       image: 'http://images.findawayworld.com/v1/image/cover/CD035784',
-    } 
+    };
 
     notifications.forEach(async (notification: Notification) => {
-      if(notification.recipient_type === 'user'){
-        await this.sendFirebaseNotification(notification, notification.recipient_id, body);
-      }
-      else if(notification.recipient_type === 'company'){
-        let users = await this.userRepository.find({
-          where:{ company_id: notification.recipient_id, is_active: true }
+      if (notification.recipient_type === 'user') {
+        await this.sendFirebaseNotification(
+          notification,
+          notification.recipient_id,
+          body,
+        );
+      } else if (notification.recipient_type === 'company') {
+        const users = await this.userRepository.find({
+          where: { company_id: notification.recipient_id, is_active: true },
         });
 
-        for(let user of users){
+        for (const user of users) {
           await this.sendFirebaseNotification(notification, user.id, body);
         }
       }
     });
   }
 
-  async sendFirebaseNotification(notification: Notification, userId: string, body: object ){
+  async sendFirebaseNotification(
+    notification: Notification,
+    userId: string,
+    body: object,
+  ) {
     const userDevices = await this.userDeviceRepository.find({
       where: { is_active: true, user_id: userId },
     });
