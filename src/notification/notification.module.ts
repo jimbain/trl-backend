@@ -10,6 +10,8 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { HttpModule } from '@nestjs/axios';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
+import { NotificationScheduler } from './schedulers/notification.scheduler';
+import { User } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
@@ -17,12 +19,18 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
     TypeOrmModule.forFeature([
       AppConfig,
       Notification,
+      User,
       UserDevice,
       UserAudioplayerPosition,
       UserAudioStatus,
     ]),
   ],
-  providers: [NotificationService, UserAudioScheduler, FirebaseService],
+  providers: [
+    NotificationService, 
+    NotificationScheduler,
+    UserAudioScheduler, 
+    FirebaseService
+  ],
   controllers: [NotificationController],
 })
 export class NotificationModule {}
