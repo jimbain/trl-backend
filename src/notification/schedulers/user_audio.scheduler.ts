@@ -1,24 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
-import { AppConfig } from 'src/app-config/entities/app-config.entity';
+import { Repository } from 'typeorm';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { NotificationService } from '../notification.service';
-import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { AppConfigService } from 'src/app-config/app-config.service';
 
 @Injectable()
 export class UserAudioScheduler {
   constructor(
-    @InjectRepository(AppConfig)
-    private readonly appConfigRepository: Repository<AppConfig>,
-
     @InjectRepository(UserAudioStatus)
     private readonly userAudioStatusRepository: Repository<UserAudioStatus>,
 
-    @InjectRepository(UserAudioplayerPosition)
-    private readonly userAudioplayerPositionRepository: Repository<UserAudioplayerPosition>,
+    @InjectRepository(UserActivityLog)
+    private readonly userActivityLogRepository: Repository<UserActivityLog>,
 
+    private readonly appConfigService: AppConfigService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -27,38 +25,27 @@ export class UserAudioScheduler {
     name: 'audio_rent_expiring_1',
   })
   async handleAudioRentExpiringOne() {
-    const notificationAudioRentExpiringConfig =
-      await this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'notification_audio_rent_expiring_1' },
-      });
+    const appConfigs = await this.appConfigService.getAppConfigs([
+      'notification_audio_rent_expiring_1',
+    ]);
 
-    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig
-      ? notificationAudioRentExpiringConfig
-      : 4;
+    const notificationAudioRentExpiringDay =
+      parseInt(appConfigs['notification_audio_rent_expiring_1'], 10) ?? 4;
 
     const now = new Date();
-    const threeDaysLater = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + (+notificationAudioRentExpiringDay - 1),
-    );
-    const fourDaysLater = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + +notificationAudioRentExpiringDay,
-      23,
-      59,
-      59,
-    );
 
-    const userRentedAudios = await this.userAudioStatusRepository.find({
-      where: {
-        status: 'rented',
-        rental_expire_at: Between(threeDaysLater, fourDaysLater),
-      },
-      relations: ['audio', 'audio.metadata'],
-    });
+    const userRentedAudios = await this.userAudioStatusRepository
+      .createQueryBuilder('userAudioStatus')
+      .innerJoinAndSelect('userAudioStatus.audio', 'audio')
+      .innerJoinAndSelect('audio.metadata', 'metadata')
+      .where('userAudioStatus.status = :status', { status: 'rented' })
+      .andWhere(
+        `
+          DATE_PART('day', userAudioStatus.rental_expire_at - :now) = :difference
+        `,
+        { now, difference: notificationAudioRentExpiringDay - 1 },
+      )
+      .getMany();
 
     if (!userRentedAudios.length) {
       return;
@@ -95,34 +82,27 @@ export class UserAudioScheduler {
     name: 'audio_rent_expiring_2',
   })
   async handleAudioRentExpiringTwo() {
-    const notificationAudioRentExpiringConfig =
-      await this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'notification_audio_rent_expiring_2' },
-      });
+    const appConfigs = await this.appConfigService.getAppConfigs([
+      'notification_audio_rent_expiring_2',
+    ]);
 
-    const notificationAudioRentExpiringDay = notificationAudioRentExpiringConfig
-      ? notificationAudioRentExpiringConfig
-      : 2;
+    const notificationAudioRentExpiringDay =
+      parseInt(appConfigs['notification_audio_rent_expiring_2'], 10) ?? 2;
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const twoDaysLater = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + +notificationAudioRentExpiringDay,
-      23,
-      59,
-      59,
-    );
 
-    const userRentedAudios = await this.userAudioStatusRepository.find({
-      where: {
-        status: 'rented',
-        rental_expire_at: Between(today, twoDaysLater),
-      },
-      relations: ['audio', 'audio.metadata'],
-    });
+    const userRentedAudios = await this.userAudioStatusRepository
+      .createQueryBuilder('userAudioStatus')
+      .innerJoinAndSelect('userAudioStatus.audio', 'audio')
+      .innerJoinAndSelect('audio.metadata', 'metadata')
+      .where('userAudioStatus.status = :status', { status: 'rented' })
+      .andWhere(
+        `
+          DATE_PART('day', userAudioStatus.rental_expire_at - :now) = :difference
+        `,
+        { now, difference: notificationAudioRentExpiringDay - 1 },
+      )
+      .getMany();
 
     if (!userRentedAudios.length) {
       return;
@@ -159,25 +139,57 @@ export class UserAudioScheduler {
     name: 'audio_queue_noactivity',
   })
   async handleAudioQueueNoActivityInOneMonth() {
-    const notificationAudioQueueNoactivityConfig =
-      await this.appConfigRepository.findOne({
-        select: ['value'],
-        where: { key: 'notification_audio_queue_noactivity' },
-      });
+    const appConfigs = await this.appConfigService.getAppConfigs([
+      'notification_audio_queue_noactivity',
+    ]);
 
     const notificationAudioQueueNoactivityDay =
-      notificationAudioQueueNoactivityConfig
-        ? notificationAudioQueueNoactivityConfig
-        : 30;
+      parseInt(appConfigs['notification_audio_queue_noactivity'], 10) ?? 30;
 
-    const now = new Date();
-    const nextdayAfterInterval = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + +notificationAudioQueueNoactivityDay,
+    const thresholdDate = new Date();
+    thresholdDate.setDate(
+      thresholdDate.getDate() - notificationAudioQueueNoactivityDay,
     );
 
-    const userAudioplayerPositions =
-      await this.userAudioplayerPositionRepository.find();
+    const userActivityLogs = await this.userActivityLogRepository
+      .createQueryBuilder('userActivityLog')
+      .select('userActivityLog.user_id', 'user_id')
+      .addSelect('userActivityLog.item_id', 'item_id')
+      .addSelect('MAX(userActivityLog.created_at)', 'max_created_at')
+      .where('userActivityLog.action_type = :actionType', {
+        actionType: 'play',
+      })
+      .andWhere('userActivityLog.item_type = :itemType', { itemType: 'audio' })
+      .groupBy('userActivityLog.user_id')
+      .addGroupBy('userActivityLog.item_id')
+      .having('MAX(userActivityLog.created_at) < :thresholdDate', {
+        thresholdDate,
+      })
+      .getRawMany();
+
+    if (!userActivityLogs.length) {
+      return;
+    }
+
+    const now = new Date();
+
+    userActivityLogs.forEach(async (log: any) => {
+      const data = {
+        event_type: 'audio_queue_noactivity',
+        data: {
+          audio_id: log.item_id,
+          last_played: log.max_created_at,
+        },
+        recipient_type: 'user',
+        recipient_id: log.user_id,
+        expire_at: new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() + 1,
+        ),
+      };
+
+      await this.notificationService.create(data);
+    });
   }
 }

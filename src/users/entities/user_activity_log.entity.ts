@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { MEDIA, Media, USER_ACTITIVITY, UserActivity } from 'src/constants';
+import { MEDIA, Media, USER_ACTIVITY, UserActivity } from 'src/constants';
 
 @Entity({ name: 'user_activity_logs' })
 export class UserActivityLog extends BaseEntity {
@@ -31,7 +31,7 @@ export class UserActivityLog extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: Object.values(USER_ACTITIVITY),
+    enum: Object.values(USER_ACTIVITY),
     nullable: false,
   })
   action_type: UserActivity;

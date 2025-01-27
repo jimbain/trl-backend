@@ -249,13 +249,13 @@ export class UserAudioService {
       'max_audio_rental_items_per_period',
     ]);
 
-    const rentalPeriodInHours = parseInt(
-      appConfigs['rental_period_in_hours'],
-      10,
-    );
+    const rentalPeriodInHours =
+      parseInt(appConfigs['rental_period_in_hours'], 10) ?? 24;
+
     const intervalStartTime = new Date(
       Date.now() - rentalPeriodInHours * 60 * 60 * 1000,
     );
+
     const currentTime = new Date();
 
     const [audio, userAudio, rentedAudioCount, rentedAudioPerPeriodCount] =

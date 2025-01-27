@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,9 +9,10 @@ import { UserAudioScheduler } from './schedulers/user_audio.scheduler';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { HttpModule } from '@nestjs/axios';
-import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { NotificationScheduler } from './schedulers/notification.scheduler';
 import { User } from 'src/users/entities/user.entity';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { AppConfigModule } from 'src/app-config/app-config.module';
 
 @Module({
   imports: [
@@ -21,9 +22,10 @@ import { User } from 'src/users/entities/user.entity';
       Notification,
       User,
       UserDevice,
-      UserAudioplayerPosition,
+      UserActivityLog,
       UserAudioStatus,
     ]),
+    forwardRef(() => AppConfigModule),
   ],
   providers: [
     NotificationService,

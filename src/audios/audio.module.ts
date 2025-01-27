@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AudioService } from './audio.service';
 import { AudioController } from './audio.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,6 +17,7 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { AudioSeedService } from './audio_seed.service';
 import { AudioMetadata } from './entities/audio_metadata.entity';
 import { AudioMetadataService } from './audio_metadata.service';
+import { UserModule } from 'src/users/user.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AudioMetadataService } from './audio_metadata.service';
       UserAudioStatus,
       UserAudioplayerPosition,
     ]),
+    forwardRef(() => UserModule),
   ],
   controllers: [AudioController],
   providers: [

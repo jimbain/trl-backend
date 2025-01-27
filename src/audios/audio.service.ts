@@ -9,7 +9,6 @@ import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
 import { User } from 'src/users/entities/user.entity';
-import { Category } from 'src/categories/entities/category.entity';
 import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
@@ -19,6 +18,7 @@ import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { UserActivityLogService } from 'src/users/user_activity_log.service';
 
 export interface AudioSearch {
   ids?: string[];
@@ -42,6 +42,7 @@ export class AudioService {
 
   constructor(
     private readonly categoryService: CategoryService,
+    private readonly userActivityLogService: UserActivityLogService,
     private readonly audioEngineService: AudioEngineService,
     private readonly appConfigService: AppConfigService,
   ) {}
@@ -717,6 +718,14 @@ export class AudioService {
           play_position: payload.play_position,
           updated_at: new Date(),
         });
+
+    this.userActivityLogService.create({
+      user_id: user.id,
+      item_type: 'audio',
+      item_id: audioId,
+      action_type: 'play',
+      credit_used: 0,
+    });
 
     return await this.userAudioplayerPositionRepository.save(
       updatedUserAudioplayerPosition,

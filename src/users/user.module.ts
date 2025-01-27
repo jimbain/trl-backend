@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -19,6 +19,7 @@ import { UserDevice } from './entities/user_device.entity';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioModule } from 'src/audios/audio.module';
+import { UserActivityLogService } from './user_activity_log.service';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { AudioModule } from 'src/audios/audio.module';
       AppConfig,
       Company,
     ]),
-    AudioModule,
+    forwardRef(() => AudioModule),
   ],
   controllers: [
     ContactUsController,
@@ -43,11 +44,17 @@ import { AudioModule } from 'src/audios/audio.module';
   providers: [
     UserService,
     UserAudioService,
+    UserActivityLogService,
     MailgunService,
     AudioEngineService,
     FirebaseService,
     AppConfigService,
   ],
-  exports: [UserService, MailgunService, AudioEngineService],
+  exports: [
+    UserService,
+    MailgunService,
+    AudioEngineService,
+    UserActivityLogService,
+  ],
 })
 export class UserModule {}

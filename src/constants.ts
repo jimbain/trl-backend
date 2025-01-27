@@ -30,14 +30,13 @@ export const USER_MEDIA_STATUS = {
 export type MediaStatus =
   (typeof USER_MEDIA_STATUS)[keyof typeof USER_MEDIA_STATUS];
 
-export const USER_ACTITIVITY = {
+export const USER_ACTIVITY = {
   QUEUE: 'queue',
   RENT: 'rent',
   KEEP: 'keep',
   PLAY: 'play',
 };
-export type UserActivity =
-  (typeof USER_ACTITIVITY)[keyof typeof USER_ACTITIVITY];
+export type UserActivity = (typeof USER_ACTIVITY)[keyof typeof USER_ACTIVITY];
 
 export const NOTIFICATION_CHANNEL = {
   EMAIL: 'email',
