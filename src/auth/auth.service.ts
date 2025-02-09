@@ -19,7 +19,7 @@ import { TokenService } from 'src/common/services/token.service';
 import { plainToInstance } from 'class-transformer';
 import { UserDto } from 'src/users/dto/user.dto';
 import { MailgunService } from 'src/common/services/mailgun.service';
-import { NOTIFICATION_CHANNEL } from 'src/constants';
+import { COMPANY_LOGIN_TYPE, NOTIFICATION_CHANNEL } from 'src/constants';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { HttpService } from '@nestjs/axios';
 
@@ -118,7 +118,7 @@ export class AuthService {
       );
     }
 
-    return { is_sso_login: user.company.is_sso_login };
+    return { is_sso_login: user.company.login_type === COMPANY_LOGIN_TYPE.SSO };
   }
 
   async storeLoginInfo(user: User, data: LoginDto): Promise<any> {
@@ -169,7 +169,7 @@ export class AuthService {
       );
     }
 
-    if (!user.company.is_sso_login) {
+    if (user.company.login_type !== COMPANY_LOGIN_TYPE.SSO) {
       throw new HttpException(
         {
           errors: {

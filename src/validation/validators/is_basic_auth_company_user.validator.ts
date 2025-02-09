@@ -8,6 +8,7 @@ import {
 import { EntityManager } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { User } from 'src/users/entities/user.entity';
+import { COMPANY_LOGIN_TYPE } from 'src/constants';
 
 @Injectable()
 @ValidatorConstraint({ async: true })
@@ -34,7 +35,7 @@ export class IsBasicAuthCompanyUserConstraint
       return false;
     }
 
-    if (user.company.is_sso_login) {
+    if (user.company.login_type === COMPANY_LOGIN_TYPE.SSO) {
       this.errorMessage = "User's company requires SSO login";
       return false;
     }

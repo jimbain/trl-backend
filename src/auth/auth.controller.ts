@@ -22,6 +22,7 @@ import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from 'src/users/user.service';
+import { COMPANY_LOGIN_TYPE } from 'src/constants';
 
 @Controller('auth')
 export class AuthController {
@@ -68,7 +69,7 @@ export class AuthController {
       );
     }
 
-    if (!user.company.is_sso_login) {
+    if (user.company.login_type !== COMPANY_LOGIN_TYPE.SSO) {
       res.redirect(
         "/api/v1/auth/okta/callback/error?message=User's company does not have sso login",
       );
