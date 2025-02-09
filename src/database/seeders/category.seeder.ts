@@ -7,22 +7,22 @@ import { Category } from 'src/categories/entities/category.entity';
 export class CategorySeeder {
   constructor(
     @InjectRepository(Category)
-    private readonly audioCategoryRepository: Repository<Category>,
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
   async seed() {
     console.log(
-      '###########################  AUDIO CATEGORY SEEDING START  ###########################',
+      '###########################  CATEGORY SEEDING START  ###########################',
     );
 
     // push All Category
-    const allCategory = this.audioCategoryRepository.create({
-      title: 'All Category',
+    const allCategory = this.categoryRepository.create({
       id: 'category_0',
+      name: 'All Category',
     });
-    await this.audioCategoryRepository.save(allCategory);
+    await this.categoryRepository.save(allCategory);
 
-    const audioCategories = [
+    const categories = [
       'Best of TRL',
       'Appearance',
       'Business Book Summaries',
@@ -55,17 +55,17 @@ export class CategorySeeder {
       '3LG Only',
     ];
 
-    const audioCategoryEntities = Array.from(audioCategories).map((name) => ({
-      title: name,
+    const categoryEntities = Array.from(categories).map((name) => ({
+      name: name,
     }));
 
-    for (const categoryData of audioCategoryEntities) {
-      const audioCategory = this.audioCategoryRepository.create(categoryData);
-      await this.audioCategoryRepository.save(audioCategory);
+    for (const category of categoryEntities) {
+      const categoryEntity = this.categoryRepository.create(category);
+      await this.categoryRepository.save(categoryEntity);
     }
 
     console.log(
-      '###########################  AUDIO CATEGORY SEEDING END  ###########################',
+      '###########################  CATEGORY SEEDING END  ###########################',
     );
   }
 }

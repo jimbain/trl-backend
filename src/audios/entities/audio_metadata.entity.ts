@@ -1,5 +1,13 @@
 import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
-import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  Entity,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {
@@ -93,6 +101,15 @@ export class AudioMetadata extends BaseEntity {
 
   @Column({ type: 'int', default: 0 })
   purchased_rental_licenses: number;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+
+  @DeleteDateColumn()
+  deleted_at: Date;
 }
 
 interface AudioChapter {

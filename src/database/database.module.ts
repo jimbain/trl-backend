@@ -7,15 +7,17 @@ import { Company } from 'src/companies/entities/company.entity';
 import { UserSeeder } from 'src/database/seeders/user.seeder';
 import { User } from 'src/users/entities/user.entity';
 import { CategorySeeder } from 'src/database/seeders/category.seeder';
-import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { Category } from 'src/categories/entities/category.entity';
-import { CompanyCategorySeeder } from './seeders/company_category.seeder';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { AppConfigSeeder } from './seeders/app_config.seeder';
 import { AudioModule } from 'src/audios/audio.module';
+import { AdminUser } from 'src/admin/entities/admin_user.entity';
+import { AdminUserSeeder } from './seeders/admin_user.seeder';
+import { CatalogSeeder } from './seeders/catalog.seeder';
+import { Catalog } from 'src/catalog/entities/catalog.entity';
 
 @Module({
   imports: [
@@ -26,10 +28,11 @@ import { AudioModule } from 'src/audios/audio.module';
       }),
     }),
     TypeOrmModule.forFeature([
+      AdminUser,
       Company,
       User,
       Category,
-      CompanyCategory,
+      Catalog,
       Audio,
       AudioMetadata,
       AppConfig,
@@ -37,12 +40,13 @@ import { AudioModule } from 'src/audios/audio.module';
     AudioModule,
   ],
   providers: [
+    AdminUserSeeder,
+    AppConfigSeeder,
+    CategorySeeder,
+    CatalogSeeder,
     CompanySeeder,
     UserSeeder,
-    CategorySeeder,
-    CompanyCategorySeeder,
     AudioSeeder,
-    AppConfigSeeder,
   ],
 })
 export class DatabaseModule {}

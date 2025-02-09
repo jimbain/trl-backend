@@ -1,10 +1,9 @@
-import { MEDIA, Media } from 'src/constants';
+import { CATALOG_CATEGORY_TYPE, CatalogCategoryType } from 'src/constants';
 import {
   BaseEntity,
   BeforeInsert,
   Column,
   CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   PrimaryColumn,
   UpdateDateColumn,
@@ -17,22 +16,23 @@ export class Category extends BaseEntity {
   id: string;
 
   @Column({ type: 'varchar', length: 255 })
-  title: string;
+  name: string;
+
+  @Column({
+    type: 'enum',
+    enum: Object.values(CATALOG_CATEGORY_TYPE),
+    default: CATALOG_CATEGORY_TYPE.DEFAULT,
+  })
+  type: CatalogCategoryType;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
-
-  @Column({ type: 'jsonb', nullable: true, default: [MEDIA.AUDIO] })
-  media_types: Media[];
 
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn()
   updated_at: Date;
-
-  @DeleteDateColumn()
-  deleted_at: Date;
 
   @BeforeInsert()
   generateUlid() {

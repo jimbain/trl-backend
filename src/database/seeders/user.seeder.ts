@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { faker } from '@faker-js/faker';
+import { COMPANY_LOGIN_TYPE } from 'src/constants';
 
 @Injectable()
 export class UserSeeder {
@@ -21,11 +22,11 @@ export class UserSeeder {
     );
 
     const regularCompany = await this.companyRepository.findOne({
-      where: { is_sso_login: false },
+      where: { login_type: COMPANY_LOGIN_TYPE.CREDENTIALS },
     });
 
     const ssoCompany = await this.companyRepository.findOne({
-      where: { is_sso_login: true },
+      where: { login_type: COMPANY_LOGIN_TYPE.SSO },
     });
 
     if (!regularCompany || !ssoCompany) {

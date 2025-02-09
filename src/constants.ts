@@ -35,7 +35,7 @@ export const USER_ACTIVITY = {
   RENT: 'rent',
   KEEP: 'keep',
   PLAY: 'play',
-};
+} as const;
 export type UserActivity = (typeof USER_ACTIVITY)[keyof typeof USER_ACTIVITY];
 
 export const NOTIFICATION_CHANNEL = {
@@ -51,3 +51,19 @@ export const RENTAL_PERIOD_UNIT = {
 } as const;
 export type RentalPeriodUnit =
   (typeof RENTAL_PERIOD_UNIT)[keyof typeof RENTAL_PERIOD_UNIT];
+
+export const CATALOG_CATEGORY_TYPE = {
+  DEFAULT: 'default',
+  CUSTOM: 'custom',
+} as const;
+
+export type CatalogCategoryType =
+  (typeof CATALOG_CATEGORY_TYPE)[keyof typeof CATALOG_CATEGORY_TYPE];
+
+export const COMPANY_LOGIN_TYPE = {
+  CREDENTIALS: 'credentials',
+  SSO: 'sso',
+} as const;
+
+export type CompanyLoginEnumType =
+  (typeof COMPANY_LOGIN_TYPE)[keyof typeof COMPANY_LOGIN_TYPE];

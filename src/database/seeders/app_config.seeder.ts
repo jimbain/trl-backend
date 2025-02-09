@@ -20,17 +20,12 @@ export class AppConfigSeeder {
       audio_rental_credit_cost: 1,
       video_rental_credit_cost: 1,
       pharma_rental_credit_cost: 1,
-      notify_rent_expiration_days: 3,
-      max_audio_rental_items_per_period: 2,
-      max_audio_rental_items_on_hand: 1,
-      rental_period_in_hours: 24,
-      audio_ignored_languages: [],
-      master_password: 'master',
-      contact_us_email: 'mashfiqurrr@gmail.com',
-      is_master_password_active: 1, // 1/0
-      notification_audio_rent_expiring_1: 4,
-      notification_audio_rent_expiring_2: 2,
-      notification_audio_queue_noactivity: 30,
+      max_audio_rental_items_per_day: 3,
+      max_audio_rental_items_on_hand: 2,
+      notification_for_rent_expiring_in_d1_days: 4,
+      notification_for_rent_expiring_in_d2_days: 2,
+      notification_for_noactivity_in_last_x_days: 30,
+      new_user_default_password: '12345',
     };
 
     for (const [key, value] of Object.entries(appConfig)) {

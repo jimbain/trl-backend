@@ -12,7 +12,6 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 import { AudioMetadata } from './audio_metadata.entity';
-import { MEDIA_AVAILABILITY_TYPE, MediaAvailabilityType } from 'src/constants';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
@@ -30,9 +29,6 @@ export class Audio extends BaseEntity {
 
   @Column({ type: 'boolean', default: false })
   is_featured: boolean;
-
-  // @Column({ type: 'boolean', default: true })
-  // is_only_for_purchase: boolean;
 
   @Column({ type: 'int', default: 0 })
   bookshelf_credit_cost: number;

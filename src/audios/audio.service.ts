@@ -9,7 +9,6 @@ import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
 import { User } from 'src/users/entities/user.entity';
-import { CompanyCategory } from 'src/companies/entities/company_category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { CategoryService } from 'src/categories/category.service';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
@@ -28,9 +27,6 @@ export interface AudioSearch {
 
 @Injectable()
 export class AudioService {
-  @InjectRepository(CompanyCategory)
-  private readonly companyCategoryRepository: Repository<CompanyCategory>;
-
   @InjectRepository(Audio)
   private readonly audioRepository: Repository<Audio>;
 
@@ -148,11 +144,12 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    const companyAudioCategories = await this.companyCategoryRepository.find({
-      where: { company_id: companyId, is_active: true, is_internal: false },
-    });
+    return [];
+    // const companyAudioCategories = await this.companyCategoryRepository.find({
+    //   where: { company_id: companyId, is_active: true, is_internal: false },
+    // });
 
-    return companyAudioCategories.map((category) => category.category_id);
+    // return companyAudioCategories.map((category) => category.category_id);
   }
 
   async getFeaturedAudios(
@@ -407,28 +404,29 @@ export class AudioService {
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
-    const companyAudioCategories = await this.companyCategoryRepository
-      .createQueryBuilder('companyCategory')
-      .leftJoinAndSelect('companyCategory.category', 'category')
-      .where('companyCategory.company_id = :companyId', { companyId })
-      .andWhere('companyCategory.is_active = :isActive', { isActive: true })
-      .andWhere('category.is_active = :isActive', { isActive: true })
-      .andWhere('category.media_types @> :mediaType', {
-        mediaType: '["audio"]',
-      })
-      .getMany();
+    return [];
+    // const companyAudioCategories = await this.companyCategoryRepository
+    //   .createQueryBuilder('companyCategory')
+    //   .leftJoinAndSelect('companyCategory.category', 'category')
+    //   .where('companyCategory.company_id = :companyId', { companyId })
+    //   .andWhere('companyCategory.is_active = :isActive', { isActive: true })
+    //   .andWhere('category.is_active = :isActive', { isActive: true })
+    //   .andWhere('category.media_types @> :mediaType', {
+    //     mediaType: '["audio"]',
+    //   })
+    //   .getMany();
 
-    return companyAudioCategories.map((companyAudioCategory) => {
-      return {
-        id: companyAudioCategory?.category_id ?? null,
-        title:
-          companyAudioCategory?.display_title ??
-          companyAudioCategory?.category?.title,
-        popularity: this.categoryService.getPopularity(
-          companyAudioCategory?.category_id,
-        ),
-      };
-    });
+    // return companyAudioCategories.map((companyAudioCategory) => {
+    //   return {
+    //     id: companyAudioCategory?.category_id ?? null,
+    //     title:
+    //       companyAudioCategory?.display_title ??
+    //       companyAudioCategory?.category?.name,
+    //     popularity: this.categoryService.getPopularity(
+    //       companyAudioCategory?.category_id,
+    //     ),
+    //   };
+    // });
   }
 
   async findAudiosByCategory(
@@ -441,22 +439,24 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    const companyAudioCategories = await this.companyCategoryRepository
-      .createQueryBuilder('companyCategory')
-      .leftJoinAndSelect('companyCategory.category', 'category')
-      .where('companyCategory.company_id = :companyId', {
-        companyId: user.company.id,
-      })
-      .andWhere('companyCategory.is_active = :isActive', { isActive: true })
-      .andWhere('category.is_active = :isActive', { isActive: true })
-      .andWhere(
-        categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1',
-        { categoryId },
-      )
-      .andWhere('category.media_types @> :mediaType', {
-        mediaType: '["audio"]',
-      })
-      .getMany();
+    // const companyAudioCategories = await this.companyCategoryRepository
+    //   .createQueryBuilder('companyCategory')
+    //   .leftJoinAndSelect('companyCategory.category', 'category')
+    //   .where('companyCategory.company_id = :companyId', {
+    //     companyId: user.company.id,
+    //   })
+    //   .andWhere('companyCategory.is_active = :isActive', { isActive: true })
+    //   .andWhere('category.is_active = :isActive', { isActive: true })
+    //   .andWhere(
+    //     categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1',
+    //     { categoryId },
+    //   )
+    //   .andWhere('category.media_types @> :mediaType', {
+    //     mediaType: '["audio"]',
+    //   })
+    //   .getMany();
+
+    const companyAudioCategories = [];
 
     if (!companyAudioCategories.length) {
       throw new NotFoundException(
@@ -509,7 +509,7 @@ export class AudioService {
         title:
           categoryId !== 'category_0'
             ? (companyAudioCategories?.[0]?.display_title ??
-              companyAudioCategories?.[0]?.category?.title)
+              companyAudioCategories?.[0]?.category?.name)
             : 'All categories',
       },
       data: plainToInstance(AudioListDto, audios, {

@@ -4,7 +4,6 @@ import {
   BeforeUpdate,
   Column,
   CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -45,27 +44,6 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
-  @Column({ type: 'varchar', nullable: true })
-  phone: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  address1: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  address2: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  city: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  country: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  state: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  zip: string;
-
   @Column({ type: 'boolean', default: false })
   optout_push_notification: boolean;
 
@@ -74,9 +52,6 @@ export class User extends BaseEntity {
 
   @UpdateDateColumn()
   updated_at: Date;
-
-  @DeleteDateColumn()
-  deleted_at: Date;
 
   // ########################################################################################## //
 

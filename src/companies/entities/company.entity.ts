@@ -1,11 +1,15 @@
-import { MEDIA, Media } from 'src/constants';
+import {
+  COMPANY_LOGIN_TYPE,
+  CompanyLoginEnumType,
+  MEDIA,
+  Media,
+} from 'src/constants';
 import { User } from 'src/users/entities/user.entity';
 import {
   BaseEntity,
   BeforeInsert,
   Column,
   CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   OneToMany,
   PrimaryColumn,
@@ -21,8 +25,8 @@ export class Company extends BaseEntity {
   @Column({ type: 'varchar', length: 255, unique: true })
   name: string;
 
-  // @Column({ type: 'text', nullable: true })
-  // logo_url: string;
+  @Column({ type: 'text', nullable: true })
+  logo_url: string;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
@@ -33,29 +37,54 @@ export class Company extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  // @Column({ type: 'varchar' })
-  // color: string;
+  @Column({
+    type: 'enum',
+    enum: Object.values(COMPANY_LOGIN_TYPE),
+    default: COMPANY_LOGIN_TYPE.CREDENTIALS,
+  })
+  login_type: CompanyLoginEnumType;
 
-  @Column({ type: 'boolean', default: false })
-  is_sso_login: boolean;
+  @Column({ type: 'jsonb', default: null })
+  sso_config: object;
 
   @Column({ type: 'jsonb', nullable: true, default: [MEDIA.AUDIO] })
   available_medias: Media[];
+
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  catalogs: number[];
 
   @Column({ type: 'integer', default: 0 })
   available_credits: number;
 
   @Column({ type: 'jsonb', default: [] })
-  company_contacts: CompanyContact[];
+  contacts: CompanyContact[];
+
+  @Column({ type: 'varchar', nullable: true })
+  phone: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  address1: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  address2: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  city: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  country: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  state: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  zip: string;
 
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn()
   updated_at: Date;
-
-  @DeleteDateColumn()
-  deleted_at: Date;
 
   @BeforeInsert()
   generateUlid() {

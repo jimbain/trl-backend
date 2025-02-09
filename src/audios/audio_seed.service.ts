@@ -1,17 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Raw, Repository } from 'typeorm';
+import { In, Raw, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { AudioService } from './audio.service';
 import { AudioMetadata } from './entities/audio_metadata.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { AudioMetadataService } from './audio_metadata.service';
-import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
+import {
+  CATALOG_CATEGORY_TYPE,
+  MEDIA,
+  MEDIA_AVAILABILITY_TYPE,
+} from 'src/constants';
 import { ConfigService } from '@nestjs/config';
 import { AudioEngineAudio } from 'src/common/interfaces';
 import { Category } from 'src/categories/entities/category.entity';
 import _ from 'lodash';
 import { Cron } from '@nestjs/schedule';
+import { Catalog } from 'src/catalog/entities/catalog.entity';
 
 @Injectable()
 export class AudioSeedService {
@@ -24,6 +29,9 @@ export class AudioSeedService {
 
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
+
+    @InjectRepository(Catalog)
+    private readonly catalogRepository: Repository<Catalog>,
 
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
@@ -47,10 +55,18 @@ export class AudioSeedService {
     const pageSize = 1000;
     const batchSize = 20;
 
-    this.audioCategories = await this.categoryRepository
-      .createQueryBuilder('category')
-      .where('category.media_types @> :mediaType', { mediaType: '["audio"]' })
-      .getMany();
+    const audioCatalog = await this.catalogRepository.findOne({
+      where: { type: CATALOG_CATEGORY_TYPE.DEFAULT, media_type: MEDIA.AUDIO },
+    });
+
+    if (!audioCatalog) {
+      console.log(`Audio catalog missing.`);
+      return;
+    }
+
+    this.audioCategories = await this.categoryRepository.find({
+      where: { id: In(audioCatalog.categories ?? []) },
+    });
 
     while (true) {
       console.log(`Fetching page ${currentPage}`);

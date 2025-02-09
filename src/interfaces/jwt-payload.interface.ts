@@ -1,5 +1,5 @@
 export interface JwtPayload {
-  id: string;
+  id: string | number;
   email: string;
   isRefreshToken: boolean;
 }

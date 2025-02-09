@@ -13,6 +13,8 @@ import { CategoryModule } from './categories/category.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from './notification/notification.module';
+import { AdminModule } from './admin/admin.module';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { NotificationModule } from './notification/notification.module';
     AppConfigModule,
     ScheduleModule.forRoot(),
     NotificationModule,
+    AdminModule,
+    CatalogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
