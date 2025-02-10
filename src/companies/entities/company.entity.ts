@@ -16,6 +16,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ulid } from 'ulidx';
+import { CompanyContact } from '../company.interface';
 
 @Entity({ name: 'companies' })
 export class Company extends BaseEntity {
@@ -93,11 +94,4 @@ export class Company extends BaseEntity {
 
   @OneToMany(() => User, (user) => user.company)
   users: User[];
-}
-
-interface CompanyContact {
-  name: string;
-  phone: string;
-  email: string;
-  responsibility: string[];
 }

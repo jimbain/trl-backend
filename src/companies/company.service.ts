@@ -4,50 +4,97 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { plainToInstance } from 'class-transformer';
+import { CompanyDto, CompanyListDto } from './dto/company.dto';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { CompanyCreditLog } from './entities/company_credit_log.entity';
 
 @Injectable()
 export class CompanyService {
   constructor(
+    @InjectRepository(Catalog)
+    private readonly catalogRepository: Repository<Catalog>,
+
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
+
+    @InjectRepository(CompanyCreditLog)
+    private readonly companyCreditLogRepository: Repository<CompanyCreditLog>,
+
+    private readonly catalogService: CatalogService,
   ) {}
 
-  async create(createCompanyDto: CreateCompanyDto) {
-    const company = this.companyRepository.create(createCompanyDto);
-    return await this.companyRepository.save(company);
+  async findAll(): Promise<CompanyListDto[]> {
+    const companies = await this.companyRepository.find();
+
+    return plainToInstance(CompanyListDto, companies, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async findAll(): Promise<Company[]> {
-    return await this.companyRepository.find();
+  async create(payload: CreateCompanyDto, logo?: Express.Multer.File) {
+    console.log(payload);
+    console.log(logo);
+
+    const company = this.companyRepository.create(payload);
+
+    if (logo) {
+      company.logo_url = logo.path;
+    }
   }
 
-  async findById(id: string): Promise<Company | undefined> {
-    return this.companyRepository.findOne({ where: { id } });
+  async findById(id: string): Promise<CompanyDto | undefined> {
+    const company = await this.companyRepository.findOne({ where: { id } });
+
+    return plainToInstance(CompanyDto, company, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findOne(id: string) {
-    const company = await this.findById(id);
+    const company = await this.companyRepository.findOne({ where: { id } });
 
     if (!company) {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 
-    return company;
+    const catalogs = await this.catalogService.findByIds(company.catalogs);
+
+    return plainToInstance(
+      CompanyDto,
+      { ...company, catalogs },
+      { excludeExtraneousValues: true },
+    );
   }
 
-  async update(id: string, updateCompanyDto: UpdateCompanyDto) {
-    const company = await this.findById(id);
+  async update(
+    id: string,
+    logo: Express.Multer.File,
+    updateCompanyDto: UpdateCompanyDto,
+  ) {
+    const company = await this.companyRepository.findOne({ where: { id } });
 
-    if (!company) {
-      throw new NotFoundException(`Company with ID ${id} not found`);
-    }
-
+    // Update only the provided fields
     Object.assign(company, updateCompanyDto);
 
+    if (logo) {
+      company.logo_url = logo.path;
+    }
+
+    // Save the updated company
     return await this.companyRepository.save(company);
   }
 
   remove(id: number) {
     return `This action removes a #${id} company`;
+  }
+
+  async findAllCreditLogs(id: string) {
+    return this.companyCreditLogRepository.find({
+      where: {
+        company_id: id,
+      },
+    });
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { CreateAppConfigDto } from './dto/create-app-config.dto';
 import { UpdateAppConfigDto } from './dto/update-app-config.dto';
 import { AppConfig } from './entities/app-config.entity';
 
@@ -12,24 +11,34 @@ export class AppConfigService {
     private readonly appConfigRepository: Repository<AppConfig>,
   ) {}
 
-  create(createAppConfigDto: CreateAppConfigDto) {
-    return 'This action adds a new appConfig';
-  }
-
   findAll() {
-    return `This action returns all appConfig`;
+    return this.appConfigRepository.find({
+      select: ['key', 'value'],
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} appConfig`;
-  }
+  async update(payload: UpdateAppConfigDto) {
+    const keys = Object.keys(payload);
 
-  update(id: number, updateAppConfigDto: UpdateAppConfigDto) {
-    return `This action updates a #${id} appConfig`;
-  }
+    // Fetch all the current configurations for the given keys in one query
+    const existingConfigs = await this.appConfigRepository.find({
+      where: { key: In(keys) },
+    });
 
-  remove(id: number) {
-    return `This action removes a #${id} appConfig`;
+    const configsToUpdate = [];
+
+    // Loop through each key-value pair in the payload
+    for (const key of keys) {
+      const value = payload[key];
+      const config = existingConfigs.find((c) => c.key === key);
+
+      config.value = value;
+      configsToUpdate.push(config);
+    }
+
+    if (configsToUpdate.length > 0) {
+      return this.appConfigRepository.save(configsToUpdate);
+    }
   }
 
   async getAppConfigs(keys: string[] = []): Promise<Record<string, any>> {

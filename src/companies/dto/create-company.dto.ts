@@ -1,46 +1,101 @@
+import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
-  IsNotEmpty,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
-  Min,
+  MaxLength,
 } from 'class-validator';
-import { IsUnique } from 'src/validation/validators/is-unique.validator';
-import { Company } from 'src/companies/entities/company.entity';
+import { COMPANY_LOGIN_TYPE, CompanyLoginEnumType, Media } from 'src/constants';
 
 export class CreateCompanyDto {
   @IsString()
-  @IsNotEmpty()
-  @IsUnique(Company, 'name')
+  @MaxLength(255)
   name: string;
 
   @IsOptional()
-  @IsString({ each: true })
-  short_description: string | null;
+  @MaxLength(255)
+  @IsString()
+  domain?: string;
 
   @IsOptional()
-  @IsString({ each: true })
-  long_description: string | null;
+  @IsString()
+  description?: string;
+
+  @IsEnum(COMPANY_LOGIN_TYPE)
+  login_type: CompanyLoginEnumType;
 
   @IsOptional()
-  @IsString({ each: true })
-  logo_url: string | null;
+  sso_config?: object;
 
   @IsOptional()
-  @IsString({ each: true })
-  @IsUnique(Company, 'domain')
-  domain: string | null;
-
-  @IsOptional()
-  @IsBoolean()
-  is_active: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  is_sso_login: boolean;
+  @IsArray()
+  @Transform(
+    ({ value }) => {
+      try {
+        return typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        return [];
+      }
+    },
+    { toClassOnly: true },
+  )
+  available_medias?: Media[];
 
   @IsNumber()
-  @Min(0)
+  @Transform(({ value }) => parseInt(value, 10), { toClassOnly: true })
   available_credits: number;
+
+  @IsOptional()
+  @IsArray()
+  @Transform(
+    ({ value }) => {
+      try {
+        return typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        return [];
+      }
+    },
+    { toClassOnly: true },
+  )
+  contacts?: object[];
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address1?: string;
+
+  @IsOptional()
+  @IsString()
+  address2?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  zip?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  @Transform(
+    ({ value }) =>
+      value === undefined ? true : value === 'true' || value === true,
+    { toClassOnly: true },
+  )
+  is_active?: boolean;
 }
