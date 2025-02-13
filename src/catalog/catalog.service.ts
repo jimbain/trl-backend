@@ -38,6 +38,17 @@ export class CatalogService {
     return catalog;
   }
 
+  async findMany(ids: number[]): Promise<Catalog[]> {
+    if (!ids.length) return [];
+
+    return this.catalogRepository.find({
+      where: {
+        id: In(ids),
+        is_active: true,
+      },
+    });
+  }
+
   async create(data: Partial<Catalog>): Promise<Catalog> {
     const catalog = this.catalogRepository.create(data);
     return await this.catalogRepository.save(catalog);

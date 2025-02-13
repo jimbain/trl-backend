@@ -1,31 +1,63 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { User } from 'src/users/entities/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Category } from './entities/category.entity';
+import { In, Repository } from 'typeorm';
+import { CategoryDto } from './dto/category.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class CategoryService {
+  constructor(
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
+  ) {}
+
+  async findAll(): Promise<Category[]> {
+    return this.categoryRepository.find();
+  }
+
+  async findOne(id: string): Promise<CategoryDto | undefined> {
+    const category = await this.categoryRepository.findOne({
+      where: { id, is_active: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    return plainToInstance(CategoryDto, category, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async findMany(ids: string[]): Promise<CategoryDto[]> {
+    console.log('ids', ids);
+    if (!ids.length) return [];
+
+    const categories = await this.categoryRepository.find({
+      where: {
+        id: In(ids),
+        is_active: true,
+      },
+    });
+
+    console.log('categories', categories);
+    return plainToInstance(CategoryDto, categories, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   create(createCategoryDto: CreateCategoryDto) {
     return 'This action adds a new category';
   }
 
-  findAll() {
-    return `This action returns all categories`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} category`;
-  }
-
-  update(id: number, updateCategoryDto: UpdateCategoryDto) {
+  update(id: string, updateCategoryDto: UpdateCategoryDto) {
     return `This action updates a #${id} category`;
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return `This action removes a #${id} category`;
-  }
-
-  getPopularity(id: string) {
-    return Math.floor(Math.random() * (200 - 50 + 1)) + 50;
   }
 }

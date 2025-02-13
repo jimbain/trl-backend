@@ -34,7 +34,7 @@ export class IsBasicAuthCompanyUserConstraint
       this.errorMessage = 'User does not exist';
       return false;
     }
-
+    console.log(user.company.login_type);
     if (user.company.login_type === COMPANY_LOGIN_TYPE.SSO) {
       this.errorMessage = "User's company requires SSO login";
       return false;

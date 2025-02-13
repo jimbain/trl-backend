@@ -10,14 +10,16 @@ import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
-import { CategoryService } from 'src/categories/category.service';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
-import { USER_MEDIA_STATUS } from 'src/constants';
+import { MEDIA, USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { UserActivityLogService } from 'src/users/user_activity_log.service';
+import { CompanyService } from 'src/companies/company.service';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { CategoryService } from 'src/categories/category.service';
 
 export interface AudioSearch {
   ids?: string[];
@@ -37,6 +39,8 @@ export class AudioService {
   private readonly userAudioplayerPositionRepository: Repository<UserAudioplayerPosition>;
 
   constructor(
+    private readonly companyService: CompanyService,
+    private readonly catalogService: CatalogService,
     private readonly categoryService: CategoryService,
     private readonly userActivityLogService: UserActivityLogService,
     private readonly audioEngineService: AudioEngineService,
@@ -144,12 +148,11 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    return [];
-    // const companyAudioCategories = await this.companyCategoryRepository.find({
-    //   where: { company_id: companyId, is_active: true, is_internal: false },
-    // });
-
-    // return companyAudioCategories.map((category) => category.category_id);
+    const company = await this.companyService.findById(companyId);
+    const catalogs = await this.catalogService.findMany(company.catalogs);
+    const audioCatalog =
+      catalogs.find((catalog) => catalog.media_type === MEDIA.AUDIO) ?? null;
+    return audioCatalog.categories ?? [];
   }
 
   async getFeaturedAudios(
@@ -404,29 +407,11 @@ export class AudioService {
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
-    return [];
-    // const companyAudioCategories = await this.companyCategoryRepository
-    //   .createQueryBuilder('companyCategory')
-    //   .leftJoinAndSelect('companyCategory.category', 'category')
-    //   .where('companyCategory.company_id = :companyId', { companyId })
-    //   .andWhere('companyCategory.is_active = :isActive', { isActive: true })
-    //   .andWhere('category.is_active = :isActive', { isActive: true })
-    //   .andWhere('category.media_types @> :mediaType', {
-    //     mediaType: '["audio"]',
-    //   })
-    //   .getMany();
-
-    // return companyAudioCategories.map((companyAudioCategory) => {
-    //   return {
-    //     id: companyAudioCategory?.category_id ?? null,
-    //     title:
-    //       companyAudioCategory?.display_title ??
-    //       companyAudioCategory?.category?.name,
-    //     popularity: this.categoryService.getPopularity(
-    //       companyAudioCategory?.category_id,
-    //     ),
-    //   };
-    // });
+    const company = await this.companyService.findById(companyId);
+    const catalogs = await this.catalogService.findMany(company.catalogs);
+    const audioCatalog =
+      catalogs.find((catalog) => catalog.media_type === MEDIA.AUDIO) ?? null;
+    return this.categoryService.findMany(audioCatalog.categories);
   }
 
   async findAudiosByCategory(
@@ -439,34 +424,21 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    // const companyAudioCategories = await this.companyCategoryRepository
-    //   .createQueryBuilder('companyCategory')
-    //   .leftJoinAndSelect('companyCategory.category', 'category')
-    //   .where('companyCategory.company_id = :companyId', {
-    //     companyId: user.company.id,
-    //   })
-    //   .andWhere('companyCategory.is_active = :isActive', { isActive: true })
-    //   .andWhere('category.is_active = :isActive', { isActive: true })
-    //   .andWhere(
-    //     categoryId !== 'category_0' ? 'category.id = :categoryId' : '1=1',
-    //     { categoryId },
-    //   )
-    //   .andWhere('category.media_types @> :mediaType', {
-    //     mediaType: '["audio"]',
-    //   })
-    //   .getMany();
+    let categoryIds = await this.findAllAudioCategoryIdOfCompany(
+      user.company.id,
+    );
+    let category: any;
 
-    const companyAudioCategories = [];
-
-    if (!companyAudioCategories.length) {
+    if (!categoryIds.length) {
       throw new NotFoundException(
         `Category with ID ${categoryId} not found for your company`,
       );
     }
 
-    const categoryIds = companyAudioCategories.map(
-      (category) => category.category_id,
-    );
+    if (categoryId !== 'category_0' && categoryIds.includes(categoryId)) {
+      categoryIds = [categoryId];
+      category = await this.categoryService.findOne(categoryId);
+    }
 
     const [audios, total] = await this.audioRepository
       .createQueryBuilder('audio')
@@ -506,11 +478,7 @@ export class AudioService {
     return {
       category: {
         id: categoryId,
-        title:
-          categoryId !== 'category_0'
-            ? (companyAudioCategories?.[0]?.display_title ??
-              companyAudioCategories?.[0]?.category?.name)
-            : 'All categories',
+        title: categoryId !== 'category_0' ? category?.name : 'All categories',
       },
       data: plainToInstance(AudioListDto, audios, {
         excludeExtraneousValues: true,

@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotificationService } from '../notification.service';
 import { Notification } from '../entities/notification.entity';
 import { FirebaseService } from 'src/common/services/firebase.service';
 import { UserDevice } from 'src/users/entities/user_device.entity';
@@ -23,7 +22,6 @@ export class NotificationScheduler {
 
     private readonly appConfigService: AppConfigService,
     private readonly firebaseService: FirebaseService,
-    private readonly notificationService: NotificationService,
   ) {}
 
   // Everyday 10:05 am UTC time

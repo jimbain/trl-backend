@@ -44,12 +44,14 @@ export class CompanyService {
     }
   }
 
-  async findById(id: string): Promise<CompanyDto | undefined> {
+  async findById(id: string): Promise<Company | undefined> {
     const company = await this.companyRepository.findOne({ where: { id } });
 
-    return plainToInstance(CompanyDto, company, {
-      excludeExtraneousValues: true,
-    });
+    if (!company) {
+      throw new NotFoundException(`Company with ID ${id} not found`);
+    }
+
+    return company;
   }
 
   async findOne(id: string) {

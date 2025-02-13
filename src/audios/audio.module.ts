@@ -18,6 +18,8 @@ import { AudioMetadata } from './entities/audio_metadata.entity';
 import { AudioMetadataService } from './audio_metadata.service';
 import { UserModule } from 'src/users/user.module';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { CatalogModule } from 'src/catalog/catalog.module';
+import { CompanyModule } from 'src/companies/company.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
       UserAudioplayerPosition,
     ]),
     forwardRef(() => UserModule),
+    forwardRef(() => CompanyModule),
+    forwardRef(() => CatalogModule),
   ],
   controllers: [AudioController],
   providers: [

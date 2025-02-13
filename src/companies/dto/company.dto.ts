@@ -63,7 +63,7 @@ export class CompanyDto {
   contacts: CompanyContact[];
 
   @Expose()
-  catalogs: CatalogDto[];
+  catalogs: CatalogDto[] | number[];
 
   @Expose()
   phone: string;

@@ -23,6 +23,7 @@ export class CatalogSeeder {
     const categories = await this.categoryRepository.find({
       where: {
         is_active: true,
+        type: CATALOG_CATEGORY_TYPE.DEFAULT,
       },
       select: ['id'],
     });
