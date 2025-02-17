@@ -39,7 +39,7 @@ export class AuthService {
     private readonly httpService: HttpService,
   ) {}
 
-  async signup(registerPayload: RegisterDto) {
+  async signup(registerPayload: any) {
     return this.userService.create(registerPayload);
   }
 

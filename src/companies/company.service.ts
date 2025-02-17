@@ -9,6 +9,9 @@ import { plainToInstance } from 'class-transformer';
 import { CompanyDto, CompanyListDto } from './dto/company.dto';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CompanyCreditLog } from './entities/company_credit_log.entity';
+import { CompanySearchInterface } from 'src/admin/admin.interface';
+import { PaginationMeta } from 'src/common/interfaces';
+import { FileManagerService } from 'src/common/services/file-manager.service';
 
 @Injectable()
 export class CompanyService {
@@ -23,25 +26,80 @@ export class CompanyService {
     private readonly companyCreditLogRepository: Repository<CompanyCreditLog>,
 
     private readonly catalogService: CatalogService,
+    private readonly fileManagerService: FileManagerService,
   ) {}
 
-  async findAll(): Promise<CompanyListDto[]> {
-    const companies = await this.companyRepository.find();
+  async findAll(query: CompanySearchInterface): Promise<{
+    data: CompanyListDto[];
+    meta: PaginationMeta;
+  }> {
+    const parsedPage = parseInt(query.page, 10) || 1;
+    const parsedPerPage = parseInt(query.per_page, 10) || 10;
 
-    return plainToInstance(CompanyListDto, companies, {
-      excludeExtraneousValues: true,
-    });
+    const qb = this.companyRepository.createQueryBuilder('company');
+
+    // Name search (case-insensitive)
+    if (query.name) {
+      qb.andWhere('LOWER(company.name) LIKE LOWER(:name)', {
+        name: `%${query.name}%`,
+      });
+    }
+
+    if (query.status === 'active') {
+      qb.andWhere('company.is_active = :status', { status: true });
+    } else if (query.status === 'inactive') {
+      qb.andWhere('company.is_active = :status', { status: false });
+    }
+
+    qb.orderBy('company.created_at', 'DESC');
+
+    const [companies, total] = await qb
+      .skip((parsedPage - 1) * parsedPerPage)
+      .take(parsedPerPage)
+      .getManyAndCount();
+
+    const from = total > 0 ? (parsedPage - 1) * parsedPerPage + 1 : null;
+    const to = Math.min(parsedPage * parsedPerPage, total);
+
+    return {
+      data: plainToInstance(CompanyListDto, companies, {
+        excludeExtraneousValues: true,
+      }),
+      meta: {
+        current_page: parsedPage,
+        per_page: parsedPerPage,
+        total,
+        last_page: Math.ceil(total / parsedPerPage),
+        from,
+        to,
+      },
+    };
   }
 
-  async create(payload: CreateCompanyDto, logo?: Express.Multer.File) {
-    console.log(payload);
-    console.log(logo);
-
+  async create(
+    payload: CreateCompanyDto,
+    logo?: Express.Multer.File,
+  ): Promise<CompanyDto | undefined> {
     const company = this.companyRepository.create(payload);
 
     if (logo) {
-      company.logo_url = logo.path;
+      const logoPath = await this.fileManagerService.uploadFile(
+        logo,
+        'company_logos',
+      );
+      company.logo_url = logoPath;
     }
+
+    if (payload.available_medias.length) {
+      const catalogs = await this.catalogService.findByMedia(
+        payload.available_medias,
+      );
+      company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
+    }
+
+    await this.companyRepository.save(company);
+
+    return this.findOne(company.id);
   }
 
   async findById(id: string): Promise<Company | undefined> {
@@ -75,17 +133,24 @@ export class CompanyService {
     logo: Express.Multer.File,
     updateCompanyDto: UpdateCompanyDto,
   ) {
-    const company = await this.companyRepository.findOne({ where: { id } });
+    const company = await this.findById(id);
+    updateCompanyDto.available_credits =
+      updateCompanyDto.available_credits + company.available_credits;
 
     // Update only the provided fields
     Object.assign(company, updateCompanyDto);
 
     if (logo) {
-      company.logo_url = logo.path;
+      const logoPath = await this.fileManagerService.uploadFile(
+        logo,
+        'company_logos',
+      );
+      company.logo_url = logoPath;
     }
 
-    // Save the updated company
-    return await this.companyRepository.save(company);
+    await this.companyRepository.save(company);
+
+    return this.findOne(company.id);
   }
 
   remove(id: number) {

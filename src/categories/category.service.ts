@@ -6,6 +6,7 @@ import { Category } from './entities/category.entity';
 import { In, Repository } from 'typeorm';
 import { CategoryDto } from './dto/category.dto';
 import { plainToInstance } from 'class-transformer';
+import { CATALOG_CATEGORY_TYPE, CatalogCategoryType } from 'src/constants';
 
 @Injectable()
 export class CategoryService {
@@ -32,18 +33,34 @@ export class CategoryService {
     });
   }
 
-  async findMany(ids: string[]): Promise<CategoryDto[]> {
-    console.log('ids', ids);
+  async findMany(
+    ids: string[] = [],
+    name: string = null,
+    status: 'active' | 'inactive' | 'all' | null = null,
+    type: CatalogCategoryType = CATALOG_CATEGORY_TYPE.DEFAULT,
+  ): Promise<CategoryDto[]> {
     if (!ids.length) return [];
 
-    const categories = await this.categoryRepository.find({
-      where: {
-        id: In(ids),
-        is_active: true,
-      },
-    });
+    const qb = this.categoryRepository.createQueryBuilder('category');
+    qb.where('category.id IN (:...ids)', { ids });
+    qb.where('category.type = (:type)', { type });
 
-    console.log('categories', categories);
+    if (name) {
+      qb.andWhere('LOWER(category.name) LIKE LOWER(:name)', {
+        name: `%${name}%`,
+      });
+    }
+
+    if (status === 'active') {
+      qb.andWhere('category.is_active = :status', { status: true });
+    } else if (status === 'inactive') {
+      qb.andWhere('category.is_active = :status', { status: false });
+    }
+
+    qb.orderBy('category.created_at', 'DESC');
+
+    const categories = await qb.getMany();
+
     return plainToInstance(CategoryDto, categories, {
       excludeExtraneousValues: true,
     });

@@ -12,6 +12,11 @@ import { CompanyModule } from 'src/companies/company.module';
 import { AdminCompanyController } from './controllers/admin-company.controller';
 import { AppConfigModule } from 'src/app-config/app-config.module';
 import { AdminConfigurationController } from './controllers/admin-configuration.controller';
+import { CatalogModule } from 'src/catalog/catalog.module';
+import { CategoryModule } from 'src/categories/category.module';
+import { AdminCatalogController } from './controllers/admin-catalog.controller';
+import { AdminCompanyUserController } from './controllers/admin-company-user.controller';
+import { UserModule } from 'src/users/user.module';
 
 @Module({
   imports: [
@@ -33,12 +38,17 @@ import { AdminConfigurationController } from './controllers/admin-configuration.
     }),
     TypeOrmModule.forFeature([AdminUser]),
     forwardRef(() => CompanyModule),
+    forwardRef(() => CatalogModule),
+    forwardRef(() => CategoryModule),
     forwardRef(() => AppConfigModule),
+    forwardRef(() => UserModule),
   ],
   controllers: [
     AdminAuthController,
     AdminCompanyController,
     AdminConfigurationController,
+    AdminCatalogController,
+    AdminCompanyUserController,
   ],
   providers: [AdminAuthService, JwtAdminStrategy, JwtAdminAuthGuard],
   exports: [AdminAuthService, JwtAdminAuthGuard],

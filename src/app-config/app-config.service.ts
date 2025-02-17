@@ -11,10 +11,18 @@ export class AppConfigService {
     private readonly appConfigRepository: Repository<AppConfig>,
   ) {}
 
-  findAll() {
-    return this.appConfigRepository.find({
+  async findAll() {
+    const configurations = await this.appConfigRepository.find({
       select: ['key', 'value'],
     });
+
+    return configurations.reduce(
+      (acc, { key, value }) => {
+        acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
   }
 
   async update(payload: UpdateAppConfigDto) {

@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { UserService } from './user.service';
-import { UserController } from './user.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { UserAudioController } from './user_audio.controller';
@@ -35,12 +34,7 @@ import { UserActivityLogService } from './user_activity_log.service';
     ]),
     forwardRef(() => AudioModule),
   ],
-  controllers: [
-    ContactUsController,
-    ProfileController,
-    UserController,
-    UserAudioController,
-  ],
+  controllers: [ContactUsController, ProfileController, UserAudioController],
   providers: [
     UserService,
     UserAudioService,

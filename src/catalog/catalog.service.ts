@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CatalogDto } from './dto/catalog.dto';
 import { plainToInstance } from 'class-transformer';
+import { CATALOG_CATEGORY_TYPE } from 'src/constants';
 
 @Injectable()
 export class CatalogService {
@@ -47,6 +48,36 @@ export class CatalogService {
         is_active: true,
       },
     });
+  }
+
+  async findByMedia(types: string[]): Promise<Catalog[]> {
+    if (!types.length) return [];
+
+    return this.catalogRepository.find({
+      where: {
+        type: CATALOG_CATEGORY_TYPE.DEFAULT,
+        media_type: In(types),
+        is_active: true,
+      },
+    });
+  }
+
+  async findDefaultByType(
+    mediaType: 'audio' | 'video' | 'pharma',
+  ): Promise<Catalog> {
+    const catalog = await this.catalogRepository.findOne({
+      where: {
+        type: CATALOG_CATEGORY_TYPE.DEFAULT,
+        media_type: mediaType,
+        is_active: true,
+      },
+    });
+
+    if (!catalog) {
+      throw new NotFoundException(`Catalog of type ${mediaType} not found`);
+    }
+
+    return catalog;
   }
 
   async create(data: Partial<Catalog>): Promise<Catalog> {

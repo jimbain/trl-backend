@@ -8,27 +8,29 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { CompanyService } from 'src/companies/company.service';
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { CreateCompanyDto } from 'src/companies/dto/create-company.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateCompanyDto } from 'src/companies/dto/update-company.dto';
+import { CompanySearchInterface } from '../admin.interface';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/companies')
 export class AdminCompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
+  @Get()
+  findAll(@Query() query: CompanySearchInterface) {
+    return this.companyService.findAll(query);
+  }
+
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
   signup(@UploadedFile() logo, @Body() payload: CreateCompanyDto) {
     return this.companyService.create(payload, logo);
-  }
-
-  @Get()
-  findAll() {
-    return this.companyService.findAll();
   }
 
   @Get(':id')

@@ -9,15 +9,18 @@ import {
   MaxLength,
 } from 'class-validator';
 import { COMPANY_LOGIN_TYPE, CompanyLoginEnumType, Media } from 'src/constants';
+import { IsUnique } from 'src/validation/validators/is-unique.validator';
+import { Company } from '../entities/company.entity';
 
 export class CreateCompanyDto {
   @IsString()
+  @IsUnique(Company, 'name')
   @MaxLength(255)
   name: string;
 
-  @IsOptional()
-  @MaxLength(255)
   @IsString()
+  @MaxLength(255)
+  @IsUnique(Company, 'domain')
   domain?: string;
 
   @IsOptional()
@@ -45,7 +48,7 @@ export class CreateCompanyDto {
   available_medias?: Media[];
 
   @IsNumber()
-  @Transform(({ value }) => parseInt(value, 10), { toClassOnly: true })
+  @Transform(({ value }) => parseInt(value, 10) ?? 0, { toClassOnly: true })
   available_credits: number;
 
   @IsOptional()
