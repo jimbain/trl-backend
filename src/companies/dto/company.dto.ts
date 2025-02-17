@@ -1,6 +1,9 @@
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { CompanyContact } from '../company.interface';
 import { CatalogDto } from 'src/catalog/dto/catalog.dto';
+import { config } from 'dotenv';
+
+config();
 
 export class CompanyListDto {
   @Expose()
@@ -10,6 +13,9 @@ export class CompanyListDto {
   name: string;
 
   @Expose()
+  @Transform(({ value }) =>
+    value ? `${process.env.DO_BUCKET_ENDPOINT}/${value}` : null,
+  )
   logo_url: string;
 
   @Expose()
@@ -39,6 +45,9 @@ export class CompanyDto {
   name: string;
 
   @Expose()
+  @Transform(({ value }) =>
+    value ? `${process.env.DO_BUCKET_ENDPOINT}/${value}` : null,
+  )
   logo_url: string;
 
   @Expose()
