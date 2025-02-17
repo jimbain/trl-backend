@@ -14,7 +14,7 @@ export class CompanyListDto {
 
   @Expose()
   @Transform(({ value }) =>
-    value ? `${process.env.DO_BUCKET_ENDPOINT}/${value}` : null,
+    value ? `${process.env.DO_BUCKET_FRONTEND_ENDPOINT}/${value}` : null,
   )
   logo_url: string;
 
@@ -46,7 +46,7 @@ export class CompanyDto {
 
   @Expose()
   @Transform(({ value }) =>
-    value ? `${process.env.DO_BUCKET_ENDPOINT}/${value}` : null,
+    value ? `${process.env.DO_BUCKET_FRONTEND_ENDPOINT}/${value}` : null,
   )
   logo_url: string;
 
