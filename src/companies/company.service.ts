@@ -36,9 +36,12 @@ export class CompanyService {
     const parsedPage = parseInt(query.page, 10) || 1;
     const parsedPerPage = parseInt(query.per_page, 10) || 10;
 
-    const qb = this.companyRepository.createQueryBuilder('company');
+    const qb = this.companyRepository
+      .createQueryBuilder('company')
+      .leftJoinAndSelect('company.users', 'user')
+      .loadRelationCountAndMap('company.userCount', 'company.users')
+      .orderBy('company.created_at', 'DESC');
 
-    // Name search (case-insensitive)
     if (query.name) {
       qb.andWhere('LOWER(company.name) LIKE LOWER(:name)', {
         name: `%${query.name}%`,
@@ -50,8 +53,6 @@ export class CompanyService {
     } else if (query.status === 'inactive') {
       qb.andWhere('company.is_active = :status', { status: false });
     }
-
-    qb.orderBy('company.created_at', 'DESC');
 
     const [companies, total] = await qb
       .skip((parsedPage - 1) * parsedPerPage)

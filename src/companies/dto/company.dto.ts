@@ -35,6 +35,10 @@ export class CompanyListDto {
 
   @Expose()
   available_credits: number;
+
+  @Expose()
+  @Transform(({ obj }) => obj?.userCount ?? 0)
+  user_count?: number;
 }
 
 export class CompanyDto {
@@ -94,4 +98,8 @@ export class CompanyDto {
 
   @Expose()
   zip: string;
+
+  @Expose()
+  @Transform(({ obj }) => obj?.userCount ?? 0)
+  user_count?: number;
 }

@@ -18,6 +18,7 @@ export class JwtAdminStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
   }
 
   async validate(payload: any) {
+    console.log('admin', payload);
     const user = await this.adminAuthService.findUserByEmail(payload.email);
 
     if (!user) {

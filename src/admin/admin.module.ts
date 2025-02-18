@@ -17,6 +17,11 @@ import { CategoryModule } from 'src/categories/category.module';
 import { AdminCatalogController } from './controllers/admin-catalog.controller';
 import { AdminCompanyUserController } from './controllers/admin-company-user.controller';
 import { UserModule } from 'src/users/user.module';
+import { AdminCompanyCatalogController } from './controllers/admin-company-catalog.controller';
+import { AdminAudioController } from './controllers/admin-audio.controller';
+import { AudioModule } from 'src/audios/audio.module';
+import { Audio } from 'src/audios/entities/audio.entity';
+import { AdminAudioService } from './services/admin-audio.service';
 
 @Module({
   imports: [
@@ -36,7 +41,7 @@ import { UserModule } from 'src/users/user.module';
         },
       }),
     }),
-    TypeOrmModule.forFeature([AdminUser]),
+    TypeOrmModule.forFeature([AdminUser, Audio]),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
@@ -49,8 +54,15 @@ import { UserModule } from 'src/users/user.module';
     AdminConfigurationController,
     AdminCatalogController,
     AdminCompanyUserController,
+    AdminCompanyCatalogController,
+    AdminAudioController,
   ],
-  providers: [AdminAuthService, JwtAdminStrategy, JwtAdminAuthGuard],
-  exports: [AdminAuthService, JwtAdminAuthGuard],
+  providers: [
+    AdminAuthService,
+    JwtAdminStrategy,
+    JwtAdminAuthGuard,
+    AdminAudioService,
+  ],
+  exports: [AdminAuthService, JwtAdminAuthGuard, AdminAudioService],
 })
 export class AdminModule {}

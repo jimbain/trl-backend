@@ -126,7 +126,7 @@ export class AudioController {
     );
   }
 
-  @Get(':type/audios')
+  @Get('audios/:type')
   async list(
     @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
     @Request() req,
