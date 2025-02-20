@@ -5,6 +5,7 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CatalogDto } from './dto/catalog.dto';
 import { plainToInstance } from 'class-transformer';
 import { CATALOG_CATEGORY_TYPE } from 'src/constants';
+import { Category } from 'src/categories/entities/category.entity';
 
 @Injectable()
 export class CatalogService {
@@ -34,6 +35,22 @@ export class CatalogService {
 
     if (!catalog) {
       throw new NotFoundException(`Catalog with ID ${id} not found`);
+    }
+
+    return catalog;
+  }
+
+  async findByCategory(category: Category): Promise<Catalog> {
+    const catalog = await this.catalogRepository
+      .createQueryBuilder('catalog')
+      .where(
+        `array(SELECT jsonb_array_elements_text(catalog.categories)) && :categoryIds`,
+        { categoryIds: [category.id] },
+      )
+      .getOne();
+
+    if (!catalog) {
+      throw new NotFoundException(`Catalog with ID ${category.id} not found`);
     }
 
     return catalog;
@@ -94,5 +111,13 @@ export class CatalogService {
   async remove(id: number): Promise<void> {
     const catalog = await this.findOne(id);
     await this.catalogRepository.remove(catalog);
+  }
+
+  async assignCategory(id: number, category: Category): Promise<Catalog> {
+    const catalog = await this.findOne(id);
+    catalog.categories.push(category.id);
+    catalog.categories = [...new Set(catalog.categories)];
+
+    return await this.catalogRepository.save(catalog);
   }
 }

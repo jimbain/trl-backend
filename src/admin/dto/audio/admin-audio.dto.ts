@@ -18,39 +18,34 @@ export class AdminAudioListDto {
 
   @Expose()
   @Transform(({ obj }) => {
+    return obj?.display_copyright ?? obj?.metadata?.copyright ?? null;
+  })
+  copyright?: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
     return obj?.metadata?.cover_url ?? null;
   })
   image_url?: string;
 
   @Expose()
-  avg_rating: number;
-
-  @Expose()
+  @Transform(({ obj }) => {
+    return obj?.metadata?.available_for ?? null;
+  })
   available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.updated_at ?? null;
-  })
-  updated_at?: Date;
+  sku: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.status ?? null;
-  })
-  status?: string;
+  bookshelf_credit_cost: number;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.rental_expire_at ?? null;
+  @Transform(({ value }) => {
+    const date = new Date(value);
+    return date.toLocaleDateString('en-GB').split('/').join('-');
   })
-  rental_expires_at?: Date;
-
-  @Expose()
-  @Transform(({ obj }) => {
-    return obj?.metadata?.chapters?.length ?? 0;
-  })
-  total_chapters: number;
+  created_at: Date;
 }
 
 export class MetadataDto {

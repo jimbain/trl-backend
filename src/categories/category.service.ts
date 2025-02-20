@@ -1,22 +1,50 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CategoryDto } from './dto/category.dto';
 import { plainToInstance } from 'class-transformer';
-import { CATALOG_CATEGORY_TYPE, CatalogCategoryType } from 'src/constants';
+import {
+  CATALOG_CATEGORY_TYPE,
+  CatalogCategoryType,
+  MEDIA,
+} from 'src/constants';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { AudioService } from 'src/audios/audio.service';
 
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+
+    @Inject(forwardRef(() => AudioService))
+    private audioService: AudioService,
+
+    private readonly catalogService: CatalogService,
   ) {}
 
   async findAll(): Promise<Category[]> {
     return this.categoryRepository.find();
+  }
+
+  async findById(id: string): Promise<Category | undefined> {
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    return category;
   }
 
   async findOne(id: string): Promise<CategoryDto | undefined> {
@@ -66,15 +94,53 @@ export class CategoryService {
     });
   }
 
-  create(createCategoryDto: CreateCategoryDto) {
-    return 'This action adds a new category';
+  async create(payload: CreateCategoryDto): Promise<CategoryDto> {
+    const category = this.categoryRepository.create({
+      name: payload.name,
+      type: payload.type,
+      is_active: payload.is_active,
+    });
+
+    await this.categoryRepository.save(category);
+    await this.catalogService.assignCategory(payload.catalog_id, category);
+
+    return plainToInstance(CategoryDto, category, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  update(id: string, updateCategoryDto: UpdateCategoryDto) {
-    return `This action updates a #${id} category`;
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<CategoryDto> {
+    const category = await this.findById(id);
+    Object.assign(category, updateCategoryDto);
+    await this.categoryRepository.save(category);
+
+    return plainToInstance(CategoryDto, category, {
+      excludeExtraneousValues: true,
+    });
   }
 
   remove(id: string) {
     return `This action removes a #${id} category`;
+  }
+
+  async assign(id: string, mediaIds: string[]) {
+    const category = await this.findById(id);
+    const catalog = await this.catalogService.findByCategory(category);
+
+    if (catalog.media_type === MEDIA.AUDIO) {
+      return this.audioService.assignCategory(category, mediaIds);
+    }
+  }
+
+  async deassign(id: string, mediaIds: string[]) {
+    const category = await this.findById(id);
+    const catalog = await this.catalogService.findByCategory(category);
+
+    if (catalog.media_type === MEDIA.AUDIO) {
+      return this.audioService.deassignCategory(category, mediaIds);
+    }
   }
 }

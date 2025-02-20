@@ -19,8 +19,11 @@ export class AdminAudioService {
     data: AdminAudioListDto[];
     meta: PaginationMeta;
   }> {
-    const page = query?.page ?? 1;
-    const perPage = query?.per_page ?? 20;
+    const page: number = query?.page ?? 1;
+    const perPage: number = query?.per_page ?? 20;
+    const isIncludedInCategory: boolean =
+      query?.is_included_in_category === 'false' ? false : true;
+    const categoryId: string = query?.category_id ?? null;
 
     const appConfigs = await this.appConfigService.getAppConfigs([
       'audio_rental_credit_cost',
@@ -33,16 +36,15 @@ export class AdminAudioService {
         'audio.id',
         'audio.display_title',
         'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.is_only_for_purchase',
-        'audio.purchased_rental_license_limit',
-        'metadata.available_for',
+        'audio.sku',
+        'audio.display_copyright',
         'audio.bookshelf_credit_cost',
+        'audio.created_at',
+        'metadata.available_for',
         'metadata.title',
         'metadata.authors',
         'metadata.cover_url',
-        'metadata.chapters',
+        'metadata.copyright',
       ]);
 
     if (query.status === 'active') {
@@ -56,6 +58,26 @@ export class AdminAudioService {
         '(LOWER(metadata.title) LIKE LOWER(:title) OR LOWER(audio.display_title) LIKE LOWER(:title))',
         { title: `%${query.title}%` },
       );
+    }
+
+    if (categoryId) {
+      if (isIncludedInCategory) {
+        queryBuilder.andWhere(
+          `EXISTS (
+            SELECT 1 FROM jsonb_array_elements(audio.categories) AS elem
+            WHERE elem::text = :categoryId
+          )`,
+          { categoryId: `"${categoryId}"` },
+        );
+      } else {
+        queryBuilder.andWhere(
+          `NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(audio.categories) AS elem
+            WHERE elem::text = :categoryId
+          )`,
+          { categoryId: `"${categoryId}"` },
+        );
+      }
     }
 
     const [audios, total] = await queryBuilder

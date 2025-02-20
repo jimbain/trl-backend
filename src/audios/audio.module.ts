@@ -20,6 +20,7 @@ import { UserModule } from 'src/users/user.module';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CatalogModule } from 'src/catalog/catalog.module';
 import { CompanyModule } from 'src/companies/company.module';
+import { CategoryModule } from 'src/categories/category.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { CompanyModule } from 'src/companies/company.module';
     forwardRef(() => UserModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
+    forwardRef(() => CategoryModule),
   ],
   controllers: [AudioController],
   providers: [

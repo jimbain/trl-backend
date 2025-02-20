@@ -4,7 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Brackets,
+  FindOptionsSelect,
+  In,
+  IsNull,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
 import { AudioDto, AudioListDto } from './dto/audio.dto';
@@ -20,6 +27,7 @@ import { UserActivityLogService } from 'src/users/user_activity_log.service';
 import { CompanyService } from 'src/companies/company.service';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CategoryService } from 'src/categories/category.service';
+import { Category } from 'src/categories/entities/category.entity';
 
 export interface AudioSearch {
   ids?: string[];
@@ -241,6 +249,23 @@ export class AudioService {
         to,
       },
     };
+  }
+
+  async findByIds(
+    ids: string[],
+    relations: string[] = [],
+    columns: (keyof Audio)[] = [],
+  ) {
+    return this.audioRepository.find({
+      where: { id: In(ids) },
+      relations: relations.length ? relations : undefined,
+      select: columns.length
+        ? (columns.reduce(
+            (acc, column) => ({ ...acc, [column]: true }),
+            {},
+          ) as FindOptionsSelect<Audio>)
+        : undefined,
+    });
   }
 
   async getContinueListeningAudiosOfUser(
@@ -698,5 +723,46 @@ export class AudioService {
     return await this.userAudioplayerPositionRepository.save(
       updatedUserAudioplayerPosition,
     );
+  }
+
+  async assignCategory(category: Category, ids: string[]) {
+    if (!ids.length) return;
+
+    await this.audioRepository
+      .createQueryBuilder()
+      .update(Audio)
+      .set({
+        categories: () => `
+          (
+            SELECT jsonb_agg(DISTINCT elem)
+            FROM (
+              SELECT jsonb_array_elements(categories) AS elem
+              UNION ALL
+              SELECT '"${category.id}"'::jsonb
+            ) AS combined
+          )
+        `,
+      })
+      .where('id IN (:...ids)', { ids })
+      .execute();
+  }
+
+  async deassignCategory(category: Category, ids: string[]) {
+    if (!ids.length) return;
+
+    await this.audioRepository
+      .createQueryBuilder()
+      .update(Audio)
+      .set({
+        categories: () => `
+          (
+            SELECT jsonb_agg(elem)
+            FROM jsonb_array_elements(categories) AS elem
+            WHERE elem != '"${category.id}"'
+          )
+        `,
+      })
+      .where('id IN (:...ids)', { ids })
+      .execute();
   }
 }
