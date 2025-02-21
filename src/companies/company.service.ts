@@ -12,6 +12,8 @@ import { CompanyCreditLog } from './entities/company_credit_log.entity';
 import { CompanySearchInterface } from 'src/admin/admin.interface';
 import { PaginationMeta } from 'src/common/interfaces';
 import { FileManagerService } from 'src/common/services/file-manager.service';
+import { CreateCompanyCreditLogDto } from './dto/create-company-credit-log.dto';
+import { CompanyCreditLogDto } from './dto/company-credit-log.dto';
 
 @Injectable()
 export class CompanyService {
@@ -38,8 +40,22 @@ export class CompanyService {
 
     const qb = this.companyRepository
       .createQueryBuilder('company')
-      .leftJoinAndSelect('company.users', 'user')
-      .loadRelationCountAndMap('company.userCount', 'company.users')
+      .leftJoinAndSelect(
+        'company.users',
+        'user',
+        'user.is_active = :userActive',
+        { userActive: true },
+      )
+      .loadRelationCountAndMap(
+        'company.userCount',
+        'company.users',
+        'filteredUsers',
+        (subQuery) => {
+          return subQuery.andWhere('filteredUsers.is_active = :userActive', {
+            userActive: true,
+          });
+        },
+      )
       .orderBy('company.created_at', 'DESC');
 
     if (query.name) {
@@ -100,6 +116,11 @@ export class CompanyService {
 
     await this.companyRepository.save(company);
 
+    await this.createCreditLog({
+      company_id: company.id,
+      purchased_credit: payload.available_credits,
+    });
+
     return this.findOne(company.id);
   }
 
@@ -135,10 +156,10 @@ export class CompanyService {
     updateCompanyDto: UpdateCompanyDto,
   ) {
     const company = await this.findById(id);
+
     updateCompanyDto.available_credits =
       updateCompanyDto.available_credits + company.available_credits;
 
-    // Update only the provided fields
     Object.assign(company, updateCompanyDto);
 
     if (logo) {
@@ -149,7 +170,13 @@ export class CompanyService {
       company.logo_url = logoPath;
     }
 
-    await this.companyRepository.save(company);
+    await Promise.all([
+      this.companyRepository.save(company),
+      this.createCreditLog({
+        company_id: company.id,
+        purchased_credit: updateCompanyDto.available_credits,
+      }),
+    ]);
 
     return this.findOne(company.id);
   }
@@ -158,11 +185,22 @@ export class CompanyService {
     return `This action removes a #${id} company`;
   }
 
-  async findAllCreditLogs(id: string) {
-    return this.companyCreditLogRepository.find({
+  async createCreditLog(createCompanyCreditLogDto: CreateCompanyCreditLogDto) {
+    const log = this.companyCreditLogRepository.create(
+      createCompanyCreditLogDto,
+    );
+    return this.companyCreditLogRepository.save(log);
+  }
+
+  async findAllCreditLogs(id: string): Promise<CompanyCreditLogDto[]> {
+    const logs = await this.companyCreditLogRepository.find({
       where: {
         company_id: id,
       },
+    });
+
+    return plainToInstance(CompanyCreditLogDto, logs, {
+      excludeExtraneousValues: true,
     });
   }
 }

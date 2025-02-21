@@ -1,10 +1,12 @@
 import {
   BaseEntity,
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Company } from './company.entity';
 
@@ -19,8 +21,11 @@ export class CompanyCreditLog extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   purchased_credit: number;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  purchased_at: Date;
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   @ManyToOne(() => Company, (company) => company.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'company_id' })

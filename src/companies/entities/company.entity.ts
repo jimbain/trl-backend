@@ -17,6 +17,7 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 import { CompanyContact } from '../company.interface';
+import { UserRegistrationLog } from 'src/users/entities/user_registration_log.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends BaseEntity {
@@ -94,4 +95,10 @@ export class Company extends BaseEntity {
 
   @OneToMany(() => User, (user) => user.company)
   users: User[];
+
+  @OneToMany(
+    () => UserRegistrationLog,
+    (userRegistrationLog) => userRegistrationLog.company,
+  )
+  user_registration_logs: UserRegistrationLog[];
 }

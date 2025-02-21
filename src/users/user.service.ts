@@ -1,12 +1,12 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { In, Not, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from 'src/users/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
@@ -14,8 +14,12 @@ import { UserDto, UserListDto } from './dto/user.dto';
 import { UserDevice } from './entities/user_device.entity';
 import { CreateUserDeviceDto } from './dto/create-user_device.dto';
 import { PaginationMeta } from 'src/common/interfaces';
-import * as xlsx from 'xlsx';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { CompanyService } from 'src/companies/company.service';
+import { CsvService } from 'src/common/services/csv.service';
+import { chunk } from 'lodash';
+import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
+import { UserRegistrationLog } from './entities/user_registration_log.entity';
 
 @Injectable()
 export class UserService {
@@ -23,10 +27,15 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
 
+    @InjectRepository(UserRegistrationLog)
+    private readonly userRegistrationLogRepository: Repository<UserRegistrationLog>,
+
     @InjectRepository(UserDevice)
     private readonly userDeviceRepository: Repository<UserDevice>,
 
     private readonly appConfigService: AppConfigService,
+    private readonly companyService: CompanyService,
+    private readonly csvService: CsvService,
   ) {}
 
   async create(createUserPayload: CreateUserDto): Promise<any> {
@@ -233,59 +242,150 @@ export class UserService {
     return this.userDeviceRepository.save(userDevice);
   }
 
+  getTotalActiveUsersByStatusOfCompany(
+    companyId: string,
+    status: boolean = true,
+  ) {
+    return this.userRepository.count({
+      where: { company_id: companyId, is_active: status },
+    });
+  }
+
   async importUsers(file: Express.Multer.File, companyId: string) {
-    const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    if (!file.mimetype.includes('csv')) {
+      throw new BadRequestException(
+        'Invalid file format. Only CSV file is allowed.',
+      );
+    }
 
-    const users = xlsx.utils.sheet_to_json(worksheet);
-
-    const appConfigs = await this.appConfigService.getAppConfigs([
-      'new_user_default_password',
-    ]);
+    // Fetch company and config in parallel
+    const [company, appConfigs, totalActiveUsersBeforeUpload] =
+      await Promise.all([
+        this.companyService.findById(companyId),
+        this.appConfigService.getAppConfigs(['new_user_default_password']),
+        this.getTotalActiveUsersByStatusOfCompany(companyId),
+      ]);
 
     const newUserDefaultPassword =
       appConfigs['new_user_default_password'] ?? '12345';
+    const requiredColumns = ['first_name', 'last_name', 'email', 'password'];
+    const parsedData: any = this.csvService.parse(file, requiredColumns);
 
-    for (const user of users) {
-      const processedUser = this.userRepository.create({
-        first_name: user['First Name'] || '',
-        last_name: user['Last Name'] || '',
-        title: user['Title'] || '',
-        email: user['Email'] || '',
-        password: newUserDefaultPassword,
-        company_id: companyId,
-      });
-
-      await this.userRepository.save(processedUser);
+    if (!parsedData.length) {
+      throw new BadRequestException('CSV file is empty or has invalid data.');
     }
+
+    const emails = parsedData
+      .map((user) => user.email)
+      .filter((email) => email);
+
+    // Mark all users as inactive in a single query
+    await this.userRepository.update(
+      { company_id: company.id },
+      { is_active: false },
+    );
+
+    // Fetch existing users in one query
+    const existingUsers = await this.userRepository.find({
+      where: { company_id: company.id, email: In(emails) },
+    });
+
+    const existingUserMap = new Map(
+      existingUsers.map((user) => [user.email, user]),
+    );
+
+    const usersToUpdate = [];
+    const usersToInsert = [];
+
+    for (const user of parsedData) {
+      if (!user.email) continue;
+
+      const existingUser = existingUserMap.get(user.email);
+
+      if (existingUser) {
+        usersToUpdate.push({
+          id: existingUser.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          is_active: true,
+        });
+      } else {
+        usersToInsert.push({
+          first_name: user.first_name ?? null,
+          last_name: user.last_name ?? null,
+          email: user.email ?? null,
+          password: newUserDefaultPassword,
+          company_id: company.id,
+        });
+      }
+    }
+
+    // Update Existing Users
+    if (usersToUpdate.length) {
+      const userToUpdateChunks = chunk(usersToUpdate, 100);
+
+      for (const userUpdateBatch of userToUpdateChunks) {
+        await Promise.all(
+          userUpdateBatch.map((userData: any) =>
+            this.userRepository.update(userData.id, {
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              is_active: true,
+            }),
+          ),
+        );
+      }
+    }
+
+    // Insert New Users
+    if (usersToInsert.length) {
+      const userChunks = chunk(usersToInsert, 100);
+
+      for (const userBatch of userChunks) {
+        await Promise.all(
+          userBatch.map(async (userData: any) => {
+            const user = this.userRepository.create(userData);
+            await this.userRepository.save(user);
+          }),
+        );
+      }
+    }
+
+    return this.createUserRegistrationLog({
+      company_id: company.id,
+      csv_content: parsedData,
+      meta: {
+        total_active_users_before_upload: totalActiveUsersBeforeUpload,
+        total_active_users_after_upload:
+          await this.getTotalActiveUsersByStatusOfCompany(companyId),
+      },
+    });
   }
 
   async exportUsers(companyId: string) {
     const users = await this.userRepository.find({
       where: { company_id: companyId },
-      select: ['first_name', 'last_name', 'title', 'email'],
+      select: ['first_name', 'last_name', 'email', 'is_active'],
     });
 
     if (users.length === 0) {
       throw new Error('No users found for this company.');
     }
 
-    const formattedUsers = users.map((user) => ({
-      'First Name': user.first_name,
-      'Last Name': user.last_name,
-      Title: user.title,
-      Email: user.email,
-    }));
+    let csvContent = 'First Name,Last Name,Email,Status\n';
 
-    // Create worksheet and workbook
-    const worksheet = xlsx.utils.json_to_sheet(formattedUsers);
-    const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, worksheet, 'Users');
+    csvContent += users
+      .map(
+        (user) =>
+          `"${user.first_name}","${user.last_name}","${user.email}","${user.is_active ? 'Active' : 'Inactive'}"`,
+      )
+      .join('\n');
 
-    // Write to buffer
-    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    return csvContent;
+  }
 
-    return buffer;
+  async createUserRegistrationLog(payload: CreateUserRegistrationLogDto) {
+    const log = this.userRegistrationLogRepository.create(payload);
+    return this.userRegistrationLogRepository.save(log);
   }
 }

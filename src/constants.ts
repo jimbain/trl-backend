@@ -67,3 +67,12 @@ export const COMPANY_LOGIN_TYPE = {
 
 export type CompanyLoginEnumType =
   (typeof COMPANY_LOGIN_TYPE)[keyof typeof COMPANY_LOGIN_TYPE];
+
+export const NOTIFICATION_NEW_BOOK_CONDITION = {
+  QUEUE: 'queue',
+  PLAYED: 'played',
+  ACTIVE: 'active',
+} as const;
+
+export type NotificationNewBookConditionType =
+  (typeof NOTIFICATION_NEW_BOOK_CONDITION)[keyof typeof NOTIFICATION_NEW_BOOK_CONDITION];

@@ -28,9 +28,9 @@ export class AdminReportService {
 
   async getOverview(): Promise<OverviewInterface> {
     const [companyCount, userCount, audioCount] = await Promise.all([
-      this.companyRepository.count(),
-      this.userRepository.count(),
-      this.audioRepository.count(),
+      this.companyRepository.count({ where: { is_active: true } }),
+      this.userRepository.count({ where: { is_active: true } }),
+      this.audioRepository.count({ where: { is_active: true } }),
     ]);
 
     return {

@@ -11,6 +11,8 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
+  BadRequestException,
+  HttpCode,
 } from '@nestjs/common';
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { UserService } from 'src/users/user.service';
@@ -59,23 +61,28 @@ export class AdminCompanyUserController {
   }
 
   @Post(':id/import-user')
+  @HttpCode(200)
   @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
-  async importUser(
+  async uploadCsv(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded.');
+    }
+
     return this.userService.importUsers(file, id);
   }
 
   @Post(':id/export-user')
+  @HttpCode(200)
   async exportUsers(@Param('id') id: string, @Res() res: Response) {
-    const buffer = await this.userService.exportUsers(id);
+    const csvContent = await this.userService.exportUsers(id);
+    const fileName = `company_${id}_users_${+new Date()}.csv`;
 
-    res.setHeader('Content-Disposition', 'attachment; filename="users.xlsx"');
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.send(buffer);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    res.send(csvContent);
   }
 }

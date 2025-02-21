@@ -14,7 +14,7 @@ import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { CategoryService } from 'src/categories/category.service';
 import { CreateCategoryDto } from 'src/categories/dto/create-category.dto';
 import { UpdateCategoryDto } from 'src/categories/dto/update-category.dto';
-import { AssignDeassignCategoryDto } from '../dto/category/AssignDeassignCategory.dto';
+import { AssignDeassignCategoryDto } from '../dto/category/assign-deassign-category.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/categories')

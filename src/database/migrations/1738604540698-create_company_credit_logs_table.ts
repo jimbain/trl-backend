@@ -31,12 +31,6 @@ export class CreateCompanyCreditLogsTable1738604540698
             isNullable: true,
           },
           {
-            name: 'purchased_at',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-            isNullable: false,
-          },
-          {
             name: 'created_at',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',

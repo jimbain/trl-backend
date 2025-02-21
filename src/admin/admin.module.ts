@@ -26,6 +26,8 @@ import { AdminReportController } from './controllers/admin-report.controller';
 import { AdminReportService } from './services/admin-report.service';
 import { Company } from 'src/companies/entities/company.entity';
 import { User } from 'src/users/entities/user.entity';
+import { AdminNotificationService } from './services/admin-notification.service';
+import { AdminNotificationController } from './controllers/admin-notification.controller';
 
 @Module({
   imports: [
@@ -62,6 +64,7 @@ import { User } from 'src/users/entities/user.entity';
     AdminCompanyCategoryController,
     AdminAudioController,
     AdminReportController,
+    AdminNotificationController,
   ],
   providers: [
     AdminAuthService,
@@ -69,7 +72,8 @@ import { User } from 'src/users/entities/user.entity';
     JwtAdminAuthGuard,
     AdminAudioService,
     AdminReportService,
+    AdminNotificationService,
   ],
-  exports: [AdminAuthService, JwtAdminAuthGuard, AdminAudioService],
+  exports: [],
 })
 export class AdminModule {}
