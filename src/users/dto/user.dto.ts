@@ -5,15 +5,13 @@ export class UserListDto {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => `${obj.first_name} ${obj.last_name}`)
-  name: string;
+  first_name: string;
+
+  @Expose()
+  last_name: string;
 
   @Expose()
   email: string;
-
-  @Expose()
-  @Transform(({ obj }) => obj?.company?.name ?? null)
-  company: string;
 }
 
 export class UserDto {

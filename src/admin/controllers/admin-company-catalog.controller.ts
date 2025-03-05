@@ -13,7 +13,7 @@ export class AdminCompanyCatalogController {
 
   @Get(':id/catalogs')
   async findAll(@Param('id') id: string, @Query() query: any) {
-    const company = await this.companyService.findOne(id);
-    return company;
+    const company = await this.companyService.findById(id);
+    return this.catalogService.findByIds(company.catalogs);
   }
 }

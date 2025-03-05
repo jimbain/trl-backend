@@ -1,4 +1,4 @@
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 
 export class CatalogDto {
   @Expose()
@@ -15,4 +15,10 @@ export class CatalogDto {
 
   @Expose()
   media_type: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    return obj.categories.length;
+  })
+  total_categories: any;
 }
