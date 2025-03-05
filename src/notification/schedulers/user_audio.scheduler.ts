@@ -64,8 +64,7 @@ export class UserAudioScheduler {
           image: rentedAudio.audio.metadata.cover_url ?? null,
           expired_at: rentedAudio.rental_expire_at,
         },
-        recipient_type: 'user',
-        recipient_id: rentedAudio.user_id,
+        user_ids: [rentedAudio.user_id],
         expire_at: new Date(
           now.getFullYear(),
           now.getMonth(),
@@ -121,8 +120,7 @@ export class UserAudioScheduler {
           image: rentedAudio.audio.metadata.cover_url ?? null,
           expired_at: rentedAudio.rental_expire_at,
         },
-        recipient_type: 'user',
-        recipient_id: rentedAudio.user_id,
+        user_ids: [rentedAudio.user_id],
         expire_at: new Date(
           now.getFullYear(),
           now.getMonth(),
@@ -180,8 +178,7 @@ export class UserAudioScheduler {
           audio_id: log.item_id,
           last_played: log.max_created_at,
         },
-        recipient_type: 'user',
-        recipient_id: log.user_id,
+        user_ids: [log.user_id],
         expire_at: new Date(
           now.getFullYear(),
           now.getMonth(),

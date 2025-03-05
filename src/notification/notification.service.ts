@@ -18,7 +18,10 @@ export class NotificationService {
     return await this.notificationRepository.save(notification);
   }
 
-  async findAll(payload: any = {}): Promise<{
+  async findAll(
+    payload: any = {},
+    user: User,
+  ): Promise<{
     data: Notification[];
     meta: PaginationMeta;
   }> {
@@ -27,6 +30,9 @@ export class NotificationService {
 
     const [notifications, total] = await this.notificationRepository
       .createQueryBuilder('notification')
+      .where('notification.user_ids @> :userId', {
+        userId: JSON.stringify([user.id]),
+      })
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();

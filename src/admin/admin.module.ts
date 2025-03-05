@@ -28,6 +28,9 @@ import { Company } from 'src/companies/entities/company.entity';
 import { User } from 'src/users/entities/user.entity';
 import { AdminNotificationService } from './services/admin-notification.service';
 import { AdminNotificationController } from './controllers/admin-notification.controller';
+import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
+import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
+import { Notification } from 'src/notification/entities/notification.entity';
 
 @Module({
   imports: [
@@ -47,7 +50,15 @@ import { AdminNotificationController } from './controllers/admin-notification.co
         },
       }),
     }),
-    TypeOrmModule.forFeature([AdminUser, Audio, Company, User]),
+    TypeOrmModule.forFeature([
+      AdminUser,
+      Audio,
+      Company,
+      User,
+      UserAudioStatus,
+      UserAudioplayerPosition,
+      Notification,
+    ]),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),

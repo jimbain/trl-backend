@@ -52,22 +52,10 @@ export class NotificationScheduler {
       image: null,
     };
 
-    notifications.forEach(async (notification: any) => {
+    notifications.forEach(async (notification: Notification) => {
       body.image = notification.data?.image ?? null;
-      if (notification.recipient_type === 'user') {
-        await this.sendFirebaseNotification(
-          notification,
-          notification.recipient_id,
-          body,
-        );
-      } else if (notification.recipient_type === 'company') {
-        const users = await this.userRepository.find({
-          where: { company_id: notification.recipient_id, is_active: true },
-        });
-
-        for (const user of users) {
-          await this.sendFirebaseNotification(notification, user.id, body);
-        }
+      for (const userId of notification.user_ids) {
+        await this.sendFirebaseNotification(notification, userId, body);
       }
     });
   }
@@ -100,22 +88,10 @@ export class NotificationScheduler {
       image: null,
     };
 
-    notifications.forEach(async (notification: any) => {
+    notifications.forEach(async (notification: Notification) => {
       body.image = notification.data?.image ?? null;
-      if (notification.recipient_type === 'user') {
-        await this.sendFirebaseNotification(
-          notification,
-          notification.recipient_id,
-          body,
-        );
-      } else if (notification.recipient_type === 'company') {
-        const users = await this.userRepository.find({
-          where: { company_id: notification.recipient_id, is_active: true },
-        });
-
-        for (const user of users) {
-          await this.sendFirebaseNotification(notification, user.id, body);
-        }
+      for (const userId of notification.user_ids) {
+        await this.sendFirebaseNotification(notification, userId, body);
       }
     });
   }
@@ -148,22 +124,36 @@ export class NotificationScheduler {
       image: null,
     };
 
-    notifications.forEach(async (notification: any) => {
+    notifications.forEach(async (notification: Notification) => {
       body.image = notification.data?.image ?? null;
-      if (notification.recipient_type === 'user') {
+      for (const userId of notification.user_ids) {
+        await this.sendFirebaseNotification(notification, userId, body);
+      }
+    });
+  }
+
+  // Everyday 10:30 am UTC time
+  @Cron('30 10 * * *', {
+    name: 'notification_audio_newbooks',
+  })
+  async handleAudioNewBooksNotification() {
+    const notifications = await this.notificationRepository.find({
+      where: {
+        event_type: 'audio_newbooks',
+      },
+    });
+
+    if (!notifications.length) {
+      return;
+    }
+
+    notifications.forEach(async (notification: Notification) => {
+      for (const userId of notification.user_ids) {
         await this.sendFirebaseNotification(
           notification,
-          notification.recipient_id,
-          body,
+          userId,
+          notification.data,
         );
-      } else if (notification.recipient_type === 'company') {
-        const users = await this.userRepository.find({
-          where: { company_id: notification.recipient_id, is_active: true },
-        });
-
-        for (const user of users) {
-          await this.sendFirebaseNotification(notification, user.id, body);
-        }
       }
     });
   }

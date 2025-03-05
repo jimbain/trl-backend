@@ -1,4 +1,10 @@
-import { IsDate, IsIn, IsNotEmpty, IsObject, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsDate,
+  IsNotEmpty,
+  IsObject,
+  IsString,
+} from 'class-validator';
 
 export class CreateNotificationDto {
   @IsString()
@@ -9,16 +15,9 @@ export class CreateNotificationDto {
   @IsNotEmpty()
   data: object;
 
-  @IsString()
-  @IsNotEmpty()
-  @IsIn(['user', 'company'], {
-    message: 'Recipient type must be either "user" or "company".',
-  })
-  recipient_type: string;
-
-  @IsString()
-  @IsNotEmpty()
-  recipient_id: string;
+  @IsArray()
+  @IsString({ each: true })
+  user_ids: string[];
 
   @IsDate()
   @IsNotEmpty()

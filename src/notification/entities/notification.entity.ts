@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { NotificationData } from '../notification.interface';
 
 @Entity({ name: 'notifications' })
 export class Notification extends BaseEntity {
@@ -16,13 +17,10 @@ export class Notification extends BaseEntity {
   event_type: string;
 
   @Column({ type: 'jsonb', nullable: false, default: [] })
-  data: { string: any };
+  data: NotificationData;
 
-  @Column({ type: 'varchar', length: 100, comment: 'e.g. user,company' })
-  recipient_type: string;
-
-  @Column({ type: 'varchar' })
-  recipient_id: string;
+  @Column({ type: 'jsonb', nullable: false, default: [] })
+  user_ids: string[];
 
   @Column({ type: 'jsonb', nullable: false, default: {} })
   users_read_status: object;

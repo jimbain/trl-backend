@@ -26,16 +26,10 @@ export class CreateNotificationsTable1738653272685
             isNullable: true,
           },
           {
-            name: 'recipient_type',
-            type: 'varchar',
-            length: '100',
+            name: 'user_ids',
+            type: 'jsonb',
             isNullable: false,
-            comment: 'e.g. user,company',
-          },
-          {
-            name: 'recipient_id',
-            type: 'varchar',
-            isNullable: false,
+            default: "'[]'::jsonb",
           },
           {
             name: 'users_read_status',
