@@ -1,4 +1,5 @@
 import { Expose, Transform } from 'class-transformer';
+import { CatalogCategoryType } from 'src/constants';
 
 export function getPopularity(): number {
   return Math.floor(Math.random() * (200 - 50 + 1)) + 50;
@@ -12,6 +13,9 @@ export class CategoryDto {
   name: string;
 
   @Expose()
+  type: CatalogCategoryType;
+
+  @Expose()
   is_active: boolean;
 }
 
@@ -21,6 +25,9 @@ export class AudioCategoryDto {
 
   @Expose()
   name: string;
+
+  @Expose()
+  type: CatalogCategoryType;
 
   @Expose()
   @Transform(({ obj }) => getPopularity())
