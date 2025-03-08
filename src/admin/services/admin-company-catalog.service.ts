@@ -53,18 +53,31 @@ export class AdminCompanyCatalogService {
     const categoryMeta = categories.meta;
     const categoryData = categories.data;
 
-    const categoryDataWithTitles = await Promise.all(
-      categoryData.map(async (category: any) => {
-        const totalTitles = await this.categoryService.getTotalTitleCount(
-          category.id,
-          catalog.media_type,
-        );
-        return {
-          ...category,
-          total_titles: totalTitles,
-        };
-      }),
+    if (categoryData.length === 0) {
+      return {
+        id: catalog.id,
+        name: catalog.name,
+        categories: {
+          data: [],
+          meta: categoryMeta,
+        },
+      };
+    }
+
+    // Extract category IDs
+    const categoryIds = categoryData.map((category: any) => category.id);
+
+    // Fetch total title counts in a single query
+    const totalTitlesMap = await this.categoryService.getTotalTitleCounts(
+      categoryIds,
+      catalog.media_type,
     );
+
+    // Merge total_titles into categories
+    const categoryDataWithTitles = categoryData.map((category: any) => ({
+      ...category,
+      total_titles: totalTitlesMap[category.id] || 0,
+    }));
 
     return {
       id: catalog.id,

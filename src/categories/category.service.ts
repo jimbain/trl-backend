@@ -151,22 +151,38 @@ export class CategoryService {
     }
   }
 
-  async getTotalTitleCount(id: string, mediaType: Media): Promise<number> {
-    console.log('mediaType', mediaType);
-    console.log('id', id);
+  async getTotalTitleCounts(
+    categoryIds: string[],
+    mediaType: Media,
+  ): Promise<Record<string, number>> {
+    if (categoryIds.length === 0) return {};
+
+    let result: { category_id: string; count: number }[] = [];
+
     if (mediaType === 'audio') {
-      return this.audioRepository.count({
-        where: {
-          categories: Raw((alias) => `${alias} ? :id`, {
-            id,
-          }),
-        },
-      });
+      result = await this.audioRepository.query(
+        `
+        SELECT 
+            jsonb_array_elements_text(a.categories) AS category_id, 
+            COUNT(*) AS count
+        FROM audios a
+        WHERE a.categories ?| $1
+        GROUP BY category_id
+        `,
+        [categoryIds],
+      );
     } else if (mediaType === 'video') {
-      return 0;
     } else if (mediaType === 'pharma') {
-      return 0;
     }
-    return 0;
+
+    return categoryIds.reduce(
+      (acc, id) => {
+        acc[id] = Number(
+          result.find((row) => row.category_id === id)?.count || 0,
+        );
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
   }
 }
