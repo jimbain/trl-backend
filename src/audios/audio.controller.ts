@@ -31,56 +31,7 @@ export class AudioController {
 
   @Get('audio/home')
   async getAudioHomeList(@Request() req) {
-    const companyAudioCategoryIds =
-      await this.audioService.findAllAudioCategoryIdOfCompany(
-        req.user.company.id,
-      );
-
-    const featuredAudios = await this.audioService.getFeaturedAudios(
-      companyAudioCategoryIds,
-      req.user,
-      10,
-      1,
-    );
-
-    return [
-      {
-        label: 'Featured Titles',
-        slug: 'featured',
-        audios: featuredAudios?.data ?? [],
-      },
-      {
-        label: 'Continue Listening',
-        slug: 'continue_listening',
-        audios: await this.audioService.getContinueListeningAudiosOfUser(
-          req.user,
-          10,
-        ),
-      },
-      {
-        label: 'My Bookshelf',
-        slug: 'bookself',
-        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
-          req.user,
-          'bookshelved',
-          10,
-        ),
-      },
-      {
-        label: 'Queued Titles',
-        slug: 'queued',
-        audios: await this.audioService.getAudiosOfUserBasedOnStatus(
-          req.user,
-          'queued',
-          10,
-        ),
-      },
-      {
-        label: 'Popular Audio Titles',
-        slug: 'popular',
-        audios: [],
-      },
-    ];
+    return this.audioService.getHomeList(req.user);
   }
 
   @Get('audio-categories')
@@ -136,16 +87,10 @@ export class AudioController {
     const parsedPage = parseInt(page, 10) || 1;
     const parsedPerPage = parseInt(per_page, 10) || 10;
 
-    const companyAudioCategoryIds =
-      await this.audioService.findAllAudioCategoryIdOfCompany(
-        req.user.company.id,
-      );
-
     let data: any;
 
     if (type === 'featured') {
       return this.audioService.getFeaturedAudios(
-        companyAudioCategoryIds,
         req.user,
         parsedPerPage,
         parsedPage,

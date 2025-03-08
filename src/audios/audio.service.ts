@@ -165,7 +165,6 @@ export class AudioService {
   }
 
   async getFeaturedAudios(
-    categoryIds: string[],
     user: User,
     limit: number = 10,
     page: number = 1,
@@ -173,22 +172,39 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    const [appConfigs, userAudios] = await Promise.all([
-      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
-      this.userAudioStatusRepository.find({
-        where: [
-          {
-            user_id: user.id,
-            rental_expire_at: IsNull(),
-          },
-          {
-            user_id: user.id,
-            rental_expire_at: MoreThanOrEqual(new Date()),
-          },
-        ],
-        select: ['audio_id'],
-      }),
-    ]);
+    if (!user.is_active) {
+      return {
+        data: [],
+        meta: {
+          current_page: 1,
+          from: 0,
+          last_page: 1,
+          per_page: limit,
+          to: 0,
+          total: 0,
+        },
+      };
+    }
+
+    const [companyAudioCategoryIds, appConfigs, userAudios] = await Promise.all(
+      [
+        this.findAllAudioCategoryIdOfCompany(user.company.id),
+        this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+        this.userAudioStatusRepository.find({
+          where: [
+            {
+              user_id: user.id,
+              rental_expire_at: IsNull(),
+            },
+            {
+              user_id: user.id,
+              rental_expire_at: MoreThanOrEqual(new Date()),
+            },
+          ],
+          select: ['audio_id'],
+        }),
+      ],
+    );
 
     const audioIds = userAudios.map(
       (userAudio: UserAudioStatus) => userAudio.audio_id,
@@ -199,7 +215,7 @@ export class AudioService {
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
-        { categoryIds: categoryIds },
+        { categoryIds: companyAudioCategoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
       .andWhere('audio.is_active = :isActive', { isActive: true });
@@ -377,6 +393,10 @@ export class AudioService {
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
+    if (!user.is_active && (status === 'queued' || status === 'rented')) {
+      return [];
+    }
+
     const appConfigs = await this.appConfigService.getAppConfigs([
       'audio_rental_credit_cost',
     ]);
@@ -445,6 +465,42 @@ export class AudioService {
     return plainToInstance(AudioCategoryDto, categories, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async getHomeList(user: User) {
+    const featuredAudios = await this.getFeaturedAudios(user, 10, 1);
+
+    return [
+      {
+        label: 'Featured Titles',
+        slug: 'featured',
+        audios: featuredAudios?.data,
+      },
+      {
+        label: 'Continue Listening',
+        slug: 'continue_listening',
+        audios: await this.getContinueListeningAudiosOfUser(user, 10),
+      },
+      {
+        label: 'My Bookshelf',
+        slug: 'bookself',
+        audios: await this.getAudiosOfUserBasedOnStatus(
+          user,
+          'bookshelved',
+          10,
+        ),
+      },
+      {
+        label: 'Queued Titles',
+        slug: 'queued',
+        audios: await this.getAudiosOfUserBasedOnStatus(user, 'queued', 10),
+      },
+      {
+        label: 'Popular Audio Titles',
+        slug: 'popular',
+        audios: [],
+      },
+    ];
   }
 
   async findAudiosByCategory(
