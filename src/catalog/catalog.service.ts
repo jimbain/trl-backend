@@ -1,33 +1,41 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Raw } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CatalogDto } from './dto/catalog.dto';
 import { plainToInstance } from 'class-transformer';
 import { CATALOG_CATEGORY_TYPE } from 'src/constants';
 import { Category } from 'src/categories/entities/category.entity';
+import { Audio } from 'src/audios/entities/audio.entity';
 
 @Injectable()
 export class CatalogService {
   constructor(
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
+
+    @InjectRepository(Audio)
+    private readonly audioRepository: Repository<Audio>,
   ) {}
 
-  async findByIds(ids: number[]): Promise<CatalogDto[]> {
+  async findAll(): Promise<Catalog[]> {
+    return this.catalogRepository.find();
+  }
+
+  async findEntitiesByIds(ids: number[]): Promise<Catalog[]> {
     if (!ids || ids.length === 0) return [];
 
-    const catalogs = await this.catalogRepository.find({
+    return this.catalogRepository.find({
       where: { id: In(ids) },
     });
+  }
+
+  async findByIds(ids: number[]): Promise<CatalogDto[]> {
+    const catalogs = await this.findEntitiesByIds(ids);
 
     return plainToInstance(CatalogDto, catalogs, {
       excludeExtraneousValues: true,
     });
-  }
-
-  async findAll(): Promise<Catalog[]> {
-    return this.catalogRepository.find();
   }
 
   async findOne(id: number): Promise<Catalog> {
@@ -119,5 +127,22 @@ export class CatalogService {
     catalog.categories = [...new Set(catalog.categories)];
 
     return await this.catalogRepository.save(catalog);
+  }
+
+  async getTotalTitleCount(catalog: Catalog): Promise<number> {
+    if (catalog.media_type === 'audio') {
+      return this.audioRepository.count({
+        where: {
+          categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
+            categories: catalog.categories,
+          }),
+        },
+      });
+    } else if (catalog.media_type === 'video') {
+      return 0;
+    } else if (catalog.media_type === 'pharma') {
+      return 0;
+    }
+    return 0;
   }
 }

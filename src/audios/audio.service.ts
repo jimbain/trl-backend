@@ -28,6 +28,7 @@ import { CompanyService } from 'src/companies/company.service';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CategoryService } from 'src/categories/category.service';
 import { Category } from 'src/categories/entities/category.entity';
+import { AudioCategoryDto } from 'src/categories/dto/category.dto';
 
 export interface AudioSearch {
   ids?: string[];
@@ -436,7 +437,14 @@ export class AudioService {
     const catalogs = await this.catalogService.findMany(company.catalogs);
     const audioCatalog =
       catalogs.find((catalog) => catalog.media_type === MEDIA.AUDIO) ?? null;
-    return this.categoryService.findMany(audioCatalog.categories);
+
+    const categories = await this.categoryService.findEntitiesByIds(
+      audioCatalog.categories,
+    );
+
+    return plainToInstance(AudioCategoryDto, categories, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findAudiosByCategory(

@@ -8,22 +8,27 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
-import { Repository } from 'typeorm';
+import { In, Raw, Repository } from 'typeorm';
 import { CategoryDto } from './dto/category.dto';
 import { plainToInstance } from 'class-transformer';
 import {
   CATALOG_CATEGORY_TYPE,
   CatalogCategoryType,
   MEDIA,
+  Media,
 } from 'src/constants';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { AudioService } from 'src/audios/audio.service';
+import { paginate } from 'src/common/helpers/pagination.helper';
+import { Audio } from 'src/audios/entities/audio.entity';
 
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    @InjectRepository(Audio)
+    private readonly audioRepository: Repository<Audio>,
 
     @Inject(forwardRef(() => AudioService))
     private audioService: AudioService,
@@ -61,37 +66,39 @@ export class CategoryService {
     });
   }
 
-  async findMany(
-    ids: string[] = [],
-    name: string = null,
-    status: 'active' | 'inactive' | 'all' | null = null,
-    type: CatalogCategoryType = CATALOG_CATEGORY_TYPE.DEFAULT,
-  ): Promise<CategoryDto[]> {
+  async findEntitiesByIds(ids: string[]): Promise<Category[]> {
+    if (!ids || ids.length === 0) return [];
+
+    return this.categoryRepository.find({
+      where: { id: In(ids) },
+    });
+  }
+
+  async findMany(ids: string[] = [], query: any = {}) {
     if (!ids.length) return [];
 
     const qb = this.categoryRepository.createQueryBuilder('category');
     qb.where('category.id IN (:...ids)', { ids });
-    qb.where('category.type = (:type)', { type });
 
-    if (name) {
+    if (query.type) {
+      qb.where('category.type = (:type)', { type: query.type });
+    }
+
+    if (query.category_name) {
       qb.andWhere('LOWER(category.name) LIKE LOWER(:name)', {
-        name: `%${name}%`,
+        name: `%${query.category_name}%`,
       });
     }
 
-    if (status === 'active') {
+    if (query.status === 'active') {
       qb.andWhere('category.is_active = :status', { status: true });
-    } else if (status === 'inactive') {
+    } else if (query.status === 'inactive') {
       qb.andWhere('category.is_active = :status', { status: false });
     }
 
     qb.orderBy('category.created_at', 'DESC');
 
-    const categories = await qb.getMany();
-
-    return plainToInstance(CategoryDto, categories, {
-      excludeExtraneousValues: true,
-    });
+    return paginate(qb, query.page, query.per_page, CategoryDto);
   }
 
   async create(payload: CreateCategoryDto): Promise<CategoryDto> {
@@ -142,5 +149,24 @@ export class CategoryService {
     if (catalog.media_type === MEDIA.AUDIO) {
       return this.audioService.deassignCategory(category, mediaIds);
     }
+  }
+
+  async getTotalTitleCount(id: string, mediaType: Media): Promise<number> {
+    console.log('mediaType', mediaType);
+    console.log('id', id);
+    if (mediaType === 'audio') {
+      return this.audioRepository.count({
+        where: {
+          categories: Raw((alias) => `${alias} ? :id`, {
+            id,
+          }),
+        },
+      });
+    } else if (mediaType === 'video') {
+      return 0;
+    } else if (mediaType === 'pharma') {
+      return 0;
+    }
+    return 0;
   }
 }

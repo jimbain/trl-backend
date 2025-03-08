@@ -31,6 +31,8 @@ import { AdminNotificationController } from './controllers/admin-notification.co
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { Notification } from 'src/notification/entities/notification.entity';
+import { AdminCompanyCatalogService } from './services/admin-company-catalog.service';
+import { AdminCatalogService } from './services/admin-catalog.service';
 
 @Module({
   imports: [
@@ -84,6 +86,8 @@ import { Notification } from 'src/notification/entities/notification.entity';
     AdminAudioService,
     AdminReportService,
     AdminNotificationService,
+    AdminCatalogService,
+    AdminCompanyCatalogService,
   ],
   exports: [],
 })

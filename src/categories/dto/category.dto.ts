@@ -13,6 +13,14 @@ export class CategoryDto {
 
   @Expose()
   is_active: boolean;
+}
+
+export class AudioCategoryDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
 
   @Expose()
   @Transform(({ obj }) => getPopularity())

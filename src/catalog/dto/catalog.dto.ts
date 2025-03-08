@@ -18,7 +18,10 @@ export class CatalogDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    return obj.categories.length;
+    return obj.categories?.length ?? 0;
   })
-  total_categories: any;
+  total_categories: number;
+
+  @Expose()
+  total_titles?: number;
 }

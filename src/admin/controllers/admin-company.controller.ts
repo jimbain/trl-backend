@@ -29,7 +29,7 @@ export class AdminCompanyController {
 
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
-  signup(@UploadedFile() logo, @Body() payload: CreateCompanyDto) {
+  store(@UploadedFile() logo, @Body() payload: CreateCompanyDto) {
     return this.companyService.create(payload, logo);
   }
 
