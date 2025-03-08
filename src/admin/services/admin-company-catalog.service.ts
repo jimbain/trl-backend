@@ -71,7 +71,7 @@ export class AdminCompanyCatalogService {
       name: catalog.name,
       categories: {
         data: categoryDataWithTitles,
-        meat: categoryMeta,
+        meta: categoryMeta,
       },
     };
   }
