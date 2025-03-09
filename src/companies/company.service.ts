@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -150,11 +155,47 @@ export class CompanyService {
     );
   }
 
+  async validateBeforeUpdate(id: string, updateCompanyDto: UpdateCompanyDto) {
+    const [isNameExists, isDomainExists] = await Promise.all([
+      this.companyRepository
+        .createQueryBuilder('company')
+        .andWhere('LOWER(company.name) = LOWER(:name)', {
+          name: updateCompanyDto.name.toLowerCase(),
+        })
+        .andWhere('company.id != :id', { id })
+        .getExists(),
+      this.companyRepository
+        .createQueryBuilder('company')
+        .andWhere('LOWER(company.domain) = LOWER(:domain)', {
+          domain: updateCompanyDto.domain.toLowerCase(),
+        })
+        .andWhere('company.id != :id', { id })
+        .getExists(),
+    ]);
+
+    if (isNameExists || isDomainExists) {
+      throw new HttpException(
+        {
+          errors: {
+            ...(isNameExists && {
+              name: ['Name is already taken.'],
+            }),
+            ...(isDomainExists && {
+              domain: ['Domain is already taken.'],
+            }),
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
   async update(
     id: string,
     logo: Express.Multer.File,
     updateCompanyDto: UpdateCompanyDto,
   ) {
+    await this.validateBeforeUpdate(id, updateCompanyDto);
     const company = await this.findById(id);
 
     updateCompanyDto.available_credits =

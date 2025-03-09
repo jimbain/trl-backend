@@ -33,6 +33,8 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
 import { Notification } from 'src/notification/entities/notification.entity';
 import { AdminCompanyCatalogService } from './services/admin-company-catalog.service';
 import { AdminCatalogService } from './services/admin-catalog.service';
+import { AdminVideoController } from './controllers/admin-video.controller';
+import { AdminPharmaController } from './controllers/admin-pharma.controller';
 
 @Module({
   imports: [
@@ -76,6 +78,8 @@ import { AdminCatalogService } from './services/admin-catalog.service';
     AdminCompanyCatalogController,
     AdminCompanyCategoryController,
     AdminAudioController,
+    AdminVideoController,
+    AdminPharmaController,
     AdminReportController,
     AdminNotificationController,
   ],
