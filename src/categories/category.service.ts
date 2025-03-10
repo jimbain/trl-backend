@@ -75,8 +75,6 @@ export class CategoryService {
   }
 
   async findMany(ids: string[] = [], query: any = {}) {
-    if (!ids.length) return [];
-
     const qb = this.categoryRepository.createQueryBuilder('category');
     qb.where('category.id IN (:...ids)', { ids });
 

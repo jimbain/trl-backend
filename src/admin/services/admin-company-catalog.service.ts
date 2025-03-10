@@ -45,6 +45,18 @@ export class AdminCompanyCatalogService {
     }
 
     const catalog = await this.catalogService.findOne(id);
+
+    if (catalog.categories.length === 0) {
+      return {
+        id: catalog.id,
+        name: catalog.name,
+        categories: {
+          data: [],
+          meta: {},
+        },
+      };
+    }
+
     const categories: any = await this.categoryService.findMany(
       catalog.categories,
       query,
