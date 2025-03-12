@@ -29,20 +29,29 @@ export class AppConfigService {
   async update(payload: UpdateAppConfigDto) {
     const keys = Object.keys(payload);
 
-    // Fetch all the current configurations for the given keys in one query
+    // Fetch all the current configurations in one query
     const existingConfigs = await this.appConfigRepository.find({
       where: { key: In(keys) },
     });
 
+    // Convert existing configs to a Map for faster lookups
+    const configMap = new Map(
+      existingConfigs.map((config) => [config.key, config]),
+    );
+
     const configsToUpdate = [];
 
-    // Loop through each key-value pair in the payload
     for (const key of keys) {
       const value = payload[key];
-      const config = existingConfigs.find((c) => c.key === key);
+      const config = configMap.get(key);
 
-      config.value = value;
-      configsToUpdate.push(config);
+      if (!config) continue;
+
+      // Only update if value is actually different
+      if (config.value !== value) {
+        config.value = value;
+        configsToUpdate.push(config);
+      }
     }
 
     if (configsToUpdate.length > 0) {
