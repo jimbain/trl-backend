@@ -140,7 +140,18 @@ export class CompanyService {
   }
 
   async findOne(id: string) {
-    const company = await this.companyRepository.findOne({ where: { id } });
+    const company = await this.companyRepository
+      .createQueryBuilder('company')
+      .leftJoinAndSelect('company.users', 'users')
+      .loadRelationCountAndMap(
+        'company.userCount',
+        'company.users',
+        'activeUsers',
+        (qb) =>
+          qb.where('activeUsers.is_active = :isActive', { isActive: true }),
+      )
+      .where('company.id = :id', { id })
+      .getOne();
 
     if (!company) {
       throw new NotFoundException(`Company with ID ${id} not found`);
