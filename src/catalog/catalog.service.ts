@@ -7,6 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import { CATALOG_CATEGORY_TYPE } from 'src/constants';
 import { Category } from 'src/categories/entities/category.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { UpdateCatalogDto } from './dto/update-catalog.dto';
 
 @Injectable()
 export class CatalogService {
@@ -110,15 +111,40 @@ export class CatalogService {
     return await this.catalogRepository.save(catalog);
   }
 
-  async update(id: number, data: Partial<Catalog>): Promise<Catalog> {
+  async update(id: number, data: UpdateCatalogDto): Promise<Catalog> {
     await this.findOne(id); // Ensure catalog exists
     await this.catalogRepository.update(id, data);
     return this.findOne(id); // Return updated catalog
   }
 
+  async cloneDefaultCatalogToCustom(
+    payload: { name: string; is_active: boolean },
+    catalog: Catalog,
+  ) {
+    return this.create({
+      name: payload.name,
+      type: CATALOG_CATEGORY_TYPE.CUSTOM,
+      media_type: catalog.media_type,
+      categories: catalog.categories,
+      is_active: payload.is_active,
+    });
+  }
+
+  async replaceCustomWithDefault(catalog: Catalog) {
+    const sameMediaDefaultCatalog = await this.findDefaultByType(
+      catalog.media_type,
+    );
+    await this.removeByEntity(catalog);
+    return sameMediaDefaultCatalog;
+  }
+
   async remove(id: number): Promise<void> {
     const catalog = await this.findOne(id);
     await this.catalogRepository.remove(catalog);
+  }
+
+  removeByEntity(catalog: Catalog) {
+    return this.catalogRepository.remove(catalog);
   }
 
   async assignCategory(id: number, category: Category): Promise<Catalog> {

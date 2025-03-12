@@ -222,6 +222,10 @@ export class CompanyService {
     return this.findOne(company.id);
   }
 
+  save(company: Company) {
+    return this.companyRepository.save(company);
+  }
+
   remove(id: number) {
     return `This action removes a #${id} company`;
   }
