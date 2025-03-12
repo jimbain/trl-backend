@@ -268,7 +268,7 @@ export class UserService {
 
     const newUserDefaultPassword =
       appConfigs['new_user_default_password'] ?? '12345';
-    const requiredColumns = ['first_name', 'last_name', 'email', 'password'];
+    const requiredColumns = ['first_name', 'last_name', 'email'];
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
