@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
@@ -20,6 +21,7 @@ import { CsvService } from 'src/common/services/csv.service';
 import { chunk } from 'lodash';
 import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
 import { UserRegistrationLog } from './entities/user_registration_log.entity';
+import { Readable } from 'stream';
 
 @Injectable()
 export class UserService {
@@ -362,26 +364,32 @@ export class UserService {
     });
   }
 
-  async exportUsers(companyId: string) {
+  async exportUsers(companyId: string): Promise<StreamableFile> {
     const users = await this.userRepository.find({
       where: { company_id: companyId },
       select: ['first_name', 'last_name', 'email', 'is_active'],
     });
 
     if (users.length === 0) {
-      throw new Error('No users found for this company.');
+      throw new NotFoundException('No users found for this company.');
     }
 
-    let csvContent = 'First Name,Last Name,Email,Status\n';
-
-    csvContent += users
+    const header = 'First Name,Last Name,Email,Status\n';
+    const csvData = users
       .map(
         (user) =>
-          `"${user.first_name}","${user.last_name}","${user.email}","${user.is_active ? 'Active' : 'Inactive'}"`,
+          `${user.first_name},${user.last_name},${user.email},${user.is_active ? 'Active' : 'Inactive'}`,
       )
       .join('\n');
 
-    return csvContent;
+    const stream = new Readable();
+    stream.push(header + csvData);
+    stream.push(null); // End of stream
+
+    return new StreamableFile(stream, {
+      type: 'text/csv',
+      disposition: `attachment; filename="company_${companyId}_users.csv"`,
+    });
   }
 
   async createUserRegistrationLog(payload: CreateUserRegistrationLogDto) {

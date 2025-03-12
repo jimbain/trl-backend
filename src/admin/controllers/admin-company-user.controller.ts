@@ -77,12 +77,14 @@ export class AdminCompanyUserController {
   @Post(':id/export-user')
   @HttpCode(200)
   async exportUsers(@Param('id') id: string, @Res() res: Response) {
-    const csvContent = await this.userService.exportUsers(id);
-    const fileName = `company_${id}_users_${+new Date()}.csv`;
+    const fileStream = await this.userService.exportUsers(id);
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="company_${id}_users.csv"`,
+    );
 
-    res.send(csvContent);
+    fileStream.getStream().pipe(res);
   }
 }
