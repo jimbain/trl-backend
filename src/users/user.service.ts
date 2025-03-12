@@ -89,9 +89,12 @@ export class UserService {
     }
 
     if (query.name) {
-      qb.andWhere('(user.first_name = :name OR user.last_name = :name)', {
-        name: query.name,
-      });
+      qb.andWhere(
+        '(user.first_name ILIKE :name OR user.last_name ILIKE :name)',
+        {
+          name: `%${query.name}%`,
+        },
+      );
     }
 
     if (query.email) {
