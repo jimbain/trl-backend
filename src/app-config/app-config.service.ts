@@ -14,6 +14,7 @@ export class AppConfigService {
   async findAll() {
     const configurations = await this.appConfigRepository.find({
       select: ['key', 'value'],
+      order: { key: 'ASC' },
     });
 
     return configurations.reduce(
@@ -45,8 +46,10 @@ export class AppConfigService {
     }
 
     if (configsToUpdate.length > 0) {
-      return this.appConfigRepository.save(configsToUpdate);
+      await this.appConfigRepository.save(configsToUpdate);
     }
+
+    return this.findAll();
   }
 
   async getAppConfigs(keys: string[] = []): Promise<Record<string, any>> {
