@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
+  NotAcceptableException,
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
@@ -100,6 +102,17 @@ export class CategoryService {
   }
 
   async create(payload: CreateCategoryDto): Promise<CategoryDto> {
+    const catalog = await this.catalogService.findOne(payload.catalog_id);
+
+    if (
+      catalog.type === CATALOG_CATEGORY_TYPE.DEFAULT &&
+      payload.type !== CATALOG_CATEGORY_TYPE.DEFAULT
+    ) {
+      throw new BadRequestException(
+        'Only default category can be assigned into default catalog',
+      );
+    }
+
     const category = this.categoryRepository.create({
       name: payload.name,
       type: payload.type,
@@ -114,12 +127,53 @@ export class CategoryService {
     });
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-  ): Promise<CategoryDto> {
-    const category = await this.findById(id);
-    Object.assign(category, updateCategoryDto);
+  async update(id: string, payload: UpdateCategoryDto): Promise<CategoryDto> {
+    const [catalog, category] = await Promise.all([
+      this.catalogService.findOne(payload.catalog_id),
+      this.findById(id),
+    ]);
+
+    if (!catalog.categories.includes(id)) {
+      throw new BadRequestException(
+        'The catalog does not contain the category',
+      );
+    }
+
+    if (
+      catalog.type === CATALOG_CATEGORY_TYPE.DEFAULT &&
+      payload.type !== CATALOG_CATEGORY_TYPE.DEFAULT
+    ) {
+      throw new NotAcceptableException(
+        'Only default category can be assigned into default catalog',
+      );
+    }
+
+    if (
+      catalog.type === CATALOG_CATEGORY_TYPE.CUSTOM &&
+      payload.type === CATALOG_CATEGORY_TYPE.DEFAULT
+    ) {
+      throw new NotAcceptableException(
+        'Default category can not be updated for custom catalog. First need to make custom.',
+      );
+    }
+
+    if (
+      catalog.type === CATALOG_CATEGORY_TYPE.CUSTOM &&
+      category.type === CATALOG_CATEGORY_TYPE.DEFAULT &&
+      payload.type === CATALOG_CATEGORY_TYPE.CUSTOM
+    ) {
+      const newCategory = await this.create({
+        catalog_id: catalog.id,
+        name: payload.name,
+        type: payload.type,
+        is_active: payload.is_active,
+      });
+
+      await this.catalogService.removeCategory(catalog, id);
+      await this.addCategoryToMatchingAudios(id, newCategory.id);
+    }
+
+    Object.assign(category, payload);
     await this.categoryRepository.save(category);
 
     return plainToInstance(CategoryDto, category, {
@@ -182,5 +236,30 @@ export class CategoryService {
       },
       {} as Record<string, number>,
     );
+  }
+
+  async addCategoryToMatchingAudios(
+    existingCategory: string,
+    newCategory: string,
+  ) {
+    await this.audioRepository
+      .createQueryBuilder()
+      .update(Audio)
+      .set({
+        categories: () => `
+          (
+            SELECT jsonb_agg(DISTINCT elem)
+            FROM (
+              SELECT jsonb_array_elements(categories) AS elem
+              UNION ALL
+              SELECT '"${newCategory}"'::jsonb
+            ) AS combined
+          )
+        `,
+      })
+      .where(`categories @> :existingCategory`, {
+        existingCategory: JSON.stringify([existingCategory]),
+      })
+      .execute();
   }
 }

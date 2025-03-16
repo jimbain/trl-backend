@@ -155,6 +155,13 @@ export class CatalogService {
     return await this.catalogRepository.save(catalog);
   }
 
+  async removeCategory(catalog: Catalog, categoryId: string): Promise<Catalog> {
+    catalog.categories = catalog.categories.filter(
+      (category) => category !== categoryId,
+    );
+    return await this.catalogRepository.save(catalog);
+  }
+
   async getTotalTitleCount(catalog: Catalog): Promise<number> {
     if (catalog.media_type === 'audio') {
       return this.audioRepository.count({
