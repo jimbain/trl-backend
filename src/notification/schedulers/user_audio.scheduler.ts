@@ -21,9 +21,9 @@ export class UserAudioScheduler {
   ) {}
 
   // Everyday 01:05 am UTC time
-  @Cron('5 1 * * *', {
-    name: 'audio_rent_expiring_1',
-  })
+  // @Cron('5 1 * * *', {
+  //   name: 'audio_rent_expiring_1',
+  // })
   async handleAudioRentExpiringOne() {
     const appConfigs = await this.appConfigService.getAppConfigs([
       'notification_audio_rent_expiring_1',
@@ -77,9 +77,9 @@ export class UserAudioScheduler {
   }
 
   // Everyday 01:10 am UTC time
-  @Cron('10 1 * * *', {
-    name: 'audio_rent_expiring_2',
-  })
+  // @Cron('10 1 * * *', {
+  //   name: 'audio_rent_expiring_2',
+  // })
   async handleAudioRentExpiringTwo() {
     const appConfigs = await this.appConfigService.getAppConfigs([
       'notification_audio_rent_expiring_2',
@@ -133,9 +133,9 @@ export class UserAudioScheduler {
   }
 
   // Everyday 01:15 am UTC time
-  @Cron('15 1 * * *', {
-    name: 'audio_queue_noactivity',
-  })
+  // @Cron('15 1 * * *', {
+  //   name: 'audio_queue_noactivity',
+  // })
   async handleAudioQueueNoActivityInOneMonth() {
     const appConfigs = await this.appConfigService.getAppConfigs([
       'notification_audio_queue_noactivity',

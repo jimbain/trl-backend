@@ -47,9 +47,9 @@ export class AudioSeedService {
   }
 
   // UTC time 2am
-  @Cron('0 2 * * *', {
-    name: 'audio_sync',
-  })
+  // @Cron('0 2 * * *', {
+  //   name: 'audio_sync',
+  // })
   async seed() {
     let currentPage = 1;
     const pageSize = 1000;

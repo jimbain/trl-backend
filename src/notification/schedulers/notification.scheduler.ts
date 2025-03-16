@@ -25,9 +25,9 @@ export class NotificationScheduler {
   ) {}
 
   // Everyday 10:05 am UTC time
-  @Cron('5 10 * * *', {
-    name: 'notification_audio_rent_expiring_1',
-  })
+  // @Cron('5 10 * * *', {
+  //   name: 'notification_audio_rent_expiring_1',
+  // })
   async handleAudioRentExpiringNotificationOne() {
     const notifications = await this.notificationRepository.find({
       where: {
@@ -61,9 +61,9 @@ export class NotificationScheduler {
   }
 
   // Everyday 10:10 am UTC time
-  @Cron('10 10 * * *', {
-    name: 'notification_audio_rent_expiring_2',
-  })
+  // @Cron('10 10 * * *', {
+  //   name: 'notification_audio_rent_expiring_2',
+  // })
   async handleAudioRentExpiringNotificationTwo() {
     const notifications = await this.notificationRepository.find({
       where: {
@@ -97,9 +97,9 @@ export class NotificationScheduler {
   }
 
   // Everyday 10:15 am UTC time
-  @Cron('15 10 * * *', {
-    name: 'notification_audio_queue_noactivity',
-  })
+  // @Cron('15 10 * * *', {
+  //   name: 'notification_audio_queue_noactivity',
+  // })
   async handleAudioQueueNoactivityNotification() {
     const notifications = await this.notificationRepository.find({
       where: {
@@ -133,9 +133,9 @@ export class NotificationScheduler {
   }
 
   // Everyday 10:30 am UTC time
-  @Cron('30 10 * * *', {
-    name: 'notification_audio_newbooks',
-  })
+  // @Cron('30 10 * * *', {
+  //   name: 'notification_audio_newbooks',
+  // })
   async handleAudioNewBooksNotification() {
     const notifications = await this.notificationRepository.find({
       where: {
