@@ -113,6 +113,15 @@ export class CategoryService {
       );
     }
 
+    if (
+      catalog.type === CATALOG_CATEGORY_TYPE.CUSTOM &&
+      payload.type !== CATALOG_CATEGORY_TYPE.CUSTOM
+    ) {
+      throw new BadRequestException(
+        'Only custom category can be assigned into custom catalog',
+      );
+    }
+
     const category = this.categoryRepository.create({
       name: payload.name,
       type: payload.type,
@@ -120,7 +129,7 @@ export class CategoryService {
     });
 
     await this.categoryRepository.save(category);
-    await this.catalogService.assignCategory(payload.catalog_id, category);
+    await this.catalogService.assignCategory(catalog, category);
 
     return plainToInstance(CategoryDto, category, {
       excludeExtraneousValues: true,
@@ -169,8 +178,14 @@ export class CategoryService {
         is_active: payload.is_active,
       });
 
-      await this.catalogService.removeCategory(catalog, id);
+      const updatedCatalog = await this.catalogService.findOne(catalog.id);
+
+      await this.catalogService.removeCategory(updatedCatalog, id);
       await this.addCategoryToMatchingAudios(id, newCategory.id);
+
+      return plainToInstance(CategoryDto, newCategory, {
+        excludeExtraneousValues: true,
+      });
     }
 
     Object.assign(category, payload);

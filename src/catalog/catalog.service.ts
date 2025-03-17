@@ -147,19 +147,20 @@ export class CatalogService {
     return this.catalogRepository.remove(catalog);
   }
 
-  async assignCategory(id: number, category: Category): Promise<Catalog> {
-    const catalog = await this.findOne(id);
+  assignCategory(catalog: Catalog, category: Category): Promise<Catalog> {
     catalog.categories.push(category.id);
     catalog.categories = [...new Set(catalog.categories)];
 
-    return await this.catalogRepository.save(catalog);
+    return this.catalogRepository.save(catalog);
   }
 
-  async removeCategory(catalog: Catalog, categoryId: string): Promise<Catalog> {
+  removeCategory(catalog: Catalog, categoryId: string): Promise<Catalog> {
     catalog.categories = catalog.categories.filter(
       (category) => category !== categoryId,
     );
-    return await this.catalogRepository.save(catalog);
+    catalog.categories = [...new Set(catalog.categories)];
+
+    return this.catalogRepository.save(catalog);
   }
 
   async getTotalTitleCount(catalog: Catalog): Promise<number> {
