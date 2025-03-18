@@ -24,6 +24,7 @@ export class NotificationService {
       .where('notification.user_ids @> :userId', {
         userId: JSON.stringify([user.id]),
       })
+      .andWhere('notification.expire_at > NOW()')
       .orderBy('notification.created_at', 'DESC')
       .getMany();
 
@@ -31,7 +32,6 @@ export class NotificationService {
       const usersReadStatus = notification.users_read_status || {};
       let eventType = notification.event_type;
 
-      // Normalize event_type for expiring audio rentals
       if (
         ['audio_rent_expiring_1', 'audio_rent_expiring_2'].includes(eventType)
       ) {
@@ -61,10 +61,19 @@ export class NotificationService {
     return notification;
   }
 
-  async read(id: number, user: User) {
+  async handleEvent(id: number, eventType: 'read' | 'expire', user: User) {
     const notification = await this.findById(id);
 
-    notification.users_read_status[user.id] = new Date();
-    await this.notificationRepository.save(notification);
+    const updateFields: Partial<typeof notification> = {
+      ...(eventType === 'read' && {
+        users_read_status: {
+          ...notification.users_read_status,
+          [user.id]: new Date(),
+        },
+      }),
+      ...(eventType === 'expire' && { expire_at: new Date() }),
+    };
+
+    await this.notificationRepository.update(id, updateFields);
   }
 }

@@ -1,7 +1,9 @@
 import {
   Controller,
   Get,
+  HttpCode,
   Param,
+  ParseEnumPipe,
   Post,
   Query,
   Request,
@@ -20,8 +22,14 @@ export class NotificationController {
     return this.notificationService.findAll(payload, req.user);
   }
 
-  @Post(':id/read')
-  read(@Request() req, @Param('id') id: number) {
-    return this.notificationService.read(id, req.user);
+  @Post(':id/:eventType')
+  @HttpCode(200)
+  handleEvent(
+    @Request() req,
+    @Param('id') id: number,
+    @Param('eventType', new ParseEnumPipe(['read', 'expire']))
+    eventType: 'read' | 'expire',
+  ) {
+    return this.notificationService.handleEvent(id, eventType, req.user);
   }
 }

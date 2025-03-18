@@ -161,10 +161,16 @@ export class AudioService {
     const catalogs = await this.catalogService.findMany(company.catalogs);
     const audioCatalog =
       catalogs.find((catalog) => catalog.media_type === MEDIA.AUDIO) ?? null;
-    return audioCatalog.categories ?? [];
+
+    const categories = await this.categoryService.findEntitiesByIds(
+      audioCatalog.categories,
+    );
+
+    return categories.map((category) => category.id) ?? [];
   }
 
   async getFeaturedAudios(
+    categoryIds: string[],
     user: User,
     limit: number = 10,
     page: number = 1,
@@ -186,25 +192,22 @@ export class AudioService {
       };
     }
 
-    const [companyAudioCategoryIds, appConfigs, userAudios] = await Promise.all(
-      [
-        this.findAllAudioCategoryIdOfCompany(user.company.id),
-        this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
-        this.userAudioStatusRepository.find({
-          where: [
-            {
-              user_id: user.id,
-              rental_expire_at: IsNull(),
-            },
-            {
-              user_id: user.id,
-              rental_expire_at: MoreThanOrEqual(new Date()),
-            },
-          ],
-          select: ['audio_id'],
-        }),
-      ],
-    );
+    const [appConfigs, userAudios] = await Promise.all([
+      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+      this.userAudioStatusRepository.find({
+        where: [
+          {
+            user_id: user.id,
+            rental_expire_at: IsNull(),
+          },
+          {
+            user_id: user.id,
+            rental_expire_at: MoreThanOrEqual(new Date()),
+          },
+        ],
+        select: ['audio_id'],
+      }),
+    ]);
 
     const audioIds = userAudios.map(
       (userAudio: UserAudioStatus) => userAudio.audio_id,
@@ -215,7 +218,7 @@ export class AudioService {
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
-        { categoryIds: companyAudioCategoryIds },
+        { categoryIds: categoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
       .andWhere('audio.is_active = :isActive', { isActive: true });
@@ -266,6 +269,47 @@ export class AudioService {
         to,
       },
     };
+  }
+
+  async getPopularAudios(
+    categoryIds: string[],
+    user: User,
+  ): Promise<AudioListDto[]> {
+    if (!user.is_active) {
+      return [];
+    }
+
+    const audios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .where(
+        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        { categoryIds: categoryIds },
+      )
+      .andWhere('audio.total_played > 0')
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .select([
+        'audio.id',
+        'audio.display_title',
+        'audio.display_authors',
+        'audio.avg_rating',
+        'audio.total_rented',
+        'audio.purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost',
+        'audio.is_only_for_purchase',
+        'metadata.available_for',
+        'metadata.title',
+        'metadata.authors',
+        'metadata.cover_url',
+        'metadata.chapters',
+      ])
+      .orderBy('audio.total_played', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    return plainToInstance(AudioListDto, audios, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async findByIds(
@@ -468,7 +512,14 @@ export class AudioService {
   }
 
   async getHomeList(user: User) {
-    const featuredAudios = await this.getFeaturedAudios(user, 10, 1);
+    const categoryIds = await this.findAllAudioCategoryIdOfCompany(
+      user.company.id,
+    );
+
+    const [featuredAudios, popularAudios] = await Promise.all([
+      this.getFeaturedAudios(categoryIds, user, 10, 1),
+      this.getPopularAudios(categoryIds, user),
+    ]);
 
     return [
       {
@@ -498,7 +549,7 @@ export class AudioService {
       {
         label: 'Popular Audio Titles',
         slug: 'popular',
-        audios: [],
+        audios: popularAudios,
       },
     ];
   }
@@ -777,13 +828,17 @@ export class AudioService {
           updated_at: new Date(),
         });
 
-    this.userActivityLogService.create({
+    await this.userActivityLogService.create({
       user_id: user.id,
       item_type: 'audio',
       item_id: audioId,
       action_type: eventType,
       credit_used: 0,
     });
+
+    if (eventType === 'play' && audioId) {
+      await this.incrementTotalPlayedOfAudio(audioId);
+    }
 
     return await this.userAudioplayerPositionRepository.save(
       updatedUserAudioplayerPosition,
@@ -828,6 +883,17 @@ export class AudioService {
         `,
       })
       .where('id IN (:...ids)', { ids })
+      .execute();
+  }
+
+  async incrementTotalPlayedOfAudio(id: string) {
+    if (!id) return;
+
+    await this.audioRepository
+      .createQueryBuilder()
+      .update(Audio)
+      .set({ total_played: () => 'total_played + 1' }) // Increment total_played
+      .where('id = :id', { id })
       .execute();
   }
 }

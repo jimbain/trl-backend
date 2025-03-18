@@ -72,7 +72,10 @@ export class CategoryService {
     if (!ids || ids.length === 0) return [];
 
     return this.categoryRepository.find({
-      where: { id: In(ids) },
+      where: {
+        id: In(ids),
+        is_active: true,
+      },
     });
   }
 

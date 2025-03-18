@@ -75,7 +75,7 @@ export class Audio extends BaseEntity {
   @Column({ type: 'jsonb', nullable: false, default: [] })
   suggestions: string[]; // audios.id[]
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'bigint', default: 0 })
   total_played: number;
 
   @CreateDateColumn()

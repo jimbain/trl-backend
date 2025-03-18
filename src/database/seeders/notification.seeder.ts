@@ -27,7 +27,9 @@ export class NotificationSeeder {
       '###########################  NOTIFICATION SEEDING START  ###########################',
     );
 
-    await this.notificationRepository.clear();
+    await this.notificationRepository.query(
+      'TRUNCATE TABLE notifications RESTART IDENTITY',
+    );
 
     const now = new Date();
 
@@ -98,14 +100,15 @@ export class NotificationSeeder {
         }),
       );
 
-      randomAudio = this.getRandomAudio(activeAudios);
-
       notifications.push(
         this.notificationService.create({
           event_type: 'audio_queue_noactivity',
           data: {
-            audio_id: randomAudio.id,
+            title:
+              'There is something in your queue. Would you like to take a look?',
             last_played: this.getPastDate(now, 31),
+            image_url:
+              'https://trl-dev.tor1.digitaloceanspaces.com/static-images/notification_audio_queue_noactivity.jpeg',
           },
           user_ids: [userId],
           expire_at: this.getFutureDate(now, 1),
@@ -120,7 +123,9 @@ export class NotificationSeeder {
           data: {
             title: faker.commerce.productName(),
             description: faker.lorem.paragraph(),
-            redirect_book_id: randomAudio.id,
+            redirect_audio_id: randomAudio.id,
+            image_url:
+              'https://trl-dev.tor1.digitaloceanspaces.com/static-images/notification_audio_newbooks.jpeg',
           },
           user_ids: [userId],
           expire_at: this.getFutureDate(now, 1),
@@ -160,7 +165,7 @@ export class NotificationSeeder {
       audio_id: audio.id,
       title: audio.metadata?.title ?? audio.display_title,
       authors: audio.metadata?.authors ?? audio.display_authors,
-      image: audio.metadata?.cover_url ?? null,
+      image_url: audio.metadata?.cover_url ?? null,
       expire_at: this.getFutureDate(now, daysUntilExpire),
     };
   }

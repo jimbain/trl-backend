@@ -114,7 +114,7 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
           },
           {
             name: 'total_played',
-            type: 'int',
+            type: 'bigint',
             default: 0,
           },
           {

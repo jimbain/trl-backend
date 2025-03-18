@@ -86,11 +86,15 @@ export class AudioController {
   ) {
     const parsedPage = parseInt(page, 10) || 1;
     const parsedPerPage = parseInt(per_page, 10) || 10;
+    const categoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(
+      req.user.company.id,
+    );
 
     let data: any;
 
     if (type === 'featured') {
       return this.audioService.getFeaturedAudios(
+        categoryIds,
         req.user,
         parsedPerPage,
         parsedPage,
@@ -106,7 +110,7 @@ export class AudioController {
         'bookshelved',
       );
     } else if (type === 'popular' || type === 'new') {
-      data = [];
+      data = await this.audioService.getPopularAudios(categoryIds, req.user);
     }
 
     return { data };
