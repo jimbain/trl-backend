@@ -27,6 +27,8 @@ export class NotificationSeeder {
       '###########################  NOTIFICATION SEEDING START  ###########################',
     );
 
+    await this.notificationRepository.clear();
+
     const now = new Date();
 
     const users = await this.userRepository.find({
@@ -157,9 +159,9 @@ export class NotificationSeeder {
     return {
       audio_id: audio.id,
       title: audio.metadata?.title ?? audio.display_title,
-      author: audio.metadata?.authors ?? audio.display_authors,
+      authors: audio.metadata?.authors ?? audio.display_authors,
       image: audio.metadata?.cover_url ?? null,
-      expired_at: this.getFutureDate(now, daysUntilExpire),
+      expire_at: this.getFutureDate(now, daysUntilExpire),
     };
   }
 }
