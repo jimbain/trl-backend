@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDataSourceOptions } from './data_source';
@@ -18,6 +18,9 @@ import { AdminUser } from 'src/admin/entities/admin_user.entity';
 import { AdminUserSeeder } from './seeders/admin_user.seeder';
 import { CatalogSeeder } from './seeders/catalog.seeder';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { Notification } from 'src/notification/entities/notification.entity';
+import { NotificationSeeder } from './seeders/notification.seeder';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
   imports: [
@@ -36,8 +39,10 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
       Audio,
       AudioMetadata,
       AppConfig,
+      Notification,
     ]),
     AudioModule,
+    forwardRef(() => NotificationModule),
   ],
   providers: [
     AdminUserSeeder,
@@ -47,6 +52,7 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
     CompanySeeder,
     UserSeeder,
     AudioSeeder,
+    NotificationSeeder,
   ],
 })
 export class DatabaseModule {}

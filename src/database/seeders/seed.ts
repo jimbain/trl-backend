@@ -7,6 +7,7 @@ import { AudioSeeder } from 'src/database/seeders/audio.seeder';
 import { AppConfigSeeder } from 'src/database/seeders/app_config.seeder';
 import { AdminUserSeeder } from './admin_user.seeder';
 import { CatalogSeeder } from './catalog.seeder';
+import { NotificationSeeder } from './notification.seeder';
 
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -14,13 +15,14 @@ async function bootstrap() {
   console.info('Database seeding start!🤫');
 
   const seeders = [
-    app.get(AdminUserSeeder),
-    app.get(AppConfigSeeder),
-    app.get(CategorySeeder),
-    app.get(CatalogSeeder),
-    app.get(CompanySeeder),
-    app.get(UserSeeder),
-    app.get(AudioSeeder),
+    // app.get(AdminUserSeeder),
+    // app.get(AppConfigSeeder),
+    // app.get(CategorySeeder),
+    // app.get(CatalogSeeder),
+    // app.get(CompanySeeder),
+    // app.get(UserSeeder),
+    // app.get(AudioSeeder),
+    app.get(NotificationSeeder),
   ];
 
   // Execute seed method for each seeder

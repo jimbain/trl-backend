@@ -22,7 +22,7 @@ export class NotificationService {
     payload: any = {},
     user: User,
   ): Promise<{
-    data: Notification[];
+    data: any[];
     meta: PaginationMeta;
   }> {
     const page = parseInt(payload?.page, 10) || 1;
@@ -40,8 +40,27 @@ export class NotificationService {
     const from = total > 0 ? (page - 1) * limit + 1 : null;
     const to = Math.min(page * limit, total);
 
+    const formattedNotifications = notifications.map((notification) => {
+      const usersReadStatus = notification.users_read_status || {};
+      let eventType = notification.event_type;
+
+      // Normalize event_type for expiring audio rentals
+      if (
+        ['audio_rent_expiring_1', 'audio_rent_expiring_2'].includes(eventType)
+      ) {
+        eventType = 'audio_rent_expiring';
+      }
+
+      return {
+        id: notification.id,
+        event_type: eventType,
+        data: notification.data,
+        read_at: usersReadStatus[user.id] ?? null,
+      };
+    });
+
     return {
-      data: notifications,
+      data: formattedNotifications,
       meta: {
         current_page: page,
         per_page: limit,
@@ -65,10 +84,10 @@ export class NotificationService {
     return notification;
   }
 
-  async read(id: number, user: User): Promise<Notification | undefined> {
+  async read(id: number, user: User) {
     const notification = await this.findById(id);
 
     notification.users_read_status[user.id] = new Date();
-    return this.notificationRepository.save(notification);
+    await this.notificationRepository.save(notification);
   }
 }

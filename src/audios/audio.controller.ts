@@ -136,13 +136,19 @@ export class AudioController {
     return this.audioService.findAudioPlaylist(id, req.user);
   }
 
-  @Post('audios/:id/trigger-event')
+  @Post('audios/:id/trigger-event/:eventType?')
   triggerAudioPlayerEvent(
     @Request() req,
-    @Param('id') id: string,
     @Body() payload: TriggerAudioPlayerEventDto,
+    @Param('id') id: string,
+    @Param('eventType') eventType?: 'play' | 'pause',
   ) {
-    return this.audioService.triggerAudioPlayerEvent(id, payload, req.user);
+    return this.audioService.triggerAudioPlayerEvent(
+      id,
+      eventType,
+      payload,
+      req.user,
+    );
   }
 
   @Get('seed-audios')

@@ -35,6 +35,7 @@ export const USER_ACTIVITY = {
   RENT: 'rent',
   KEEP: 'keep',
   PLAY: 'play',
+  PAUSE: 'pause',
 } as const;
 export type UserActivity = (typeof USER_ACTIVITY)[keyof typeof USER_ACTIVITY];
 

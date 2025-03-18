@@ -34,5 +34,6 @@ import { AppConfigModule } from 'src/app-config/app-config.module';
     FirebaseService,
   ],
   controllers: [NotificationController],
+  exports: [NotificationService],
 })
 export class NotificationModule {}
