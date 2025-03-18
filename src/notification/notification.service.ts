@@ -18,27 +18,14 @@ export class NotificationService {
     return await this.notificationRepository.save(notification);
   }
 
-  async findAll(
-    payload: any = {},
-    user: User,
-  ): Promise<{
-    data: any[];
-    meta: PaginationMeta;
-  }> {
-    const page = parseInt(payload?.page, 10) || 1;
-    const limit = parseInt(payload?.per_page, 10) || 10;
-
-    const [notifications, total] = await this.notificationRepository
+  async findAll(payload: any = {}, user: User) {
+    const notifications = await this.notificationRepository
       .createQueryBuilder('notification')
       .where('notification.user_ids @> :userId', {
         userId: JSON.stringify([user.id]),
       })
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    const from = total > 0 ? (page - 1) * limit + 1 : null;
-    const to = Math.min(page * limit, total);
+      .orderBy('notification.created_at', 'DESC')
+      .getMany();
 
     const formattedNotifications = notifications.map((notification) => {
       const usersReadStatus = notification.users_read_status || {};
@@ -59,17 +46,7 @@ export class NotificationService {
       };
     });
 
-    return {
-      data: formattedNotifications,
-      meta: {
-        current_page: page,
-        per_page: limit,
-        total,
-        last_page: Math.ceil(total / limit),
-        from,
-        to,
-      },
-    };
+    return formattedNotifications;
   }
 
   async findById(id: number): Promise<Notification | undefined> {

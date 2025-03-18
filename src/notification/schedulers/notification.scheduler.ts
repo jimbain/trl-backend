@@ -148,12 +148,14 @@ export class NotificationScheduler {
     }
 
     notifications.forEach(async (notification: Notification) => {
+      const body = {
+        title: notification.data?.title ?? null,
+        body: notification.data?.description ?? null,
+        image: null,
+      };
+
       for (const userId of notification.user_ids) {
-        await this.sendFirebaseNotification(
-          notification,
-          userId,
-          notification.data,
-        );
+        await this.sendFirebaseNotification(notification, userId, body);
       }
     });
   }
