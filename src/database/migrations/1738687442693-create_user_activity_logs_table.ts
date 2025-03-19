@@ -39,7 +39,7 @@ export class CreateUserActivityLogsTable1738687442693
           {
             name: 'action_type',
             type: 'enum',
-            enum: ['queue', 'rent', 'keep', 'play'],
+            enum: ['queue', 'rent', 'keep', 'play', 'pause'],
             isNullable: false,
           },
           {
