@@ -1,8 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -14,11 +16,13 @@ import { Company } from '../entities/company.entity';
 
 export class CreateCompanyDto {
   @IsString()
+  @IsNotEmpty()
   @IsUnique(Company, 'name')
   @MaxLength(255)
   name: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   @IsUnique(Company, 'domain')
   domain?: string;
@@ -35,6 +39,9 @@ export class CreateCompanyDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1, {
+    message: 'available_medias must contain at least one item',
+  })
   @Transform(
     ({ value }) => {
       try {
