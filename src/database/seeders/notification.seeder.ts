@@ -109,6 +109,8 @@ export class NotificationSeeder {
             last_played: this.getPastDate(now, 31),
             image_url:
               'https://trl-dev.tor1.digitaloceanspaces.com/static-images/notification_audio_queue_noactivity.jpeg',
+            label: 'Queued Titles',
+            slug: 'queued',
           },
           user_ids: [userId],
           expire_at: this.getFutureDate(now, 1),
