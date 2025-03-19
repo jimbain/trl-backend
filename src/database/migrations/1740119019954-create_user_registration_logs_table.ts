@@ -8,10 +8,21 @@ import {
 export class CreateUserRegistrationLogsTable1740119019954
   implements MigrationInterface
 {
+  private tableName = 'user_registration_logs';
+
+  private foreignKeys = [
+    {
+      columnName: 'company_id',
+      referencedTable: 'companies',
+      referencedColumnName: 'id',
+      onDelete: 'SET NULL',
+    },
+  ];
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'user_registration_logs',
+        name: this.tableName,
         columns: [
           {
             name: 'id',
@@ -46,27 +57,33 @@ export class CreateUserRegistrationLogsTable1740119019954
       }),
     );
 
-    await queryRunner.createForeignKey(
-      'user_registration_logs',
-      new TableForeignKey({
-        columnNames: ['company_id'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'companies',
-        onDelete: 'SET NULL',
-      }),
-    );
+    for (const fk of this.foreignKeys) {
+      await queryRunner.createForeignKey(
+        this.tableName,
+        new TableForeignKey({
+          columnNames: [fk.columnName],
+          referencedColumnNames: [fk.referencedColumnName],
+          referencedTableName: fk.referencedTable,
+          onDelete: fk.onDelete,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const table = await queryRunner.getTable('user_registration_logs');
-    const foreignKey = table.foreignKeys.find(
-      (fk) => fk.columnNames.indexOf('company_id') !== -1,
-    );
+    const table = await queryRunner.getTable(this.tableName);
 
-    if (foreignKey) {
-      await queryRunner.dropForeignKey('users', foreignKey);
+    if (!table) return;
+
+    for (const fk of this.foreignKeys) {
+      const foreignKey = table.foreignKeys.find((fkObj) =>
+        fkObj.columnNames.includes(fk.columnName),
+      );
+      if (foreignKey) {
+        await queryRunner.dropForeignKey(this.tableName, foreignKey);
+      }
     }
 
-    await queryRunner.dropTable('user_registration_logs');
+    await queryRunner.dropTable(this.tableName);
   }
 }
