@@ -282,6 +282,13 @@ export class AudioService {
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categoryIds },
@@ -302,10 +309,13 @@ export class AudioService {
         'metadata.authors',
         'metadata.cover_url',
         'metadata.chapters',
+        'userAudioStatus.status',
+        'userAudioStatus.updated_at',
+        'userAudioStatus.rental_expire_at',
       ])
       .orderBy('audio.total_played', 'DESC')
       .limit(10)
-      .getRawMany();
+      .getMany();
 
     return plainToInstance(AudioListDto, audios, {
       excludeExtraneousValues: true,

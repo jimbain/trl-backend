@@ -8,10 +8,30 @@ import {
 export class CreateUserActivityLogsTable1738687442693
   implements MigrationInterface
 {
+  private tableName = 'user_activity_logs';
+  private itemTypeEnum = "'audio', 'video', 'pharma'";
+  private actionTypeEnum = "'queue', 'rent', 'keep', 'play', 'pause'";
+
+  private foreignKeys = [
+    {
+      columnName: 'user_id',
+      referencedTable: 'users',
+      referencedColumnName: 'id',
+      onDelete: 'CASCADE',
+    },
+  ];
+
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TYPE item_type_enum AS ENUM (${this.itemTypeEnum})`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE action_type_enum AS ENUM (${this.actionTypeEnum})`,
+    );
+
     await queryRunner.createTable(
       new Table({
-        name: 'user_activity_logs',
+        name: this.tableName,
         columns: [
           {
             name: 'id',
@@ -33,13 +53,13 @@ export class CreateUserActivityLogsTable1738687442693
           {
             name: 'item_type',
             type: 'enum',
-            enum: ['audio', 'video', 'pharma'],
+            enumName: 'item_type_enum',
             default: "'audio'",
           },
           {
             name: 'action_type',
             type: 'enum',
-            enum: ['queue', 'rent', 'keep', 'play', 'pause'],
+            enumName: 'action_type_enum',
             isNullable: false,
           },
           {
@@ -64,27 +84,35 @@ export class CreateUserActivityLogsTable1738687442693
       }),
     );
 
-    // Create foreign key relationship with the users table
-    await queryRunner.createForeignKey(
-      'user_activity_logs',
-      new TableForeignKey({
-        columnNames: ['user_id'],
-        referencedTableName: 'users',
-        referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
-      }),
-    );
+    for (const fk of this.foreignKeys) {
+      await queryRunner.createForeignKey(
+        this.tableName,
+        new TableForeignKey({
+          columnNames: [fk.columnName],
+          referencedColumnNames: [fk.referencedColumnName],
+          referencedTableName: fk.referencedTable,
+          onDelete: fk.onDelete,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const table = await queryRunner.getTable('user_activity_logs');
-    const foreignKey = table.foreignKeys.find(
-      (fk) => fk.columnNames.indexOf('user_id') !== -1,
-    );
-    if (foreignKey) {
-      await queryRunner.dropForeignKey('user_activity_logs', foreignKey);
+    const table = await queryRunner.getTable(this.tableName);
+
+    if (!table) return;
+
+    for (const fk of this.foreignKeys) {
+      const foreignKey = table.foreignKeys.find((fkObj) =>
+        fkObj.columnNames.includes(fk.columnName),
+      );
+      if (foreignKey) {
+        await queryRunner.dropForeignKey(this.tableName, foreignKey);
+      }
     }
 
-    await queryRunner.dropTable('user_activity_logs');
+    await queryRunner.dropTable(this.tableName);
+    await queryRunner.query('DROP TYPE IF EXISTS item_type_enum');
+    await queryRunner.query('DROP TYPE IF EXISTS action_type_enum');
   }
 }
