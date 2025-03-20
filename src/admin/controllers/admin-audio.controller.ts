@@ -28,6 +28,7 @@ export class AdminAudioController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() payload: AdminUpdateAudioDto) {
+    return payload;
     return this.adminAudioService.update(id, payload);
   }
 }

@@ -1,15 +1,17 @@
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
 export class CreateCompaniesTable1738604540696 implements MigrationInterface {
+  private tableName = 'companies';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'companies',
+        name: this.tableName,
         columns: [
           {
             name: 'id',
             type: 'varchar',
-            length: '35', // e.g., company_id_ulid
+            length: '35', // e.g., company_ulid
             isPrimary: true,
           },
           {
@@ -127,6 +129,6 @@ export class CreateCompaniesTable1738604540696 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('companies');
+    await queryRunner.dropTable(this.tableName);
   }
 }

@@ -29,6 +29,7 @@ export class CreateCompanyDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   description?: string;
 
   @IsEnum(COMPANY_LOGIN_TYPE)
@@ -40,7 +41,7 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1, {
-    message: 'available_medias must contain at least one item',
+    message: 'Available medias must contain at least one item',
   })
   @Transform(
     ({ value }) => {
@@ -74,30 +75,37 @@ export class CreateCompanyDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   address1?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   address2?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   city?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   country?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   state?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   zip?: string;
 
   @IsBoolean()

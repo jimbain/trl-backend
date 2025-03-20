@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -9,23 +10,34 @@ import {
 export class AdminUpdateAudioDto {
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   display_title?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   display_description?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   display_short_description?: string;
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (!Array.isArray(value)) return value;
+    const transformedArray = value
+      .map((v) => (v === '' ? null : v))
+      .filter((v) => v !== null);
+    return transformedArray.length > 0 ? transformedArray : null;
+  })
   display_authors?: string[];
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
   display_copyright?: string;
 
   @IsOptional()
