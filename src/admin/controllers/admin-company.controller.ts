@@ -28,7 +28,13 @@ export class AdminCompanyController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: {
+        fileSize: 300 * 1024, // 300KB limit
+      },
+    }),
+  )
   store(@UploadedFile() logo, @Body() payload: CreateCompanyDto) {
     return this.companyService.create(payload, logo);
   }
