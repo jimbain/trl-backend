@@ -29,7 +29,7 @@ export class AdminCompanyController {
 
   @Post()
   @UseInterceptors(
-    FileInterceptor('image', {
+    FileInterceptor('logo', {
       limits: {
         fileSize: 300 * 1024, // 300KB limit
       },
@@ -45,7 +45,13 @@ export class AdminCompanyController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      limits: {
+        fileSize: 300 * 1024, // 300KB limit
+      },
+    }),
+  )
   async update(
     @Param('id') id: string,
     @UploadedFile() logo: Express.Multer.File,

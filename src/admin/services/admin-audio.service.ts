@@ -31,7 +31,7 @@ export class AdminAudioService {
 
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoin('audio.metadata', 'metadata')
+      .innerJoin('audio.metadata', 'metadata')
       .select([
         'audio.id',
         'audio.display_title',
