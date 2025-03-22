@@ -15,6 +15,8 @@ export class AdminAudioService {
   constructor(private readonly appConfigService: AppConfigService) {}
 
   async findAll(query: any = {}): Promise<AdminAudioListDto[]> {
+    const page: number = query?.page ?? 1;
+    const perPage: number = query?.per_page ?? 20;
     const isIncludedInCategory: boolean =
       query?.is_included_in_category === 'false' ? false : true;
     const categoryId: string = query?.category_id ?? null;
@@ -74,7 +76,10 @@ export class AdminAudioService {
       }
     }
 
-    const audios = await queryBuilder.getMany();
+    const audios = await queryBuilder
+      .skip((page - 1) * perPage)
+      .take(perPage)
+      .getMany();
 
     return audios.map((audio) =>
       plainToInstance(
