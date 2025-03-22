@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AdminAudioDto, AdminAudioListDto } from '../dto/audio/admin-audio.dto';
-import { PaginationMeta } from 'src/common/interfaces';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { plainToInstance } from 'class-transformer';
 import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
@@ -15,12 +14,7 @@ export class AdminAudioService {
 
   constructor(private readonly appConfigService: AppConfigService) {}
 
-  async findAll(query: any = {}): Promise<{
-    data: AdminAudioListDto[];
-    meta: PaginationMeta;
-  }> {
-    const page: number = query?.page ?? 1;
-    const perPage: number = query?.per_page ?? 20;
+  async findAll(query: any = {}): Promise<AdminAudioListDto[]> {
     const isIncludedInCategory: boolean =
       query?.is_included_in_category === 'false' ? false : true;
     const categoryId: string = query?.category_id ?? null;
@@ -80,33 +74,15 @@ export class AdminAudioService {
       }
     }
 
-    const [audios, total] = await queryBuilder
-      .skip((page - 1) * perPage)
-      .take(perPage)
-      .getManyAndCount();
+    const audios = await queryBuilder.getMany();
 
-    const from = total > 0 ? (page - 1) * perPage + 1 : null;
-    const to = Math.min(page * perPage, total);
-
-    const data = audios.map((audio) =>
+    return audios.map((audio) =>
       plainToInstance(
         AdminAudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
       ),
     );
-
-    return {
-      data: data,
-      meta: {
-        current_page: page,
-        per_page: perPage,
-        total,
-        last_page: Math.ceil(total / perPage),
-        from,
-        to,
-      },
-    };
   }
 
   async findOne(id: string) {
