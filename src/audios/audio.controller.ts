@@ -77,48 +77,44 @@ export class AudioController {
     );
   }
 
-  @Get('audios/:type')
-  async list(
-    @Param('type') type: 'featured' | 'queued' | 'bookself' | 'popular' | 'new',
+  @Get('audios/:param')
+  async findAudioByTypeOrId(
+    @Param('param') param: string,
     @Request() req,
     @Query('page') page: string = '1',
     @Query('per_page') per_page: string = '10',
   ) {
+    const validTypes = ['featured', 'queued', 'bookself', 'popular', 'new'];
+
+    if (!validTypes.includes(param)) {
+      return this.audioService.findAudioById(param, req.user);
+    }
+
     const parsedPage = parseInt(page, 10) || 1;
     const parsedPerPage = parseInt(per_page, 10) || 10;
     const categoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(
       req.user.company.id,
     );
 
-    let data: any;
-
-    if (type === 'featured') {
+    if (param === 'featured') {
       return this.audioService.getFeaturedAudios(
         categoryIds,
         req.user,
         parsedPerPage,
         parsedPage,
       );
-    } else if (type === 'queued') {
-      data = await this.audioService.getAudiosOfUserBasedOnStatus(
-        req.user,
-        'queued',
-      );
-    } else if (type === 'bookself') {
-      data = await this.audioService.getAudiosOfUserBasedOnStatus(
-        req.user,
-        'bookshelved',
-      );
-    } else if (type === 'popular' || type === 'new') {
-      data = await this.audioService.getPopularAudios(categoryIds, req.user);
+    } else if (param === 'queued' || param === 'bookself') {
+      return {
+        data: await this.audioService.getAudiosOfUserBasedOnStatus(
+          req.user,
+          param === 'queued' ? 'queued' : 'bookshelved',
+        ),
+      };
+    } else if (param === 'popular' || param === 'new') {
+      return {
+        data: await this.audioService.getPopularAudios(categoryIds, req.user),
+      };
     }
-
-    return { data };
-  }
-
-  @Get('audios/:id')
-  findOne(@Request() req, @Param('id') id: string) {
-    return this.audioService.findAudioById(id, req.user);
   }
 
   @Get('audios/:id/reviews')
