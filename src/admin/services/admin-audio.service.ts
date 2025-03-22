@@ -14,12 +14,15 @@ export class AdminAudioService {
 
   constructor(private readonly appConfigService: AppConfigService) {}
 
-  async findAll(query: any = {}): Promise<AdminAudioListDto[]> {
+  async findAll(query: any = {}): Promise<any[]> {
     const page: number = query?.page ?? 1;
     const perPage: number = query?.per_page ?? 20;
     const isIncludedInCategory: boolean =
       query?.is_included_in_category === 'false' ? false : true;
     const categoryId: string = query?.category_id ?? null;
+    const sortOrder = ['asc', 'desc'].includes(query?.sort_by?.toLowerCase())
+      ? query.sort_by.toUpperCase()
+      : 'ASC';
 
     const appConfigs = await this.appConfigService.getAppConfigs([
       'audio_rental_credit_cost',
@@ -29,18 +32,18 @@ export class AdminAudioService {
       .createQueryBuilder('audio')
       .innerJoin('audio.metadata', 'metadata')
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.sku',
-        'audio.display_copyright',
-        'audio.bookshelf_credit_cost',
-        'audio.created_at',
-        'metadata.available_for',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.copyright',
+        'audio.id AS id',
+        'audio.display_title AS display_title',
+        'audio.display_authors AS display_authors',
+        'audio.sku AS sku',
+        'audio.display_copyright AS display_copyright',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.created_at AS created_at',
+        'metadata.available_for AS available_for',
+        'metadata.title AS title',
+        'metadata.authors AS authors',
+        'metadata.cover_url AS cover_url',
+        'metadata.copyright AS copyright',
       ]);
 
     if (query.status === 'active') {
@@ -51,35 +54,31 @@ export class AdminAudioService {
 
     if (query.title) {
       queryBuilder.andWhere(
-        '(LOWER(metadata.title) LIKE LOWER(:title) OR LOWER(audio.display_title) LIKE LOWER(:title))',
+        '(metadata.title ILIKE :title OR audio.display_title ILIKE :title)',
         { title: `%${query.title}%` },
       );
     }
 
     if (categoryId) {
-      if (isIncludedInCategory) {
-        queryBuilder.andWhere(
-          `EXISTS (
-            SELECT 1 FROM jsonb_array_elements(audio.categories) AS elem
-            WHERE elem::text = :categoryId
-          )`,
-          { categoryId: `"${categoryId}"` },
-        );
-      } else {
-        queryBuilder.andWhere(
-          `NOT EXISTS (
-            SELECT 1 FROM jsonb_array_elements(audio.categories) AS elem
-            WHERE elem::text = :categoryId
-          )`,
-          { categoryId: `"${categoryId}"` },
-        );
-      }
+      queryBuilder.andWhere(
+        isIncludedInCategory
+          ? 'audio.categories @> :categoryId'
+          : 'NOT audio.categories @> :categoryId',
+        { categoryId: JSON.stringify([categoryId]) },
+      );
     }
 
+    queryBuilder
+      .addSelect(
+        'COALESCE(audio.display_title, metadata.title)',
+        'computed_title',
+      )
+      .orderBy('computed_title', sortOrder as 'ASC' | 'DESC');
+
     const audios = await queryBuilder
-      .skip((page - 1) * perPage)
-      .take(perPage)
-      .getMany();
+      .limit(perPage)
+      .offset((page - 1) * perPage)
+      .getRawMany();
 
     return audios.map((audio) =>
       plainToInstance(

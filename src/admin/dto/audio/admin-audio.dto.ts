@@ -5,33 +5,25 @@ export class AdminAudioListDto {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.display_title ?? obj?.metadata?.title ?? null;
-  })
+  @Transform(({ obj }) => obj?.display_title ?? obj?.title)
   title: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.display_authors ?? obj?.metadata?.authors ?? null;
-  })
+  @Transform(({ obj }) =>
+    obj?.display_authors?.length ? obj?.display_authors : obj?.authors,
+  )
   authors?: string[];
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.display_copyright ?? obj?.metadata?.copyright ?? null;
-  })
+  @Transform(({ obj }) => obj?.display_copyright ?? obj?.copyright)
   copyright?: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.metadata?.cover_url ?? null;
-  })
+  @Transform(({ obj }) => obj?.cover_url ?? null)
   image_url?: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.metadata?.available_for ?? null;
-  })
+  @Transform(({ obj }) => obj?.available_for ?? null)
   available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
