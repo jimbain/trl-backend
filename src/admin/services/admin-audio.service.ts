@@ -68,12 +68,12 @@ export class AdminAudioService {
       );
     }
 
-    queryBuilder
-      .addSelect(
-        'COALESCE(audio.display_title, metadata.title)',
-        'computed_title',
-      )
-      .orderBy('computed_title', sortOrder as 'ASC' | 'DESC');
+    // queryBuilder
+    //   .addSelect(
+    //     'COALESCE(audio.display_title, metadata.title)',
+    //     'computed_title',
+    //   )
+    //   .orderBy('computed_title', sortOrder as 'ASC' | 'DESC');
 
     const audios = await queryBuilder
       .limit(perPage)

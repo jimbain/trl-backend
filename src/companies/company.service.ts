@@ -42,6 +42,11 @@ export class CompanyService {
   }> {
     const parsedPage = parseInt(query.page, 10) || 1;
     const parsedPerPage = parseInt(query.per_page, 10) || 10;
+    const sortOrder = ['asc', 'desc'].includes(query.sort_order?.toLowerCase())
+      ? query.sort_order.toUpperCase()
+      : 'ASC';
+
+    const sortColumn = query.sort_column ? query.sort_column : 'created_at';
 
     const qb = this.companyRepository
       .createQueryBuilder('company')
@@ -61,7 +66,7 @@ export class CompanyService {
           });
         },
       )
-      .orderBy('company.created_at', 'DESC');
+      .orderBy(`company.${sortColumn}`, sortOrder as 'ASC' | 'DESC');
 
     if (query.name) {
       qb.andWhere('LOWER(company.name) LIKE LOWER(:name)', {
