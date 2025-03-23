@@ -104,5 +104,5 @@ export class CompanyDto {
 
   @Expose()
   @Transform(({ obj }) => obj?.userCount ?? 0)
-  user_count?: number;
+  active_user_count?: number;
 }
