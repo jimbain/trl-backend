@@ -23,13 +23,13 @@ export async function paginate<T, DTO>(
     total = await rawQueryBuilder.getCount(); // Ensure total count fetches properly
 
     items = await queryBuilder
-      .offset((page - 1) * limit)
-      .limit(limit)
+      .skip((page - 1) * limit)
+      .take(limit)
       .getRawMany();
   } else {
     [items, total] = await queryBuilder
-      .offset((page - 1) * limit)
-      .limit(limit)
+      .skip((page - 1) * limit)
+      .take(limit)
       .getManyAndCount();
   }
 
