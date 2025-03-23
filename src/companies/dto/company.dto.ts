@@ -2,6 +2,7 @@ import { Expose, Transform } from 'class-transformer';
 import { CompanyContact } from '../company.interface';
 import { CatalogDto } from 'src/catalog/dto/catalog.dto';
 import { config } from 'dotenv';
+import { Media } from 'src/constants';
 
 config();
 
@@ -31,22 +32,16 @@ export class CompanyListDto {
   login_type: string;
 
   @Expose()
-  available_medias: string;
+  available_medias: Media[];
 
   @Expose()
   available_credits: number;
 
   @Expose()
-  @Transform(({ obj }) => obj?.userCount ?? 0)
-  user_count?: number;
+  active_user_count: number;
 
   @Expose()
-  @Transform(({ obj }) => {
-    if (!obj?.created_at) return null;
-    const date = new Date(obj.created_at);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-  })
-  joined_on: string;
+  created_at: string;
 }
 
 export class CompanyDto {

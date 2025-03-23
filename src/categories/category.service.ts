@@ -80,16 +80,23 @@ export class CategoryService {
   }
 
   async findMany(ids: string[] = [], query: any = {}) {
+    const sortOrder = ['asc', 'desc'].includes(query.sort_order?.toLowerCase())
+      ? query.sort_order.toUpperCase()
+      : 'ASC';
+
+    const sortColumn = query.sort_column ? query.sort_column : 'created_at';
+
     const qb = this.categoryRepository.createQueryBuilder('category');
+
     qb.where('category.id IN (:...ids)', { ids });
 
     if (query.type) {
       qb.where('category.type = (:type)', { type: query.type });
     }
 
-    if (query.category_name) {
-      qb.andWhere('LOWER(category.name) LIKE LOWER(:name)', {
-        name: `%${query.category_name}%`,
+    if (query.name) {
+      qb.andWhere('category.name ILIKE :name', {
+        name: `%${query.name}%`,
       });
     }
 
@@ -99,7 +106,7 @@ export class CategoryService {
       qb.andWhere('category.is_active = :status', { status: false });
     }
 
-    qb.orderBy('category.created_at', 'DESC');
+    qb.orderBy(`category.${sortColumn}`, sortOrder);
 
     return paginate(qb, query.page, query.per_page, CategoryDto);
   }

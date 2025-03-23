@@ -15,10 +15,10 @@ import { CompanyDto, CompanyListDto } from './dto/company.dto';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CompanyCreditLog } from './entities/company_credit_log.entity';
 import { CompanySearchInterface } from 'src/admin/admin.interface';
-import { PaginationMeta } from 'src/common/interfaces';
 import { FileManagerService } from 'src/common/services/file-manager.service';
 import { CreateCompanyCreditLogDto } from './dto/create-company-credit-log.dto';
 import { CompanyCreditLogDto } from './dto/company-credit-log.dto';
+import { paginate } from 'src/common/helpers/pagination.helper';
 
 @Injectable()
 export class CompanyService {
@@ -36,12 +36,7 @@ export class CompanyService {
     private readonly fileManagerService: FileManagerService,
   ) {}
 
-  async findAll(query: CompanySearchInterface): Promise<{
-    data: CompanyListDto[];
-    meta: PaginationMeta;
-  }> {
-    const parsedPage = parseInt(query.page, 10) || 1;
-    const parsedPerPage = parseInt(query.per_page, 10) || 10;
+  async findAll(query: CompanySearchInterface) {
     const sortOrder = ['asc', 'desc'].includes(query.sort_order?.toLowerCase())
       ? query.sort_order.toUpperCase()
       : 'ASC';
@@ -50,26 +45,29 @@ export class CompanyService {
 
     const qb = this.companyRepository
       .createQueryBuilder('company')
-      .leftJoinAndSelect(
-        'company.users',
-        'user',
-        'user.is_active = :userActive',
-        { userActive: true },
-      )
-      .loadRelationCountAndMap(
-        'company.userCount',
-        'company.users',
-        'filteredUsers',
-        (subQuery) => {
-          return subQuery.andWhere('filteredUsers.is_active = :userActive', {
-            userActive: true,
-          });
-        },
-      )
-      .orderBy(`company.${sortColumn}`, sortOrder as 'ASC' | 'DESC');
+      .leftJoinAndSelect('company.users', 'user')
+      .select([
+        'company.id AS id',
+        'company.name AS name',
+        'company.logo_url AS logo_url',
+        'company.available_medias AS available_medias',
+        'company.available_credits AS available_credits',
+        'company.available_credits AS available_credits',
+        'company.is_active AS is_active',
+        "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
+        'COUNT(user.id) AS active_user_count',
+      ])
+      .andWhere('user.is_active = :userActive', { userActive: true })
+      .groupBy('company.id')
+      .orderBy(
+        sortColumn === 'active_user_count'
+          ? 'active_user_count'
+          : `company.${sortColumn}`,
+        sortOrder as 'ASC' | 'DESC',
+      );
 
     if (query.name) {
-      qb.andWhere('LOWER(company.name) LIKE LOWER(:name)', {
+      qb.andWhere('company.name ILIKE :name', {
         name: `%${query.name}%`,
       });
     }
@@ -80,27 +78,7 @@ export class CompanyService {
       qb.andWhere('company.is_active = :status', { status: false });
     }
 
-    const [companies, total] = await qb
-      .skip((parsedPage - 1) * parsedPerPage)
-      .take(parsedPerPage)
-      .getManyAndCount();
-
-    const from = total > 0 ? (parsedPage - 1) * parsedPerPage + 1 : null;
-    const to = Math.min(parsedPage * parsedPerPage, total);
-
-    return {
-      data: plainToInstance(CompanyListDto, companies, {
-        excludeExtraneousValues: true,
-      }),
-      meta: {
-        current_page: parsedPage,
-        per_page: parsedPerPage,
-        total,
-        last_page: Math.ceil(total / parsedPerPage),
-        from,
-        to,
-      },
-    };
+    return paginate(qb, query.page, query.per_page, CompanyListDto);
   }
 
   async create(
