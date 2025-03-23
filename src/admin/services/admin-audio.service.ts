@@ -112,9 +112,5 @@ export class AdminAudioService {
     Object.assign(audio, payload);
 
     await this.audioRepository.save(audio);
-
-    return plainToInstance(AdminAudioDto, audio, {
-      excludeExtraneousValues: true,
-    });
   }
 }
