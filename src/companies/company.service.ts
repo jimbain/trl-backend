@@ -196,6 +196,9 @@ export class CompanyService {
     await this.validateBeforeUpdate(id, updateCompanyDto);
     const company = await this.findById(id);
 
+    const newAvailableCredit =
+      updateCompanyDto.available_credits + company.available_credits;
+
     Object.assign(company, updateCompanyDto);
 
     if (logo) {
@@ -206,8 +209,7 @@ export class CompanyService {
       company.logo_url = logoPath;
     }
 
-    company.available_credits =
-      updateCompanyDto.available_credits + company.available_credits;
+    company.available_credits = newAvailableCredit;
 
     await Promise.all([
       this.companyRepository.save(company),
