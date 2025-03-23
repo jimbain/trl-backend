@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { COMPANY_LOGIN_TYPE, CompanyLoginEnumType, Media } from 'src/constants';
 import { IsUnique } from 'src/validation/validators/is-unique.validator';
@@ -56,6 +57,8 @@ export class CreateCompanyDto {
   available_medias?: Media[];
 
   @IsNumber()
+  @Min(1)
+  @IsNotEmpty()
   @Transform(({ value }) => parseInt(value, 10) ?? 0, { toClassOnly: true })
   available_credits: number;
 

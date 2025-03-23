@@ -85,10 +85,7 @@ export class CompanyService {
     return paginate(qb, query.page, query.per_page, CompanyListDto);
   }
 
-  async create(
-    payload: CreateCompanyDto,
-    logo?: Express.Multer.File,
-  ): Promise<CompanyDto | undefined> {
+  async create(payload: CreateCompanyDto, logo?: Express.Multer.File) {
     const company = this.companyRepository.create(payload);
 
     if (logo) {
@@ -106,14 +103,13 @@ export class CompanyService {
       company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
     }
 
-    await this.companyRepository.save(company);
-
-    await this.createCreditLog({
-      company_id: company.id,
-      purchased_credit: payload.available_credits,
-    });
-
-    return this.findOne(company.id);
+    await Promise.all([
+      this.companyRepository.save(company),
+      this.createCreditLog({
+        company_id: company.id,
+        purchased_credit: payload.available_credits,
+      }),
+    ]);
   }
 
   async findById(id: string): Promise<Company | undefined> {
@@ -196,8 +192,9 @@ export class CompanyService {
     await this.validateBeforeUpdate(id, updateCompanyDto);
     const company = await this.findById(id);
 
-    const newAvailableCredit =
-      updateCompanyDto.available_credits + company.available_credits;
+    const newAvailableCredit = updateCompanyDto.available_credits
+      ? updateCompanyDto.available_credits + company.available_credits
+      : company.available_credits;
 
     Object.assign(company, updateCompanyDto);
 
@@ -211,15 +208,14 @@ export class CompanyService {
 
     company.available_credits = newAvailableCredit;
 
-    await Promise.all([
-      this.companyRepository.save(company),
-      this.createCreditLog({
+    await this.companyRepository.save(company);
+
+    if (updateCompanyDto.available_credits > 0) {
+      await this.createCreditLog({
         company_id: company.id,
         purchased_credit: updateCompanyDto.available_credits,
-      }),
-    ]);
-
-    return this.findOne(company.id);
+      });
+    }
   }
 
   save(company: Company) {
