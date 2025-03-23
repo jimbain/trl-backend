@@ -105,6 +105,7 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
           {
             name: 'categories',
             type: 'jsonb',
+            isNullable: true,
             default: `'[]'::jsonb`,
           },
           {
