@@ -103,13 +103,14 @@ export class CompanyService {
       company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
     }
 
-    await Promise.all([
-      this.companyRepository.save(company),
-      this.createCreditLog({
+    await this.companyRepository.save(company);
+
+    if (payload.available_credits > 0) {
+      await this.createCreditLog({
         company_id: company.id,
         purchased_credit: payload.available_credits,
-      }),
-    ]);
+      });
+    }
   }
 
   async findById(id: string): Promise<Company | undefined> {
