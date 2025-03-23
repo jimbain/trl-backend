@@ -38,6 +38,7 @@ export class CompanyListDto {
   available_credits: number;
 
   @Expose()
+  @Transform(({ value }) => parseInt(value) ?? 0)
   active_user_count: number;
 
   @Expose()

@@ -45,7 +45,12 @@ export class CompanyService {
 
     const qb = this.companyRepository
       .createQueryBuilder('company')
-      .leftJoinAndSelect('company.users', 'user')
+      .leftJoinAndSelect(
+        'company.users',
+        'user',
+        'user.is_active = :userActive',
+        { userActive: true },
+      )
       .select([
         'company.id AS id',
         'company.name AS name',
@@ -55,9 +60,8 @@ export class CompanyService {
         'company.available_credits AS available_credits',
         'company.is_active AS is_active',
         "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
-        'COUNT(user.id) AS active_user_count',
+        'COALESCE(COUNT(user.id), 0) AS active_user_count',
       ])
-      .andWhere('user.is_active = :userActive', { userActive: true })
       .groupBy('company.id')
       .orderBy(
         sortColumn === 'active_user_count'
