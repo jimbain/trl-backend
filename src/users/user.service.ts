@@ -279,7 +279,7 @@ export class UserService {
 
     const newUserDefaultPassword =
       appConfigs['new_user_default_password'] ?? '12345';
-    const requiredColumns = ['first_name', 'last_name', 'email'];
+    const requiredColumns = ['first_name', 'last_name', 'email', 'password'];
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
@@ -314,18 +314,24 @@ export class UserService {
       const existingUser = existingUserMap.get(user.email);
 
       if (existingUser) {
-        usersToUpdate.push({
+        const userUpdateObject: any = {
           id: existingUser.id,
           first_name: user.first_name,
           last_name: user.last_name,
           is_active: true,
-        });
+        };
+
+        if (user.password) {
+          userUpdateObject.password = user.password;
+        }
+
+        usersToUpdate.push(userUpdateObject);
       } else {
         usersToInsert.push({
           first_name: user.first_name ?? null,
           last_name: user.last_name ?? null,
           email: user.email ?? null,
-          password: newUserDefaultPassword,
+          password: user.password ?? newUserDefaultPassword,
           company_id: company.id,
         });
       }
@@ -337,13 +343,19 @@ export class UserService {
 
       for (const userUpdateBatch of userToUpdateChunks) {
         await Promise.all(
-          userUpdateBatch.map((userData: any) =>
-            this.userRepository.update(userData.id, {
+          userUpdateBatch.map((userData: any) => {
+            const updateFields: any = {
               first_name: userData.first_name,
               last_name: userData.last_name,
               is_active: true,
-            }),
-          ),
+            };
+
+            if (userData.password) {
+              updateFields.password = userData.password;
+            }
+
+            return this.userRepository.update(userData.id, updateFields);
+          }),
         );
       }
     }

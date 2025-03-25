@@ -14,10 +14,10 @@ export type MediaAvailabilityType =
   (typeof MEDIA_AVAILABILITY_TYPE)[keyof typeof MEDIA_AVAILABILITY_TYPE];
 
 export const COMPANY_CONTACT_RESPONSIBILITY = {
-  MAIN: 'main',
-  REPORT: 'report',
-  INVOICE: 'invoice',
-  APPROVAL: 'approval',
+  AUTHORIZE: 'Authorize',
+  INVOICE: 'Invoice',
+  BOSS: 'Boss',
+  REPORT: 'Report',
 } as const;
 export type CompanyContactResponsibility =
   (typeof COMPANY_CONTACT_RESPONSIBILITY)[keyof typeof COMPANY_CONTACT_RESPONSIBILITY];
