@@ -18,7 +18,8 @@ export class CreateUserDto {
   last_name: string;
 
   @IsString()
-  title: string;
+  @IsOptional()
+  title?: string;
 
   @IsEmail()
   @IsUnique(User, 'email')
