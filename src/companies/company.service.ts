@@ -254,18 +254,14 @@ export class CompanyService {
   ) {
     const company = await this.findById(id);
 
-    if (!Object.keys(payload).length) {
-      company.app_configs = null;
-    } else {
-      const plainPayload = instanceToPlain(payload) as Record<string, any>;
-
-      company.app_configs = Object.fromEntries(
-        Object.entries(plainPayload).map(([key, value]) => [
-          key,
-          String(value),
-        ]),
-      );
-    }
+    company.app_configs = Object.keys(payload || {}).length
+      ? Object.fromEntries(
+          Object.entries(instanceToPlain(payload)).map(([k, v]) => [
+            k,
+            String(v),
+          ]),
+        )
+      : null;
 
     await this.companyRepository.save(company);
 
