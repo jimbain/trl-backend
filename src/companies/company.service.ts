@@ -268,5 +268,7 @@ export class CompanyService {
     }
 
     await this.companyRepository.save(company);
+
+    return company.app_configs;
   }
 }
