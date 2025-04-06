@@ -14,7 +14,7 @@ export class AdminConfigurationController {
   }
 
   @Patch()
-  signup(@Body() payload: UpdateAppConfigDto) {
+  update(@Body() payload: UpdateAppConfigDto) {
     return this.appConfigService.update(payload);
   }
 }

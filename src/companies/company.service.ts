@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -10,7 +11,7 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
-import { plainToInstance } from 'class-transformer';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
 import { CompanyDto, CompanyListDto } from './dto/company.dto';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CompanyCreditLog } from './entities/company_credit_log.entity';
@@ -19,6 +20,7 @@ import { FileManagerService } from 'src/common/services/file-manager.service';
 import { CreateCompanyCreditLogDto } from './dto/create-company-credit-log.dto';
 import { CompanyCreditLogDto } from './dto/company-credit-log.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { UpdateCompanyAppConfigDto } from 'src/admin/dto/company/update-company-app-config.dto';
 
 @Injectable()
 export class CompanyService {
@@ -244,5 +246,27 @@ export class CompanyService {
     return plainToInstance(CompanyCreditLogDto, logs, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async updateAppConfigurations(
+    id: string,
+    payload: UpdateCompanyAppConfigDto,
+  ) {
+    const company = await this.findById(id);
+
+    if (!Object.keys(payload).length) {
+      company.app_configs = null;
+    } else {
+      const plainPayload = instanceToPlain(payload) as Record<string, any>;
+
+      company.app_configs = Object.fromEntries(
+        Object.entries(plainPayload).map(([key, value]) => [
+          key,
+          String(value),
+        ]),
+      );
+    }
+
+    await this.companyRepository.save(company);
   }
 }

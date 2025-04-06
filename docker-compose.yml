@@ -34,7 +34,7 @@ services:
 
 networks:
   trl-net:
-    driver: bridge
+    external: true
 
 volumes:
   trl-pgsql:

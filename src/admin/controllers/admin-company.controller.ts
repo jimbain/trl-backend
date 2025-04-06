@@ -16,6 +16,7 @@ import { CreateCompanyDto } from 'src/companies/dto/create-company.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateCompanyDto } from 'src/companies/dto/update-company.dto';
 import { CompanySearchInterface } from '../admin.interface';
+import { UpdateCompanyAppConfigDto } from '../dto/company/update-company-app-config.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/companies')
@@ -63,5 +64,13 @@ export class AdminCompanyController {
   @Get(':id/credit-logs')
   findAllCreditLogs(@Param('id') id: string) {
     return this.companyService.findAllCreditLogs(id);
+  }
+
+  @Patch(':id/configurations')
+  updateAppConfigurations(
+    @Param('id') id: string,
+    @Body() payload: UpdateCompanyAppConfigDto,
+  ) {
+    return this.companyService.updateAppConfigurations(id, payload);
   }
 }

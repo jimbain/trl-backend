@@ -83,6 +83,9 @@ export class CompanyDto {
   catalogs: CatalogDto[] | number[];
 
   @Expose()
+  app_configs: Record<string, string> | null;
+
+  @Expose()
   phone: string;
 
   @Expose()

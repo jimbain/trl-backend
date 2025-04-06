@@ -55,6 +55,9 @@ export class Company extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true, default: [] })
   catalogs: number[];
 
+  @Column({ type: 'jsonb', nullable: true, default: {} })
+  app_configs: Record<string, string> | null;
+
   @Column({ type: 'integer', default: 0 })
   available_credits: number;
 

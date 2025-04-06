@@ -28,6 +28,7 @@ services:
 
 networks:
   trl-net:
+    external: true
 
 volumes:
   trl-pgsql:
