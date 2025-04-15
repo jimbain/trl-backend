@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -10,7 +9,6 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
-import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { instanceToPlain, plainToInstance } from 'class-transformer';
 import { CompanyDto, CompanyListDto } from './dto/company.dto';
 import { CatalogService } from 'src/catalog/catalog.service';
@@ -21,13 +19,12 @@ import { CreateCompanyCreditLogDto } from './dto/create-company-credit-log.dto';
 import { CompanyCreditLogDto } from './dto/company-credit-log.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { UpdateCompanyAppConfigDto } from 'src/admin/dto/company/update-company-app-config.dto';
+import { CacheService } from 'src/common/services/cache.service';
+import { CachedCompany } from './company.interface';
 
 @Injectable()
 export class CompanyService {
   constructor(
-    @InjectRepository(Catalog)
-    private readonly catalogRepository: Repository<Catalog>,
-
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
 
@@ -36,6 +33,7 @@ export class CompanyService {
 
     private readonly catalogService: CatalogService,
     private readonly fileManagerService: FileManagerService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll(query: CompanySearchInterface) {
@@ -125,6 +123,47 @@ export class CompanyService {
     return company;
   }
 
+  async findByIdWithCache(id: string) {
+    const cachedCompany = await this.cacheService.get(id);
+
+    if (cachedCompany) return cachedCompany;
+
+    const company = await this.findById(id);
+    const logoUrl = this.fileManagerService.getFileUrl(company.logo_url);
+
+    const data: CachedCompany = {
+      id: company.id,
+      name: company.name,
+      logo_url: logoUrl,
+      domain: company.domain,
+      description: company.description,
+      login_type: company.login_type,
+      available_medias: company.available_medias,
+      sso_config: company.sso_config,
+      available_credits: company.available_credits,
+      category_ids: {
+        audio: [],
+        video: [],
+        pharma: [],
+      },
+      app_configs: company.app_configs,
+    };
+
+    const catalogs = await this.catalogService.findEntitiesByIds(
+      company.catalogs,
+    );
+
+    for (const catalog of catalogs) {
+      if (catalog.media_type in data.category_ids) {
+        data.category_ids[catalog.media_type] = catalog.categories ?? [];
+      }
+    }
+
+    await this.cacheService.set(id, data);
+
+    return data;
+  }
+
   async findOne(id: string) {
     const company = await this.companyRepository
       .createQueryBuilder('company')
@@ -211,11 +250,14 @@ export class CompanyService {
 
     company.available_credits = newAvailableCredit;
 
-    await this.companyRepository.save(company);
+    await Promise.all([
+      this.companyRepository.save(company),
+      this.cacheService.delete(id),
+    ]);
 
     if (updateCompanyDto.available_credits > 0) {
       await this.createCreditLog({
-        company_id: company.id,
+        company_id: id,
         purchased_credit: updateCompanyDto.available_credits,
       });
     }
@@ -227,6 +269,10 @@ export class CompanyService {
 
   remove(id: number) {
     return `This action removes a #${id} company`;
+  }
+
+  removeFromCacheById(id: string) {
+    return this.cacheService.delete(id);
   }
 
   async createCreditLog(createCompanyCreditLogDto: CreateCompanyCreditLogDto) {
@@ -263,7 +309,10 @@ export class CompanyService {
         )
       : null;
 
-    await this.companyRepository.save(company);
+    await Promise.all([
+      this.companyRepository.save(company),
+      this.cacheService.delete(id),
+    ]);
 
     return company.app_configs;
   }

@@ -35,6 +35,7 @@ import { AdminCompanyCatalogService } from './services/admin-company-catalog.ser
 import { AdminCatalogService } from './services/admin-catalog.service';
 import { AdminVideoController } from './controllers/admin-video.controller';
 import { AdminPharmaController } from './controllers/admin-pharma.controller';
+import { CommonModule } from 'src/common/common.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { AdminPharmaController } from './controllers/admin-pharma.controller';
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
     forwardRef(() => AppConfigModule),
+    forwardRef(() => CommonModule),
     forwardRef(() => UserModule),
   ],
   controllers: [

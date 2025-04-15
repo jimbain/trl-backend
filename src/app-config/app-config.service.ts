@@ -3,27 +3,40 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { UpdateAppConfigDto } from './dto/update-app-config.dto';
 import { AppConfig } from './entities/app-config.entity';
+import { CacheService } from 'src/common/services/cache.service';
 
 @Injectable()
 export class AppConfigService {
+  private readonly CACHE_KEY: string = 'appConfigs';
+
   constructor(
     @InjectRepository(AppConfig)
     private readonly appConfigRepository: Repository<AppConfig>,
+
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll() {
+    const cachedAppConfig = await this.cacheService.get(this.CACHE_KEY);
+
+    if (cachedAppConfig) return cachedAppConfig;
+
     const configurations = await this.appConfigRepository.find({
       select: ['key', 'value'],
       order: { key: 'ASC' },
     });
 
-    return configurations.reduce(
+    const appConfig = configurations.reduce(
       (acc, { key, value }) => {
         acc[key] = value;
         return acc;
       },
       {} as Record<string, any>,
     );
+
+    await this.cacheService.set(this.CACHE_KEY, appConfig);
+
+    return appConfig;
   }
 
   async update(payload: UpdateAppConfigDto) {
@@ -55,10 +68,21 @@ export class AppConfigService {
     }
 
     if (configsToUpdate.length > 0) {
-      await this.appConfigRepository.save(configsToUpdate);
+      await Promise.all([
+        this.appConfigRepository.save(configsToUpdate),
+        this.cacheService.delete(this.CACHE_KEY),
+      ]);
     }
 
     return this.findAll();
+  }
+
+  async getCompanyConfig(companyConfig: any) {
+    const appConfig = await this.findAll();
+    return {
+      ...appConfig,
+      ...(companyConfig ?? {}),
+    };
   }
 
   async getAppConfigs(keys: string[] = []): Promise<Record<string, any>> {

@@ -29,6 +29,7 @@ import { CatalogService } from 'src/catalog/catalog.service';
 import { CategoryService } from 'src/categories/category.service';
 import { Category } from 'src/categories/entities/category.entity';
 import { AudioCategoryDto } from 'src/categories/dto/category.dto';
+import { CacheService } from 'src/common/services/cache.service';
 
 export interface AudioSearch {
   ids?: string[];
@@ -54,6 +55,7 @@ export class AudioService {
     private readonly userActivityLogService: UserActivityLogService,
     private readonly audioEngineService: AudioEngineService,
     private readonly appConfigService: AppConfigService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll(
@@ -156,17 +158,19 @@ export class AudioService {
     return audio;
   }
 
+  async findByIdWithCache(id: string) {
+    const cachedAudio = await this.cacheService.get(id);
+    if (cachedAudio) return cachedAudio;
+
+    const audio = await this.findById(id, ['metadata']);
+
+    await this.cacheService.set(id, audio);
+    return audio;
+  }
+
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    const company = await this.companyService.findById(companyId);
-    const catalogs = await this.catalogService.findMany(company.catalogs);
-    const audioCatalog =
-      catalogs.find((catalog) => catalog.media_type === MEDIA.AUDIO) ?? null;
-
-    const categories = await this.categoryService.findEntitiesByIds(
-      audioCatalog.categories,
-    );
-
-    return categories.map((category) => category.id) ?? [];
+    const company = await this.cacheService.get(companyId);
+    return company.category_ids.audio;
   }
 
   async getFeaturedAudios(
@@ -728,7 +732,7 @@ export class AudioService {
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
     const [audio, userAudio] = await Promise.all([
-      this.findById(id, ['metadata']),
+      this.findByIdWithCache(id),
       this.userAudioStatusRepository.findOne({
         where: { user_id: user.id, audio_id: id },
         select: ['status', 'rental_expire_at'],
@@ -905,5 +909,17 @@ export class AudioService {
       .set({ total_played: () => 'total_played + 1' }) // Increment total_played
       .where('id = :id', { id })
       .execute();
+  }
+
+  async getAudioIdsByCategory(categoryId: string) {
+    const audios = await this.audioRepository
+      .createQueryBuilder('audio')
+      .select('audio.id AS id')
+      .andWhere('audio.categories @> :categoryId', {
+        categoryId: JSON.stringify([categoryId]),
+      })
+      .getRawMany();
+
+    return audios.map((audio) => audio.id);
   }
 }

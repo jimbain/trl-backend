@@ -14,8 +14,11 @@ services:
       - DB_USER=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_DATABASE}
+      - REDIS_HOST=trl_redis
+      - REDIS_PORT=6379
     depends_on:
       - trl_db
+      - trl_redis
     networks:
       - trl-net
 
@@ -32,10 +35,23 @@ services:
     networks:
       - trl-net
 
+  trl_redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "${FORWARD_REDIS_PORT}:${REDIS_PORT}"
+    networks:
+      - trl-net
+    volumes:
+      - trl-redis:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
 networks:
   trl-net:
     external: true
 
 volumes:
   trl-pgsql:
+    driver: local
+  trl-redis:
     driver: local

@@ -6,13 +6,17 @@ import { AdminAudioDto, AdminAudioListDto } from '../dto/audio/admin-audio.dto';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { plainToInstance } from 'class-transformer';
 import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
+import { CacheService } from 'src/common/services/cache.service';
 
 @Injectable()
 export class AdminAudioService {
   @InjectRepository(Audio)
   private readonly audioRepository: Repository<Audio>;
 
-  constructor(private readonly appConfigService: AppConfigService) {}
+  constructor(
+    private readonly appConfigService: AppConfigService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async findAll(query: any = {}): Promise<any[]> {
     const page: number = query?.page ?? 1;
@@ -111,6 +115,9 @@ export class AdminAudioService {
 
     Object.assign(audio, payload);
 
-    await this.audioRepository.save(audio);
+    await Promise.all([
+      this.cacheService.delete(id),
+      this.audioRepository.save(audio),
+    ]);
   }
 }

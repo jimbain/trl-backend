@@ -10,19 +10,15 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
-import { In, Raw, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CategoryDto } from './dto/category.dto';
 import { plainToInstance } from 'class-transformer';
-import {
-  CATALOG_CATEGORY_TYPE,
-  CatalogCategoryType,
-  MEDIA,
-  Media,
-} from 'src/constants';
+import { CATALOG_CATEGORY_TYPE, MEDIA, Media } from 'src/constants';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { AudioService } from 'src/audios/audio.service';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { CacheService } from 'src/common/services/cache.service';
 
 @Injectable()
 export class CategoryService {
@@ -36,6 +32,7 @@ export class CategoryService {
     private audioService: AudioService,
 
     private readonly catalogService: CatalogService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll(): Promise<Category[]> {
@@ -52,6 +49,33 @@ export class CategoryService {
     }
 
     return category;
+  }
+
+  async findByIdWithCache(id: string) {
+    const cachedCategory = await this.cacheService.get(id);
+
+    if (cachedCategory) return cachedCategory;
+
+    const category = await this.findById(id);
+    const catalog = await this.catalogService.findByCategory(category);
+
+    const data = {
+      id: category.id,
+      name: category.name,
+      type: category.type,
+      media_type: catalog.media_type,
+      title_ids: [],
+    };
+
+    if (catalog.media_type === MEDIA.AUDIO) {
+      data.title_ids = await this.audioService.getAudioIdsByCategory(
+        category.id,
+      );
+    }
+
+    await this.cacheService.set(id, data);
+
+    return data;
   }
 
   async findOne(id: string): Promise<CategoryDto | undefined> {
@@ -139,7 +163,11 @@ export class CategoryService {
     });
 
     await this.categoryRepository.save(category);
-    await this.catalogService.assignCategory(catalog, category);
+
+    await Promise.all([
+      this.catalogService.assignCategory(catalog, category),
+      this.findByIdWithCache(category.id),
+    ]);
 
     return plainToInstance(CategoryDto, category, {
       excludeExtraneousValues: true,
@@ -193,6 +221,16 @@ export class CategoryService {
       await this.catalogService.removeCategory(updatedCatalog, id);
       await this.addCategoryToMatchingAudios(id, newCategory.id);
 
+      await Promise.all([
+        this.cacheService.delete(newCategory.id),
+        this.cacheService.delete(id),
+      ]);
+
+      await Promise.all([
+        this.findByIdWithCache(id),
+        this.findByIdWithCache(newCategory.id),
+      ]);
+
       return plainToInstance(CategoryDto, newCategory, {
         excludeExtraneousValues: true,
       });
@@ -215,8 +253,11 @@ export class CategoryService {
     const catalog = await this.catalogService.findByCategory(category);
 
     if (catalog.media_type === MEDIA.AUDIO) {
-      return this.audioService.assignCategory(category, mediaIds);
+      await this.audioService.assignCategory(category, mediaIds);
     }
+
+    await this.cacheService.delete(id);
+    await this.findByIdWithCache(id);
   }
 
   async deassign(id: string, mediaIds: string[]) {
@@ -224,8 +265,11 @@ export class CategoryService {
     const catalog = await this.catalogService.findByCategory(category);
 
     if (catalog.media_type === MEDIA.AUDIO) {
-      return this.audioService.deassignCategory(category, mediaIds);
+      await this.audioService.deassignCategory(category, mediaIds);
     }
+
+    await this.cacheService.delete(id);
+    await this.findByIdWithCache(id);
   }
 
   async getTotalTitleCounts(

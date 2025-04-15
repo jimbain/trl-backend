@@ -46,6 +46,10 @@ export class FileManagerService {
     }
   }
 
+  getFileUrl(filePath: string | null) {
+    return filePath ? `${this.bucketEndpoint}/${filePath}` : null;
+  }
+
   // Function to delete a file from DigitalOcean Spaces
   async deleteFile(fileUrl: string): Promise<boolean> {
     const fileKey = fileUrl.replace(`${this.bucketEndpoint}/`, '');

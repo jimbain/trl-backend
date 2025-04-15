@@ -6,6 +6,7 @@ import { HttpModule } from '@nestjs/axios';
 import { FileManagerService } from './services/file-manager.service';
 import { CsvService } from './services/csv.service';
 import { AudioEngineService } from './services/audio_engine.service';
+import { CacheService } from './services/cache.service';
 
 @Module({
   imports: [HttpModule],
@@ -16,6 +17,7 @@ import { AudioEngineService } from './services/audio_engine.service';
     FirebaseService,
     FileManagerService,
     CsvService,
+    CacheService,
   ],
   exports: [
     AudioEngineService,
@@ -24,6 +26,7 @@ import { AudioEngineService } from './services/audio_engine.service';
     FirebaseService,
     FileManagerService,
     CsvService,
+    CacheService,
   ],
 })
 export class CommonModule {}
