@@ -169,7 +169,7 @@ export class AudioService {
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
-    const company = await this.cacheService.get(companyId);
+    const company = await this.companyService.findByIdWithCache(companyId);
     return company.category_ids.audio;
   }
 
