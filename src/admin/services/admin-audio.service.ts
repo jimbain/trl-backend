@@ -7,6 +7,8 @@ import { AppConfigService } from 'src/app-config/app-config.service';
 import { plainToInstance } from 'class-transformer';
 import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
 import { CacheService } from 'src/common/services/cache.service';
+import { QueryAdminAudioDto } from '../dto/audio/query-admin-audio.dto';
+import { paginate } from 'src/common/helpers/pagination.helper';
 
 @Injectable()
 export class AdminAudioService {
@@ -18,97 +20,128 @@ export class AdminAudioService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async findAll(query: any = {}): Promise<any[]> {
+  async findAll(query: QueryAdminAudioDto = {}) {
     const {
+      page,
+      per_page,
       category_id,
       is_included_in_category,
+      is_active,
       search_text,
-      search_option,
-      created_at_from,
-      created_at_to,
-      trl_cost,
+      search_for,
+      is_searching_whole_word,
+      street_date_from,
+      street_date_to,
+      bookshelf_credit_cost,
       retail_price_min,
       retail_price_max,
+      retail_content_cost_min,
+      retail_content_cost_max,
       is_featured,
       is_excluded,
       order_by_column,
       order_by,
-      page,
-      per_page,
     } = query;
-
-    // const page: number = query?.page ?? 1;
-    // const perPage: number = query?.per_page ?? 20;
-    const isIncludedInCategory: boolean =
-      query?.is_included_in_category === 'false' ? false : true;
-    const categoryId: string = query?.category_id ?? null;
-    const sortOrder = ['asc', 'desc'].includes(query?.sort_by?.toLowerCase())
-      ? query.sort_by.toUpperCase()
-      : 'ASC';
-
-    const appConfigs = await this.appConfigService.getAppConfigs([
-      'audio_rental_credit_cost',
-    ]);
 
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .innerJoin('audio.metadata', 'metadata')
       .select([
         'audio.id AS id',
-        'audio.display_title AS display_title',
-        'audio.display_authors AS display_authors',
         'audio.sku AS sku',
-        'audio.display_copyright AS display_copyright',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.publisher AS publisher',
+        'audio.is_excluded AS is_excluded',
+        'audio.is_featured AS is_featured',
+        'audio.is_active AS is_active',
+        'metadata.street_date AS street_date',
+        'metadata.findaway_retail_price AS retail_price',
+        'metadata.findaway_retail_content_cost AS retail_content_cost',
         'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
-        'audio.created_at AS created_at',
-        'metadata.available_for AS available_for',
-        'metadata.title AS title',
-        'metadata.authors AS authors',
-        'metadata.cover_url AS cover_url',
-        'metadata.copyright AS copyright',
+        'metadata.language AS language',
+        'metadata.bisac_codes AS bisac_codes',
+        'metadata.runtime AS runtime',
+        'audio.display_copyright AS copyright',
       ]);
 
-    if (query.status === 'active') {
-      queryBuilder.andWhere('audio.is_active = :status', { status: true });
-    } else if (query.status === 'inactive') {
-      queryBuilder.andWhere('audio.is_active = :status', { status: false });
+    if (is_active !== undefined) {
+      queryBuilder.andWhere('audio.is_active = :is_active', { is_active });
     }
 
-    if (query.title) {
+    if (is_featured !== undefined) {
+      queryBuilder.andWhere('audio.is_featured = :is_featured', {
+        is_featured,
+      });
+    }
+
+    if (is_excluded !== undefined) {
+      queryBuilder.andWhere('audio.is_excluded = :is_excluded', {
+        is_excluded,
+      });
+    }
+
+    if (bookshelf_credit_cost !== undefined) {
       queryBuilder.andWhere(
-        '(metadata.title ILIKE :title OR audio.display_title ILIKE :title)',
-        { title: `%${query.title}%` },
+        'audio.bookshelf_credit_cost = :bookshelf_credit_cost',
+        { bookshelf_credit_cost },
       );
     }
 
-    if (categoryId) {
+    if (street_date_from) {
+      queryBuilder.andWhere('DATE(metadata.street_date) >= :street_date_from', {
+        street_date_from,
+      });
+    }
+
+    if (street_date_to) {
+      queryBuilder.andWhere('DATE(metadata.street_date) <= :street_date_to', {
+        street_date_to,
+      });
+    }
+
+    if (retail_price_min !== undefined) {
       queryBuilder.andWhere(
-        isIncludedInCategory
+        'metadata.findaway_retail_price >= :retail_price_min',
+        { retail_price_min },
+      );
+    }
+
+    if (retail_price_max !== undefined) {
+      queryBuilder.andWhere(
+        'metadata.findaway_retail_price <= :retail_price_max',
+        { retail_price_max },
+      );
+    }
+
+    if (retail_content_cost_min !== undefined) {
+      queryBuilder.andWhere(
+        'metadata.findaway_retail_content_cost >= :retail_content_cost_min',
+        { retail_content_cost_min },
+      );
+    }
+
+    if (retail_content_cost_max !== undefined) {
+      queryBuilder.andWhere(
+        'metadata.findaway_retail_content_cost <= :retail_content_cost_max',
+        { retail_content_cost_max },
+      );
+    }
+
+    if (category_id) {
+      queryBuilder.andWhere(
+        is_included_in_category
           ? 'audio.categories @> :categoryId'
           : 'NOT audio.categories @> :categoryId',
-        { categoryId: JSON.stringify([categoryId]) },
+        { categoryId: JSON.stringify([category_id]) },
       );
     }
 
-    // queryBuilder
-    //   .addSelect(
-    //     'COALESCE(audio.display_title, metadata.title)',
-    //     'computed_title',
-    //   )
-    //   .orderBy('computed_title', sortOrder as 'ASC' | 'DESC');
+    if (order_by_column && order_by) {
+      queryBuilder.orderBy('order_by_column', order_by);
+    }
 
-    const audios = await queryBuilder
-      .limit(per_page)
-      .offset((page - 1) * per_page)
-      .getRawMany();
-
-    return audios.map((audio) =>
-      plainToInstance(
-        AdminAudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
-        { excludeExtraneousValues: true },
-      ),
-    );
+    return paginate(queryBuilder, page, query.per_page);
   }
 
   async findOne(id: string) {

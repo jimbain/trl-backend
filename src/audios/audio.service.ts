@@ -30,12 +30,8 @@ import { CategoryService } from 'src/categories/category.service';
 import { Category } from 'src/categories/entities/category.entity';
 import { AudioCategoryDto } from 'src/categories/dto/category.dto';
 import { CacheService } from 'src/common/services/cache.service';
-
-export interface AudioSearch {
-  ids?: string[];
-  per_page?: number;
-  page?: number;
-}
+import { QueryAudioDto } from './dto/query-audio.dto';
+import { paginate } from 'src/common/helpers/pagination.helper';
 
 @Injectable()
 export class AudioService {
@@ -60,26 +56,28 @@ export class AudioService {
 
   async findAll(
     user: User,
-    query: AudioSearch = {},
+    query: QueryAudioDto = {},
   ): Promise<{
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    const page = query.page ?? 1;
-    const perPage = query.per_page ?? 20;
+    const { page, per_page, ids } = query;
 
-    const [appConfigs, companyAudioCategoryIds] = await Promise.all([
-      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
-      this.findAllAudioCategoryIdOfCompany(user.company.id),
-    ]);
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+    const companyAudioCategoryIds = company.category_ids.audio;
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
 
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
+      .innerJoin('audio.metadata', 'metadata')
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: companyAudioCategoryIds },
       )
-      .leftJoinAndSelect('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
         'audio.userAudioStatus',
         UserAudioStatus,
@@ -89,39 +87,31 @@ export class AudioService {
       )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.is_only_for_purchase',
-        'audio.purchased_rental_license_limit',
-        'metadata.available_for',
-        'audio.bookshelf_credit_cost',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+        'userAudioStatus.updated_at AS updated_at',
+        'userAudioStatus.status AS status',
+        'userAudioStatus.rental_expire_at AS rental_expires_at',
       ]);
 
-    if (query.ids?.length > 0) {
+    if (ids?.length > 0) {
       queryBuilder.andWhere('audio.id IN (:...audioIds)', {
-        audioIds: query.ids,
+        audioIds: ids,
       });
     }
 
-    const [audios, total] = await queryBuilder
-      .skip((page - 1) * perPage)
-      .take(perPage)
-      .getManyAndCount();
+    const paginatedData = await paginate(queryBuilder, page, per_page);
 
-    const from = total > 0 ? (page - 1) * perPage + 1 : null;
-    const to = Math.min(page * perPage, total);
-
-    const data = audios.map((audio) =>
+    paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
@@ -129,17 +119,7 @@ export class AudioService {
       ),
     );
 
-    return {
-      data: data,
-      meta: {
-        current_page: page,
-        per_page: perPage,
-        total,
-        last_page: Math.ceil(total / perPage),
-        from,
-        to,
-      },
-    };
+    return paginatedData;
   }
 
   async findById(
@@ -174,7 +154,7 @@ export class AudioService {
   }
 
   async getFeaturedAudios(
-    categoryIds: string[],
+    company: any,
     user: User,
     limit: number = 10,
     page: number = 1,
@@ -196,8 +176,10 @@ export class AudioService {
       };
     }
 
+    const categoryIds = company.category_ids.audio;
+
     const [appConfigs, userAudios] = await Promise.all([
-      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+      this.appConfigService.getCompanyConfig(company.app_configs),
       this.userAudioStatusRepository.find({
         where: [
           {
@@ -225,36 +207,28 @@ export class AudioService {
         { categoryIds: categoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
-      .andWhere('audio.is_active = :isActive', { isActive: true });
+      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .select([
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+      ]);
 
     if (audioIds.length > 0) {
       queryBuilder.andWhere('audio.id NOT IN (:...audioIds)', { audioIds });
     }
 
-    const [audios, total] = await queryBuilder
-      .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost',
-        'audio.is_only_for_purchase',
-        'metadata.available_for',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-      ])
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+    const paginatedData = await paginate(queryBuilder, page, limit);
 
-    const from = total > 0 ? (page - 1) * limit + 1 : null;
-    const to = Math.min(page * limit, total);
-
-    const data = audios.map((audio) =>
+    paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
@@ -262,26 +236,15 @@ export class AudioService {
       ),
     );
 
-    return {
-      data: data,
-      meta: {
-        current_page: page,
-        per_page: limit,
-        total,
-        last_page: Math.ceil(total / limit),
-        from,
-        to,
-      },
-    };
+    return paginatedData;
   }
 
-  async getPopularAudios(
-    categoryIds: string[],
-    user: User,
-  ): Promise<AudioListDto[]> {
+  async getPopularAudios(company: any, user: User): Promise<AudioListDto[]> {
     if (!user.is_active) {
       return [];
     }
+
+    const categoryIds = company.category_ids.audio;
 
     const audios = await this.audioRepository
       .createQueryBuilder('audio')
@@ -344,11 +307,12 @@ export class AudioService {
   }
 
   async getContinueListeningAudiosOfUser(
+    company: any,
     user: User,
     limit: number = 10,
   ): Promise<AudioListDto[]> {
     const [appConfigs, userAudioplayerPositions] = await Promise.all([
-      this.appConfigService.getAppConfigs(['audio_rental_credit_cost']),
+      this.appConfigService.getCompanyConfig(company.app_configs),
       this.userAudioplayerPositionRepository
         .createQueryBuilder('position')
         .innerJoin(
@@ -398,7 +362,7 @@ export class AudioService {
 
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .innerJoin('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
         'audio.userAudioStatus',
         UserAudioStatus,
@@ -409,22 +373,20 @@ export class AudioService {
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere('audio.id IN (:...audioIds)', { audioIds })
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.is_only_for_purchase',
-        'audio.purchased_rental_license_limit',
-        'metadata.available_for',
-        'audio.bookshelf_credit_cost',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+        'userAudioStatus.updated_at AS updated_at',
+        'userAudioStatus.status AS status',
+        'userAudioStatus.rental_expire_at AS rental_expires_at',
       ]);
 
     if (limit) {
@@ -447,6 +409,7 @@ export class AudioService {
   }
 
   async getAudiosOfUserBasedOnStatus(
+    company: any,
     user: User,
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
@@ -455,12 +418,13 @@ export class AudioService {
       return [];
     }
 
-    const appConfigs = await this.appConfigService.getAppConfigs([
-      'audio_rental_credit_cost',
-    ]);
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
+
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .innerJoin('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
         'audio.userAudioStatus',
         UserAudioStatus,
@@ -477,22 +441,20 @@ export class AudioService {
         { currentDate: new Date() },
       )
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.is_only_for_purchase',
-        'audio.purchased_rental_license_limit',
-        'metadata.available_for',
-        'audio.bookshelf_credit_cost',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+        'userAudioStatus.updated_at AS updated_at',
+        'userAudioStatus.status AS status',
+        'userAudioStatus.rental_expire_at AS rental_expires_at',
       ]);
 
     if (limit) {
@@ -526,13 +488,13 @@ export class AudioService {
   }
 
   async getHomeList(user: User) {
-    const categoryIds = await this.findAllAudioCategoryIdOfCompany(
+    const company = await this.companyService.findByIdWithCache(
       user.company.id,
     );
 
     const [featuredAudios, popularAudios] = await Promise.all([
-      this.getFeaturedAudios(categoryIds, user, 10, 1),
-      this.getPopularAudios(categoryIds, user),
+      this.getFeaturedAudios(company, user, 10, 1),
+      this.getPopularAudios(company, user),
     ]);
 
     return [
@@ -544,12 +506,13 @@ export class AudioService {
       {
         label: 'Continue Listening',
         slug: 'continue_listening',
-        audios: await this.getContinueListeningAudiosOfUser(user, 10),
+        audios: await this.getContinueListeningAudiosOfUser(company, user, 10),
       },
       {
         label: 'My Bookshelf',
         slug: 'bookself',
         audios: await this.getAudiosOfUserBasedOnStatus(
+          company,
           user,
           'bookshelved',
           10,
@@ -558,7 +521,12 @@ export class AudioService {
       {
         label: 'Queued Titles',
         slug: 'queued',
-        audios: await this.getAudiosOfUserBasedOnStatus(user, 'queued', 10),
+        audios: await this.getAudiosOfUserBasedOnStatus(
+          company,
+          user,
+          'queued',
+          10,
+        ),
       },
       {
         label: 'Popular Audio Titles',
@@ -578,10 +546,20 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    let categoryIds = await this.findAllAudioCategoryIdOfCompany(
-      user.company.id,
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
     );
+    let categoryIds = company.category_ids.audio;
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
+
     let category: any;
+
+    if (categoryId !== 'category_0' && categoryIds.includes(categoryId)) {
+      categoryIds = [categoryId];
+      category = await this.categoryService.findOne(categoryId);
+    }
 
     if (!categoryIds.length) {
       throw new NotFoundException(
@@ -589,14 +567,9 @@ export class AudioService {
       );
     }
 
-    if (categoryId !== 'category_0' && categoryIds.includes(categoryId)) {
-      categoryIds = [categoryId];
-      category = await this.categoryService.findOne(categoryId);
-    }
-
-    const [audios, total] = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .innerJoin('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
         'audio.userAudioStatus',
         UserAudioStatus,
@@ -610,41 +583,38 @@ export class AudioService {
       )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
-      ])
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+        'userAudioStatus.updated_at AS updated_at',
+        'userAudioStatus.status AS status',
+        'userAudioStatus.rental_expire_at AS rental_expires_at',
+      ]);
 
-    const from = total > 0 ? (page - 1) * limit + 1 : null;
-    const to = Math.min(page * limit, total);
+    const paginatedData = await paginate(queryBuilder, page, limit);
+
+    paginatedData.data = paginatedData.data.map((audio) =>
+      plainToInstance(
+        AudioListDto,
+        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        { excludeExtraneousValues: true },
+      ),
+    );
 
     return {
       category: {
         id: categoryId,
         title: categoryId !== 'category_0' ? category?.name : 'All categories',
       },
-      data: plainToInstance(AudioListDto, audios, {
-        excludeExtraneousValues: true,
-      }),
-      meta: {
-        current_page: page,
-        per_page: limit,
-        total,
-        last_page: Math.ceil(total / limit),
-        from,
-        to,
-      },
+      ...paginatedData,
     };
   }
 
@@ -654,13 +624,17 @@ export class AudioService {
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<AudioListDto>> {
-    const categories = await this.findAllAudioCategoryIdOfCompany(
-      user.company.id,
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+    const categoryIds = company.category_ids.audio;
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
     );
 
-    const [audios, total] = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
-      .leftJoinAndSelect('audio.metadata', 'metadata')
+      .innerJoin('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
         'audio.userAudioStatus',
         UserAudioStatus,
@@ -670,25 +644,17 @@ export class AudioService {
       )
       .where(
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
-        { categoryIds: categories },
+        { categoryIds: categoryIds },
       )
       .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere(
         new Brackets((qb) => {
           qb.where('audio.display_title ILIKE :query')
-            .orWhere('metadata.title ILIKE :query')
-            .orWhere('metadata.description ILIKE :query')
+            .orWhere('audio.display_description ILIKE :query')
             .orWhere(
               `EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements_text(audio.display_authors) elem
-                WHERE elem ILIKE :query
-              )`,
-            )
-            .orWhere(
-              `EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements_text(metadata.authors) elem
                 WHERE elem ILIKE :query
               )`,
             );
@@ -696,38 +662,33 @@ export class AudioService {
         { query: `%${query}%` },
       )
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
-      ])
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for as available_for',
+        'metadata.chapters AS chapters',
+        'userAudioStatus.updated_at AS updated_at',
+        'userAudioStatus.status AS status',
+        'userAudioStatus.rental_expire_at AS rental_expires_at',
+      ]);
 
-    const from = total > 0 ? (page - 1) * limit + 1 : null;
-    const to = Math.min(page * limit, total);
+    const paginatedData = await paginate(queryBuilder, page, limit);
 
-    return {
-      data: plainToInstance(AudioListDto, audios, {
-        excludeExtraneousValues: true,
-      }),
-      meta: {
-        current_page: page,
-        per_page: limit,
-        total,
-        last_page: Math.ceil(total / limit),
-        from,
-        to,
-      },
-    };
+    paginatedData.data = paginatedData.data.map((audio) =>
+      plainToInstance(
+        AudioListDto,
+        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        { excludeExtraneousValues: true },
+      ),
+    );
+
+    return paginatedData;
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {

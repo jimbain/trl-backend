@@ -10,6 +10,7 @@ import {
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminAudioService } from '../services/admin-audio.service';
 import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
+import { QueryAdminAudioDto } from '../dto/audio/query-admin-audio.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/audios')
@@ -17,7 +18,7 @@ export class AdminAudioController {
   constructor(private readonly adminAudioService: AdminAudioService) {}
 
   @Get()
-  findAll(@Query() query: any) {
+  findAll(@Query() query: QueryAdminAudioDto) {
     return this.adminAudioService.findAll(query);
   }
 

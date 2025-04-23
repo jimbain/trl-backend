@@ -14,18 +14,21 @@ import { AudioReviewService } from './audio_review.service';
 import { CreateAudioReview } from './dto/create_audio_review.dto';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 import { AudioSeedService } from './audio_seed.service';
+import { CompanyService } from 'src/companies/company.service';
+import { QueryAudioDto } from './dto/query-audio.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class AudioController {
   constructor(
+    private readonly companyService: CompanyService,
     private readonly audioService: AudioService,
     private readonly audioReviewService: AudioReviewService,
     private readonly audioSeedService: AudioSeedService,
   ) {}
 
   @Get('audios')
-  findAll(@Request() req, @Query() query: object) {
+  findAll(@Request() req, @Query() query: QueryAudioDto = {}) {
     return this.audioService.findAll(req.user, query);
   }
 
@@ -92,13 +95,14 @@ export class AudioController {
 
     const parsedPage = parseInt(page, 10) || 1;
     const parsedPerPage = parseInt(per_page, 10) || 10;
-    const categoryIds = await this.audioService.findAllAudioCategoryIdOfCompany(
+    const company = await this.companyService.findByIdWithCache(
       req.user.company.id,
     );
+    const categoryIds = company.category_ids.audio;
 
     if (param === 'featured') {
       return this.audioService.getFeaturedAudios(
-        categoryIds,
+        company,
         req.user,
         parsedPerPage,
         parsedPage,
@@ -106,6 +110,7 @@ export class AudioController {
     } else if (param === 'queued' || param === 'bookself') {
       return {
         data: await this.audioService.getAudiosOfUserBasedOnStatus(
+          company,
           req.user,
           param === 'queued' ? 'queued' : 'bookshelved',
         ),

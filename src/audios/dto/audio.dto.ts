@@ -114,21 +114,12 @@ export class AudioListDto {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.display_title ?? obj?.metadata?.title ?? null;
-  })
   title: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.display_authors ?? obj?.metadata?.authors ?? null;
-  })
   authors?: string[];
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.metadata?.cover_url ?? null;
-  })
   image_url?: string;
 
   @Expose()
@@ -139,21 +130,12 @@ export class AudioListDto {
   available_for: 'rent' | 'bookshelf' | 'both' | null;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.updated_at ?? null;
-  })
   updated_at?: Date;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.status ?? null;
-  })
   status?: string;
 
   @Expose()
-  @Transform(({ obj }) => {
-    return obj?.userAudioStatus?.rental_expire_at ?? null;
-  })
   rental_expires_at?: Date;
 
   @Expose()
