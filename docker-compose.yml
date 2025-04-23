@@ -11,14 +11,14 @@ services:
     environment:
       - DB_HOST=trl_db
       - DB_PORT=5432
-      - DB_USER=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
       - REDIS_HOST=trl_redis
       - REDIS_PORT=6379
     depends_on:
-      - trl_db
-      - trl_redis
+      trl_db:
+        condition: service_healthy
+      trl_redis:
+        condition: service_started
     networks:
       - trl-net
 
@@ -34,6 +34,11 @@ services:
       - ${FORWARD_DB_PORT}:5432
     networks:
       - trl-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   trl_redis:
     image: redis:7
@@ -48,7 +53,7 @@ services:
 
 networks:
   trl-net:
-    external: true
+    driver: bridge
 
 volumes:
   trl-pgsql:

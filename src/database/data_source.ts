@@ -7,6 +7,15 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 config();
 
+console.log({
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_USERNAME: process.env.DB_USERNAME,
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_DATABASE: process.env.DB_DATABASE,
+  POSTGRES_SSL: process.env.POSTGRES_SSL,
+});
+
 export const getDataSourceOptions = (): DataSourceOptions => ({
   type: 'postgres',
   host: process.env.DB_HOST,

@@ -11,7 +11,16 @@ export class AdminCatalogService {
   ) {}
 
   async findCatalogCategories(type: Media, query: any = {}) {
+    const { is_basic } = query;
     const catalog = await this.catalogService.findDefaultByType(type);
+
+    if (is_basic === '1') {
+      return this.categoryService.findEntitiesByIds(catalog.categories, [
+        'id',
+        'name',
+      ]);
+    }
+
     const categories: any = await this.categoryService.findMany(
       catalog.categories,
       query,

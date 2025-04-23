@@ -3,13 +3,63 @@ import {
   QueryRunner,
   Table,
   TableForeignKey,
+  TableIndex,
 } from 'typeorm';
 
 export class CreateAudiosTable1738653486445 implements MigrationInterface {
+  private tableName = 'audios';
+
+  private foreignKeys = [
+    {
+      columnName: 'sku',
+      referencedTable: 'audio_metadata',
+      referencedColumnName: 'sku',
+      onDelete: 'SET NULL',
+    },
+  ];
+
+  private indices = [
+    {
+      columnName: 'sku',
+      indexName: 'IDX_AUDIOS_SKU',
+      isUnique: true,
+    },
+    {
+      columnName: 'is_active',
+      indexName: 'IDX_AUDIOS_IS_ACTIVE',
+      isUnique: false,
+    },
+    {
+      columnName: 'is_featured',
+      indexName: 'IDX_AUDIOS_IS_FEATURED',
+      isUnique: false,
+    },
+    {
+      columnName: 'is_excluded',
+      indexName: 'IDX_AUDIOS_IS_EXCLUDED',
+      isUnique: false,
+    },
+    {
+      columnName: 'bookshelf_credit_cost',
+      indexName: 'IDX_AUDIOS_BOOKSHELF_CREDIT_COST',
+      isUnique: false,
+    },
+    {
+      columnName: 'display_title',
+      indexName: 'IDX_AUDIOS_DISPLAY_TITLE',
+      isUnique: false,
+    },
+    {
+      columnName: 'display_description',
+      indexName: 'IDX_AUDIOS_DISPLAY_DESCRIPTION',
+      isUnique: false,
+    },
+  ];
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'audios',
+        name: this.tableName,
         columns: [
           {
             name: 'id',
@@ -140,27 +190,53 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
       }),
     );
 
-    await queryRunner.createForeignKey(
-      'audios',
-      new TableForeignKey({
-        columnNames: ['sku'],
-        referencedColumnNames: ['sku'],
-        referencedTableName: 'audio_metadata',
-        onDelete: 'CASCADE',
-      }),
-    );
+    for (const fk of this.foreignKeys) {
+      await queryRunner.createForeignKey(
+        this.tableName,
+        new TableForeignKey({
+          columnNames: [fk.columnName],
+          referencedColumnNames: [fk.referencedColumnName],
+          referencedTableName: fk.referencedTable,
+          onDelete: fk.onDelete,
+        }),
+      );
+    }
+
+    for (const index of this.indices) {
+      await queryRunner.createIndex(
+        this.tableName,
+        new TableIndex({
+          name: index.indexName,
+          columnNames: [index.columnName],
+          isUnique: index.isUnique,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Drop foreign key
-    const table = await queryRunner.getTable('audios');
-    const foreignKey = table.foreignKeys.find(
-      (fk) => fk.columnNames.indexOf('sku') !== -1,
-    );
-    if (foreignKey) {
-      await queryRunner.dropForeignKey('audios', foreignKey);
+    const table = await queryRunner.getTable(this.tableName);
+
+    if (!table) return;
+
+    for (const index of this.indices) {
+      const tableIndex = table.indices.find(
+        (idx) => idx.name === index.indexName,
+      );
+      if (tableIndex) {
+        await queryRunner.dropIndex(this.tableName, tableIndex);
+      }
     }
 
-    await queryRunner.dropTable('audios');
+    for (const fk of this.foreignKeys) {
+      const foreignKey = table.foreignKeys.find((fkObj) =>
+        fkObj.columnNames.includes(fk.columnName),
+      );
+      if (foreignKey) {
+        await queryRunner.dropForeignKey(this.tableName, foreignKey);
+      }
+    }
+
+    await queryRunner.dropTable(this.tableName);
   }
 }

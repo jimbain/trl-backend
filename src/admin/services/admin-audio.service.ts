@@ -19,8 +19,26 @@ export class AdminAudioService {
   ) {}
 
   async findAll(query: any = {}): Promise<any[]> {
-    const page: number = query?.page ?? 1;
-    const perPage: number = query?.per_page ?? 20;
+    const {
+      category_id,
+      is_included_in_category,
+      search_text,
+      search_option,
+      created_at_from,
+      created_at_to,
+      trl_cost,
+      retail_price_min,
+      retail_price_max,
+      is_featured,
+      is_excluded,
+      order_by_column,
+      order_by,
+      page,
+      per_page,
+    } = query;
+
+    // const page: number = query?.page ?? 1;
+    // const perPage: number = query?.per_page ?? 20;
     const isIncludedInCategory: boolean =
       query?.is_included_in_category === 'false' ? false : true;
     const categoryId: string = query?.category_id ?? null;
@@ -80,8 +98,8 @@ export class AdminAudioService {
     //   .orderBy('computed_title', sortOrder as 'ASC' | 'DESC');
 
     const audios = await queryBuilder
-      .limit(perPage)
-      .offset((page - 1) * perPage)
+      .limit(per_page)
+      .offset((page - 1) * per_page)
       .getRawMany();
 
     return audios.map((audio) =>

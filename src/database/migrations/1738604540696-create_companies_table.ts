@@ -1,7 +1,25 @@
-import { MigrationInterface, QueryRunner, Table } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
 export class CreateCompaniesTable1738604540696 implements MigrationInterface {
   private tableName = 'companies';
+
+  private indices = [
+    {
+      columnName: 'name',
+      indexName: 'IDX_COMPANIES_NAME',
+      isUnique: false,
+    },
+    {
+      columnName: 'is_active',
+      indexName: 'IDX_COMPANIES_IS_ACTIVE',
+      isUnique: false,
+    },
+    {
+      columnName: 'created_at',
+      indexName: 'IDX_COMPANIES_CREATED_AT',
+      isUnique: false,
+    },
+  ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
@@ -76,6 +94,12 @@ export class CreateCompaniesTable1738604540696 implements MigrationInterface {
             default: `'[]'::jsonb`,
           },
           {
+            name: 'app_configs',
+            type: 'jsonb',
+            isNullable: true,
+            default: `'{}'::jsonb`,
+          },
+          {
             name: 'phone',
             type: 'varchar',
             isNullable: true,
@@ -126,9 +150,33 @@ export class CreateCompaniesTable1738604540696 implements MigrationInterface {
         ],
       }),
     );
+
+    for (const index of this.indices) {
+      await queryRunner.createIndex(
+        this.tableName,
+        new TableIndex({
+          name: index.indexName,
+          columnNames: [index.columnName],
+          isUnique: index.isUnique,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const table = await queryRunner.getTable(this.tableName);
+
+    if (!table) return;
+
+    for (const index of this.indices) {
+      const tableIndex = table.indices.find(
+        (idx) => idx.name === index.indexName,
+      );
+      if (tableIndex) {
+        await queryRunner.dropIndex(this.tableName, tableIndex);
+      }
+    }
+
     await queryRunner.dropTable(this.tableName);
   }
 }

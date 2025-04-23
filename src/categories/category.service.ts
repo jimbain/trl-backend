@@ -92,7 +92,10 @@ export class CategoryService {
     });
   }
 
-  async findEntitiesByIds(ids: string[]): Promise<Category[]> {
+  async findEntitiesByIds(
+    ids: string[],
+    selects: (keyof Category)[] = [],
+  ): Promise<Category[]> {
     if (!ids || ids.length === 0) return [];
 
     return this.categoryRepository.find({
@@ -100,6 +103,7 @@ export class CategoryService {
         id: In(ids),
         is_active: true,
       },
+      select: selects.length > 0 ? selects : undefined,
     });
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Raw, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { AudioService } from './audio.service';
 import { AudioMetadata } from './entities/audio_metadata.entity';
@@ -15,7 +15,6 @@ import { ConfigService } from '@nestjs/config';
 import { AudioEngineAudio } from 'src/common/interfaces';
 import { Category } from 'src/categories/entities/category.entity';
 import _ from 'lodash';
-import { Cron } from '@nestjs/schedule';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
 
 @Injectable()
@@ -91,12 +90,21 @@ export class AudioSeedService {
           batch.map(async (audio) => {
             try {
               console.log('Processing SKU', audio.audiobook.id);
-              const audioByAccount = await this.getAudioByAccount(audio);
+              const [audioByAccount, existingMetadata] = await Promise.all([
+                this.getAudioByAccount(audio),
+                this.audioMetadataService.findOne(audio.audiobook.id),
+              ]);
+
               const audioMetadata = await this.syncAudioMetadata(
                 audio,
                 audioByAccount,
+                existingMetadata,
               );
-              await this.syncAudioData(audioMetadata, audioByAccount);
+              await this.syncAudioData(
+                existingMetadata,
+                audioMetadata,
+                audioByAccount,
+              );
             } catch (error) {
               console.error(
                 `Error processing SKU ${audio.audiobook.id}: ${error.message}`,
@@ -128,11 +136,9 @@ export class AudioSeedService {
   async syncAudioMetadata(
     audio: AudioEngineAudio,
     audioByAccount: any,
+    existingMetadata: AudioMetadata | null,
   ): Promise<AudioMetadata> {
     const { audiobook } = audio;
-    const existingMetadata = await this.audioMetadataService.findOne(
-      audiobook.id,
-    );
 
     const payload = await this.getMetadataPayload(audio, audioByAccount);
 
@@ -171,6 +177,7 @@ export class AudioSeedService {
       abridgement: audiobook.abridgement,
       bisac_codes: audiobook.bisac_codes,
       runtime: audiobook.runtime,
+      street_date: audiobook.street_date,
       product_id: library?.id || null,
       retail_product_id: retail?.id || null,
       metadata_signature: audiobook.metadata_sig,
@@ -202,7 +209,11 @@ export class AudioSeedService {
     };
   }
 
-  async syncAudioData(metadata: AudioMetadata, audioByAccount: any) {
+  async syncAudioData(
+    previousMetadata: AudioMetadata | null,
+    metadata: AudioMetadata,
+    audioByAccount: any,
+  ) {
     const existingAudio = await this.audioRepository.findOne({
       where: { sku: metadata.sku },
     });
@@ -216,11 +227,12 @@ export class AudioSeedService {
       : 0;
 
     if (existingAudio) {
-      existingAudio.purchased_rental_license_limit =
-        existingAudio.purchased_rental_license_limit ??
-        metadata.purchased_rental_licenses;
-      existingAudio.total_rented = rentedLicenses;
-      await this.audioRepository.save(existingAudio);
+      await this.updateAudioEntity(
+        previousMetadata,
+        metadata,
+        existingAudio,
+        rentedLicenses,
+      );
     } else {
       const newAudio = this.createAudioEntity(metadata, rentedLicenses);
       await this.audioRepository.save(newAudio);
@@ -236,14 +248,48 @@ export class AudioSeedService {
     audio.is_active = false; // metadata.is_for_sale;
     audio.is_excluded = false;
     audio.is_featured = false;
-    audio.bookshelf_credit_cost = metadata.findaway_content_cost
-      ? Math.floor(metadata.findaway_content_cost / 10)
-      : 0;
+    audio.display_title = metadata.title;
+    audio.display_description = metadata.description;
+    audio.display_authors = metadata.authors;
+    audio.display_copyright = metadata.copyright;
     audio.total_rented = totalRented;
     audio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
     audio.categories = [
       this.audioCategories[_.random(this.audioCategories.length - 1)].id,
     ];
     return audio;
+  }
+
+  private async updateAudioEntity(
+    previousMetadata: AudioMetadata | null,
+    metadata: AudioMetadata,
+    audio: Audio,
+    totalRented: number,
+  ): Promise<Audio> {
+    if (previousMetadata.title === audio.display_title) {
+      audio.display_title = metadata.title;
+    }
+
+    if (previousMetadata.description === audio.display_description) {
+      audio.display_description = metadata.description;
+    }
+
+    if (previousMetadata.copyright === audio.display_copyright) {
+      audio.display_copyright = metadata.copyright;
+    }
+
+    if (
+      JSON.stringify(previousMetadata.authors) ===
+      JSON.stringify(audio.display_authors)
+    ) {
+      audio.display_authors = metadata.authors;
+    }
+
+    audio.purchased_rental_license_limit =
+      audio.purchased_rental_license_limit ??
+      metadata.purchased_rental_licenses;
+    audio.total_rented = totalRented;
+
+    return this.audioRepository.save(audio);
   }
 }

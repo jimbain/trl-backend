@@ -30,6 +30,8 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.787.0",
+    "@aws-sdk/s3-request-presigner": "^3.787.0",
     "@faker-js/faker": "^8.4.1",
     "@nestjs/axios": "^3.1.2",
     "@nestjs/common": "^10.3.2",
@@ -42,7 +44,6 @@
     "@nestjs/schedule": "^4.1.1",
     "@nestjs/typeorm": "^10.0.2",
     "@node-saml/passport-saml": "^5.0.0",
-    "aws-sdk": "^2.1692.0",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",

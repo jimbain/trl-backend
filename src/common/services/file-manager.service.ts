@@ -1,25 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as AWS from 'aws-sdk';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+  GetObjectCommandOutput,
+  ObjectCannedACL,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class FileManagerService {
   private bucketEndpoint: string;
   private bucketName: string;
-  private s3: AWS.S3;
+  private s3Client: S3Client;
 
   constructor(private readonly configService: ConfigService) {
     this.bucketEndpoint =
       this.configService.getOrThrow<string>('DO_BUCKET_ENDPOINT');
     this.bucketName = this.configService.getOrThrow<string>('DO_BUCKET_NAME');
 
-    this.s3 = new AWS.S3({
+    // Initialize S3 client from AWS SDK v3
+    this.s3Client = new S3Client({
       endpoint: this.bucketEndpoint,
-      accessKeyId: this.configService.getOrThrow<string>('DO_ACCESS_KEY_ID'),
-      secretAccessKey: this.configService.getOrThrow<string>(
-        'DO_SECRET_ACCESS_KEY',
-      ),
       region: this.configService.getOrThrow<string>('DO_BUCKET_REGION'),
+      credentials: {
+        accessKeyId: this.configService.getOrThrow<string>('DO_ACCESS_KEY_ID'),
+        secretAccessKey: this.configService.getOrThrow<string>(
+          'DO_SECRET_ACCESS_KEY',
+        ),
+      },
     });
   }
 
@@ -33,13 +45,17 @@ export class FileManagerService {
       Bucket: this.bucketName,
       Key: filePath,
       Body: file.buffer, // The file buffer to upload
-      ACL: 'public-read', // Make it publicly accessible
+      ACL: ObjectCannedACL.public_read, // Correct ACL enum for public-read access
     };
 
     try {
-      const data = await this.s3.upload(params).promise();
-      const url = new URL(data.Location);
-      return url.pathname.substring(1);
+      // Use the PutObjectCommand for uploading a file
+      const command = new PutObjectCommand(params);
+      await this.s3Client.send(command);
+
+      // Generate file URL manually (since Location is not returned)
+      const fileUrl = `${this.bucketEndpoint}/${filePath}`;
+      return fileUrl;
     } catch (error) {
       console.error('Error uploading file:', error);
       throw new Error('File upload failed');
@@ -59,7 +75,9 @@ export class FileManagerService {
     };
 
     try {
-      await this.s3.deleteObject(params).promise();
+      // Use the DeleteObjectCommand for deleting a file
+      const command = new DeleteObjectCommand(params);
+      await this.s3Client.send(command);
       return true;
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -76,7 +94,9 @@ export class FileManagerService {
     };
 
     try {
-      await this.s3.headObject(params).promise();
+      // Use the HeadObjectCommand to check if the file exists
+      const command = new HeadObjectCommand(params);
+      await this.s3Client.send(command);
       return true; // File exists
     } catch (error) {
       return false; // File doesn't exist
@@ -96,7 +116,12 @@ export class FileManagerService {
     };
 
     try {
-      const url = await this.s3.getSignedUrlPromise('getObject', params);
+      // Create the command to retrieve the object
+      const command = new GetObjectCommand(params);
+
+      // Use the getSignedUrl function to generate the presigned URL
+      const url = await getSignedUrl(this.s3Client, command, { expiresIn });
+
       return url; // Return the presigned URL
     } catch (error) {
       console.error('Error generating presigned URL:', error);

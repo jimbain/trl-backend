@@ -3,11 +3,42 @@ import {
   QueryRunner,
   Table,
   TableForeignKey,
+  TableIndex,
 } from 'typeorm';
 
 export class CreateUserAudioStatusesTable1738687426500
   implements MigrationInterface
 {
+  private tableName = 'user_audio_statuses';
+
+  private foreignKeys = [
+    {
+      columnName: 'user_id',
+      referencedTable: 'users',
+      referencedColumnName: 'id',
+      onDelete: 'CASCADE',
+    },
+    {
+      columnName: 'audio_id',
+      referencedTable: 'audios',
+      referencedColumnName: 'id',
+      onDelete: 'CASCADE',
+    },
+  ];
+
+  private indices = [
+    {
+      columnName: 'audio_id',
+      indexName: 'IDX_USER_AUDIO_STATUSES_AUDIO_ID',
+      isUnique: false,
+    },
+    {
+      columnName: 'user_id',
+      indexName: 'IDX_USER_AUDIO_STATUSES_USER_ID',
+      isUnique: false,
+    },
+  ];
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -56,47 +87,53 @@ export class CreateUserAudioStatusesTable1738687426500
       }),
     );
 
-    // Create foreign key relationship with the users table
-    await queryRunner.createForeignKey(
-      'user_audio_statuses',
-      new TableForeignKey({
-        columnNames: ['user_id'],
-        referencedTableName: 'users',
-        referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
-      }),
-    );
+    for (const fk of this.foreignKeys) {
+      await queryRunner.createForeignKey(
+        this.tableName,
+        new TableForeignKey({
+          columnNames: [fk.columnName],
+          referencedColumnNames: [fk.referencedColumnName],
+          referencedTableName: fk.referencedTable,
+          onDelete: fk.onDelete,
+        }),
+      );
+    }
 
-    // Create foreign key relationship with the audios table
-    await queryRunner.createForeignKey(
-      'user_audio_statuses',
-      new TableForeignKey({
-        columnNames: ['audio_id'],
-        referencedTableName: 'audios',
-        referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
-      }),
-    );
+    for (const index of this.indices) {
+      await queryRunner.createIndex(
+        this.tableName,
+        new TableIndex({
+          name: index.indexName,
+          columnNames: [index.columnName],
+          isUnique: index.isUnique,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const table = await queryRunner.getTable('user_audio_statuses');
-    const foreignKeys = table.foreignKeys;
+    const table = await queryRunner.getTable(this.tableName);
 
-    const userForeignKey = foreignKeys.find(
-      (fk) => fk.columnNames.indexOf('user_id') !== -1,
-    );
-    if (userForeignKey) {
-      await queryRunner.dropForeignKey('user_audio_statuses', userForeignKey);
+    if (!table) return;
+
+    for (const index of this.indices) {
+      const tableIndex = table.indices.find(
+        (idx) => idx.name === index.indexName,
+      );
+      if (tableIndex) {
+        await queryRunner.dropIndex(this.tableName, tableIndex);
+      }
     }
 
-    const audioForeignKey = foreignKeys.find(
-      (fk) => fk.columnNames.indexOf('audio_id') !== -1,
-    );
-    if (audioForeignKey) {
-      await queryRunner.dropForeignKey('user_audio_statuses', audioForeignKey);
+    for (const fk of this.foreignKeys) {
+      const foreignKey = table.foreignKeys.find((fkObj) =>
+        fkObj.columnNames.includes(fk.columnName),
+      );
+      if (foreignKey) {
+        await queryRunner.dropForeignKey(this.tableName, foreignKey);
+      }
     }
 
-    await queryRunner.dropTable('user_audio_statuses');
+    await queryRunner.dropTable(this.tableName);
   }
 }

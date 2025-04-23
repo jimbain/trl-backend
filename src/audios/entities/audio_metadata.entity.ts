@@ -75,6 +75,9 @@ export class AudioMetadata extends BaseEntity {
   })
   available_for: MediaAvailabilityType;
 
+  @Column({ type: 'date', nullable: true })
+  street_date: Date | null;
+
   @Column({ type: 'boolean', nullable: true })
   is_for_sale: boolean; // active_products != empty
 
