@@ -25,7 +25,6 @@ export class AppConfigSeeder {
       notification_for_rent_expiring_in_d1_days: 4,
       notification_for_rent_expiring_in_d2_days: 2,
       notification_for_noactivity_in_last_x_days: 30,
-      new_user_default_password: '12345',
       notification_for_new_audio_expiring_in_d_days: 1,
     };
 

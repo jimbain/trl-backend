@@ -270,15 +270,11 @@ export class UserService {
     }
 
     // Fetch company and config in parallel
-    const [company, appConfigs, totalActiveUsersBeforeUpload] =
-      await Promise.all([
-        this.companyService.findById(companyId),
-        this.appConfigService.getAppConfigs(['new_user_default_password']),
-        this.getTotalActiveUsersByStatusOfCompany(companyId),
-      ]);
+    const [company, totalActiveUsersBeforeUpload] = await Promise.all([
+      this.companyService.findById(companyId),
+      this.getTotalActiveUsersByStatusOfCompany(companyId),
+    ]);
 
-    const newUserDefaultPassword =
-      appConfigs['new_user_default_password'] ?? '12345';
     const requiredColumns = ['first_name', 'last_name', 'email', 'password'];
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
@@ -331,7 +327,7 @@ export class UserService {
           first_name: user.first_name ?? null,
           last_name: user.last_name ?? null,
           email: user.email ?? null,
-          password: user.password ?? newUserDefaultPassword,
+          password: user.password,
           company_id: company.id,
         });
       }

@@ -44,16 +44,6 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
       indexName: 'IDX_AUDIOS_BOOKSHELF_CREDIT_COST',
       isUnique: false,
     },
-    {
-      columnName: 'display_title',
-      indexName: 'IDX_AUDIOS_DISPLAY_TITLE',
-      isUnique: false,
-    },
-    {
-      columnName: 'display_description',
-      indexName: 'IDX_AUDIOS_DISPLAY_DESCRIPTION',
-      isUnique: false,
-    },
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -167,6 +157,16 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
             name: 'total_played',
             type: 'bigint',
             default: 0,
+          },
+          {
+            name: 'activated_at',
+            type: 'timestamp',
+            isNullable: true,
+          },
+          {
+            name: 'curated_at',
+            type: 'timestamp',
+            isNullable: true,
           },
           {
             name: 'created_at',

@@ -69,10 +69,4 @@ export class UpdateCompanyAppConfigDto {
   @IsInt()
   @Min(0)
   notification_for_new_audio_expiring_in_d_days?: number;
-
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(255)
-  new_user_default_password?: string;
 }

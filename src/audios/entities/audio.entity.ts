@@ -78,6 +78,12 @@ export class Audio extends BaseEntity {
   @Column({ type: 'bigint', default: 0 })
   total_played: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  activated_at: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  curated_at: Date;
+
   @CreateDateColumn()
   created_at: Date;
 
