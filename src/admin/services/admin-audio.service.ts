@@ -236,7 +236,25 @@ export class AdminAudioService {
       where: { id: id },
     });
 
+    let justActivated: boolean = false;
+    let justCurated: boolean = false;
+
+    if (!audio.is_active && payload.is_active && !audio.activated_at) {
+      justActivated = true;
+    }
+
+    if (
+      audio.bookshelf_credit_cost === 0 &&
+      payload.bookshelf_credit_cost !== 0 &&
+      !audio.curated_at
+    ) {
+      justCurated = true;
+    }
+
     Object.assign(audio, payload);
+
+    audio.activated_at = justActivated ? new Date() : audio.activated_at;
+    audio.curated_at = justCurated ? new Date() : audio.curated_at;
 
     await Promise.all([
       this.cacheService.delete(id),
