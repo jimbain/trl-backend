@@ -101,6 +101,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     if (ids?.length > 0) {
@@ -279,6 +280,7 @@ export class AudioService {
         'userAudioStatus.status',
         'userAudioStatus.updated_at',
         'userAudioStatus.rental_expire_at',
+        'userAudioStatus.audio_id',
       ])
       .orderBy('audio.total_played', 'DESC')
       .limit(10)
@@ -387,6 +389,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     if (limit) {
@@ -455,6 +458,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     if (limit) {
@@ -597,6 +601,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     const paginatedData = await paginate(queryBuilder, page, limit);
@@ -676,6 +681,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     const paginatedData = await paginate(queryBuilder, page, limit);

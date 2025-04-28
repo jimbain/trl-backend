@@ -66,9 +66,6 @@ export class Audio extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   is_new_trl: boolean;
 
-  @Column({ type: 'boolean', default: false })
-  is_curated: boolean;
-
   @Column({ type: 'jsonb', nullable: true, default: [] })
   categories: string[]; // categories.id[]
 

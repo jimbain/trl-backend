@@ -173,9 +173,6 @@ export class AdminAudioDto {
   is_new_trl: boolean;
 
   @Expose()
-  is_curated: boolean;
-
-  @Expose()
   categories: string[];
 
   @Expose()

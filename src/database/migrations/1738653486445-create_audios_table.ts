@@ -138,11 +138,6 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
             default: false,
           },
           {
-            name: 'is_curated',
-            type: 'boolean',
-            default: false,
-          },
-          {
             name: 'categories',
             type: 'jsonb',
             isNullable: true,

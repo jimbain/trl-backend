@@ -197,6 +197,8 @@ export class AdminAudioService {
         author: 'audio.display_authors->>0',
         publisher: 'metadata.publisher',
         street_date: 'metadata.street_date',
+        activated_at: 'audio.activated_at',
+        curated_at: 'audio.curated_at',
         fa_retail_price: 'metadata.findaway_retail_price',
         fa_retail_content_cost: 'metadata.findaway_retail_content_cost',
         bookshelf_credit_cost: 'audio.bookshelf_credit_cost',
@@ -204,6 +206,9 @@ export class AdminAudioService {
         bisac_code: 'metadata.bisac_codes->>0',
         runtime: 'metadata.runtime',
         copyright: 'audio.display_copyright',
+        is_active: 'audio.is_active',
+        is_excluded: 'audio.is_excluded',
+        is_featured: 'audio.is_featured',
       };
 
       const column = orderByMap[order_by_column];
