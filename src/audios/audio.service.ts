@@ -389,14 +389,13 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
-        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     if (limit) {
       queryBuilder.take(limit);
     }
 
-    const audios = await queryBuilder.getMany();
+    const audios = await queryBuilder.getRawMany();
 
     const sortedAudios = audioIds.map((id) => {
       const media = audios.find((audio) => audio.id === id);
@@ -458,14 +457,13 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
-        'userAudioStatus.audio_id AS audio_id',
       ]);
 
     if (limit) {
       queryBuilder.take(limit);
     }
 
-    const audios = await queryBuilder.getMany();
+    const audios = await queryBuilder.getRawMany();
 
     return audios.map((audio) =>
       plainToInstance(
