@@ -11,6 +11,7 @@ import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminAudioService } from '../services/admin-audio.service';
 import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
 import { QueryAdminAudioDto } from '../dto/audio/query-admin-audio.dto';
+import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/audios')
@@ -25,6 +26,11 @@ export class AdminAudioController {
   @Get(':id')
   show(@Param('id') id: string) {
     return this.adminAudioService.findOne(id);
+  }
+
+  @Patch('bulk-update')
+  bulkUpdate(@Body() payload: AdminBulkUpdateAudioDto) {
+    return this.adminAudioService.bulkUpdate(payload);
   }
 
   @Patch(':id')

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AdminAudioDto } from '../dto/audio/admin-audio.dto';
 import { plainToInstance } from 'class-transformer';
@@ -11,6 +11,7 @@ import {
   SearchFor,
 } from '../dto/audio/query-admin-audio.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 
 @Injectable()
 export class AdminAudioService {
@@ -259,5 +260,41 @@ export class AdminAudioService {
       this.cacheService.delete(id),
       this.audioRepository.save(audio),
     ]);
+  }
+
+  async bulkUpdate(payload: AdminBulkUpdateAudioDto) {
+    const updates = payload.updates;
+
+    const ids = updates.map((u) => u.id);
+    const audioEntities = await this.audioRepository.findBy({ id: In(ids) });
+
+    // Ensure all provided IDs exist
+    if (audioEntities.length !== updates.length) {
+      const foundIds = new Set(audioEntities.map((a) => a.id));
+      const missingIds = ids.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Audio IDs not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // Map updates by ID for quick access
+    const updatesMap = new Map(updates.map((u) => [u.id, u]));
+
+    // Apply updates in memory
+    const updatedAudios = audioEntities.map((audio) => {
+      const update = updatesMap.get(audio.id);
+      if (update.is_active !== undefined) {
+        audio.is_active = update.is_active;
+      }
+      if (update.is_excluded !== undefined) {
+        audio.is_excluded = update.is_excluded;
+      }
+      if (update.is_featured !== undefined) {
+        audio.is_featured = update.is_featured;
+      }
+      return audio;
+    });
+
+    await this.audioRepository.save(updatedAudios);
   }
 }
