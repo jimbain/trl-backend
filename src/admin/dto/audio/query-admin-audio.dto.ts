@@ -115,4 +115,9 @@ export class QueryAdminAudioDto {
   @Transform(({ value }) => value?.toUpperCase())
   @IsEnum(OrderBy)
   order_by?: OrderBy;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === '1')
+  is_export?: boolean;
 }

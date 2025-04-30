@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AdminAudioDto } from '../dto/audio/admin-audio.dto';
 import { plainToInstance } from 'class-transformer';
@@ -12,6 +12,7 @@ import {
 } from '../dto/audio/query-admin-audio.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
+import { Readable } from 'stream';
 
 @Injectable()
 export class AdminAudioService {
@@ -41,6 +42,7 @@ export class AdminAudioService {
       is_excluded,
       order_by_column,
       order_by,
+      is_export,
     } = query;
 
     const queryBuilder = this.audioRepository
@@ -123,63 +125,6 @@ export class AdminAudioService {
       }
     }
 
-    // Search Text logic
-    if (search_text) {
-      const searchConditions: string[] = [];
-      const searchParams: Record<string, any> = {};
-
-      const searchValue = is_searching_whole_word
-        ? `% ${search_text} %`
-        : `%${search_text}%`;
-
-      if (search_for === SearchFor.PHRASE || !search_for) {
-        // Search whole phrase
-        searchConditions.push(
-          'audio.display_title ILIKE :searchText',
-          'audio.display_description ILIKE :searchText',
-          'metadata.publisher ILIKE :searchText',
-          `EXISTS (SELECT 1 FROM jsonb_array_elements_text(audio.display_authors) elem WHERE elem ILIKE :searchText)`,
-          `EXISTS (SELECT 1 FROM jsonb_array_elements_text(metadata.bisac_codes) elem WHERE elem ILIKE :searchText)`,
-        );
-        searchParams.searchText = searchValue;
-      } else if (
-        search_for === SearchFor.ALL_WORDS ||
-        search_for === SearchFor.ANY_WORD
-      ) {
-        // Split into words
-        const words = search_text
-          .split(' ')
-          .filter((word) => word.trim().length > 0);
-
-        const subConditions: string[] = [];
-
-        words.forEach((word, idx) => {
-          const paramKey = `searchWord${idx}`;
-          const value = is_searching_whole_word ? `% ${word} %` : `%${word}%`;
-          searchParams[paramKey] = value;
-
-          subConditions.push(
-            `(audio.display_title ILIKE :${paramKey} OR audio.display_description ILIKE :${paramKey} OR metadata.publisher ILIKE :${paramKey} OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(audio.display_authors) elem WHERE elem ILIKE :${paramKey}) OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(metadata.bisac_codes) elem WHERE elem ILIKE :${paramKey}))`,
-          );
-        });
-
-        if (search_for === SearchFor.ALL_WORDS) {
-          // All words => AND
-          searchConditions.push(...subConditions);
-        } else {
-          // Any word => OR
-          searchConditions.push(`(${subConditions.join(' OR ')})`);
-        }
-      }
-
-      if (searchConditions.length > 0) {
-        queryBuilder.andWhere(
-          `(${searchConditions.join(' OR ')})`,
-          searchParams,
-        );
-      }
-    }
-
     // Category inclusion/exclusion
     if (category_id) {
       const clause = is_included_in_category
@@ -189,6 +134,123 @@ export class AdminAudioService {
       queryBuilder.andWhere(clause, {
         categoryId: JSON.stringify([category_id]),
       });
+    }
+
+    // Search functionality
+    if (search_text && search_for) {
+      const searchFields = [
+        'audio.display_title',
+        'audio.display_description',
+        'metadata.publisher',
+      ];
+
+      // Unified JSONB array search handler
+      const jsonbSearchCondition = (
+        column: string,
+        alias: string,
+        paramName: string,
+        useRegex: boolean,
+      ) => {
+        return `EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements_text(${column}) AS ${alias}
+          WHERE ${alias} ${useRegex ? '~*' : 'ILIKE'} :${paramName}
+        )`;
+      };
+
+      // Sanitize search text
+      const sanitizedSearchText = search_text.trim();
+      const words = sanitizedSearchText
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+
+      if (words.length > 0 || search_for === SearchFor.PHRASE) {
+        if (search_for === SearchFor.PHRASE) {
+          // Treat search_text as a single phrase
+          const searchPattern = `%${sanitizedSearchText}%`;
+          const conditions = [
+            ...searchFields.map((field) => `${field} ILIKE :searchPattern`),
+            jsonbSearchCondition(
+              'audio.display_authors',
+              'author',
+              'searchPattern',
+              false,
+            ),
+            jsonbSearchCondition(
+              'metadata.bisac_codes',
+              'bisac',
+              'searchPattern',
+              false,
+            ),
+          ];
+          queryBuilder.andWhere(`(${conditions.join(' OR ')})`, {
+            searchPattern,
+          });
+        } else {
+          const isWholeWord = is_searching_whole_word;
+          if (search_for === SearchFor.ALL_WORDS) {
+            // Match all words
+            const conditions = words.map((word, index) => {
+              const paramName = `pattern${index}`;
+              const pattern = isWholeWord ? `\\m${word}\\M` : `${word}%`;
+              const fieldConditions = [
+                ...searchFields.map(
+                  (field) =>
+                    `${field} ${isWholeWord ? '~*' : 'ILIKE'} :${paramName}`,
+                ),
+                jsonbSearchCondition(
+                  'audio.display_authors',
+                  'author',
+                  paramName,
+                  isWholeWord,
+                ),
+                jsonbSearchCondition(
+                  'metadata.bisac_codes',
+                  'bisac',
+                  paramName,
+                  isWholeWord,
+                ),
+              ];
+              return `(${fieldConditions.join(' OR ')})`;
+            });
+            queryBuilder.andWhere(
+              `(${conditions.join(' AND ')})`,
+              words.reduce(
+                (params, word, index) => ({
+                  ...params,
+                  [`pattern${index}`]: isWholeWord
+                    ? `\\m${word}\\M`
+                    : `${word}%`,
+                }),
+                {},
+              ),
+            );
+          } else if (search_for === SearchFor.ANY_WORD) {
+            // Match any word
+            const pattern = isWholeWord
+              ? words.map((word) => `\\m${word}\\M`).join('|')
+              : words.map((word) => `${word}%`).join('|');
+            const conditions = [
+              ...searchFields.map(
+                (field) => `${field} ${isWholeWord ? '~*' : 'ILIKE'} :pattern`,
+              ),
+              jsonbSearchCondition(
+                'audio.display_authors',
+                'author',
+                'pattern',
+                isWholeWord,
+              ),
+              jsonbSearchCondition(
+                'metadata.bisac_codes',
+                'bisac',
+                'pattern',
+                isWholeWord,
+              ),
+            ];
+            queryBuilder.andWhere(`(${conditions.join(' OR ')})`, { pattern });
+          }
+        }
+      }
     }
 
     // Ordering
@@ -221,7 +283,86 @@ export class AdminAudioService {
       }
     }
 
+    if (is_export) {
+      const stream = await this.export(queryBuilder);
+      return new StreamableFile(stream);
+    }
+
     return paginate(queryBuilder, page, per_page);
+  }
+
+  async export(queryBuilder: SelectQueryBuilder<any>): Promise<Readable> {
+    const stream = new Readable({
+      read() {}, // Manual push streaming
+      highWaterMark: 1024 * 1024, // 1MB buffer to control backpressure
+    });
+
+    // Write CSV Header
+    stream.push(
+      'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
+    );
+
+    const batchSize = 1000;
+    let lastId: string | null = null;
+    let hasMoreData = true;
+
+    try {
+      while (hasMoreData) {
+        // Use cursor-based pagination instead of offset
+        const qb = queryBuilder.clone(); // Clone to avoid modifying original query
+        if (lastId) {
+          qb.andWhere('audio.id > :lastId', { lastId });
+        }
+        qb.orderBy('audio.id', 'ASC').limit(batchSize);
+
+        const items = await qb.getRawMany();
+
+        if (items.length === 0) {
+          hasMoreData = false;
+          break;
+        }
+
+        // Stream CSV rows
+        items.forEach((item) => {
+          const row =
+            [
+              `"${item.title.replace(/"/g, '""')}"`,
+              `"${item.authors ? item.authors.join(', ').replace(/"/g, '""') : ''}"`,
+              `"${item.categories ? item.categories.join(', ').replace(/"/g, '""') : ''}"`,
+              `"${item.publisher ? item.publisher.replace(/"/g, '""') : ''}"`,
+              item.is_excluded ? '1' : '0',
+              `"${item.street_date ?? ''}"`,
+              `"${item.fa_retail_price ? `$${item.fa_retail_price}` : ''}"`,
+              `"${item.fa_retail_content_cost ? `$${item.fa_retail_content_cost}` : ''}"`,
+              `"${item.activated_at ?? ''}"`,
+              `"${item.bookshelf_credit_cost ?? ''}"`,
+              `"${item.curated_at ?? ''}"`,
+              item.is_featured ? '1' : '0',
+              item.is_active ? '1' : '0',
+              `"${item.language ? item.language.replace(/"/g, '""') : ''}"`,
+              `"${item.bisac_codes ? item.bisac_codes.join(', ').replace(/"/g, '""') : ''}"`,
+              `"${item.runtime ?? ''}"`,
+              `"${item.copyright ? item.copyright.replace(/"/g, '""') : ''}"`,
+            ].join(',') + '\n';
+
+          // Check for backpressure
+          if (!stream.push(row)) {
+            // Pause if stream is full
+            return new Promise((resolve) => stream.once('drain', resolve));
+          }
+        });
+
+        lastId = items[items.length - 1].id;
+      }
+
+      // End the stream
+      stream.push(null);
+    } catch (error) {
+      stream.emit('error', error);
+      stream.push(null);
+    }
+
+    return stream;
   }
 
   async findOne(id: string) {
