@@ -34,10 +34,10 @@ export class UserActivityLog extends BaseEntity {
     enum: Object.values(USER_ACTIVITY),
     nullable: false,
   })
-  action_type: UserActivity;
+  action: UserActivity;
 
-  @Column({ type: 'int', default: 0 })
-  credit_used: number;
+  @Column({ type: 'jsonb', nullable: true })
+  meta: object;
 
   @CreateDateColumn()
   created_at: Date;

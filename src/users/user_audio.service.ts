@@ -156,8 +156,10 @@ export class UserAudioService {
       user_id: user.id,
       item_id: audio.id,
       item_type: 'audio',
-      action_type: action,
-      credit_used: credit,
+      action: action,
+      meta: {
+        credit,
+      },
     });
 
     await this.userActivityLogRepository.save(userActivityLog);

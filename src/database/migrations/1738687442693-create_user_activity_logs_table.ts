@@ -10,7 +10,7 @@ export class CreateUserActivityLogsTable1738687442693
 {
   private tableName = 'user_activity_logs';
   private itemTypeEnum = "'audio', 'video', 'pharma'";
-  private actionTypeEnum = "'queue', 'rent', 'keep', 'play', 'pause'";
+  private actionTypeEnum = "'queue', 'rent', 'keep', 'play', 'renew'";
 
   private foreignKeys = [
     {
@@ -26,7 +26,7 @@ export class CreateUserActivityLogsTable1738687442693
       `CREATE TYPE item_type_enum AS ENUM (${this.itemTypeEnum})`,
     );
     await queryRunner.query(
-      `CREATE TYPE action_type_enum AS ENUM (${this.actionTypeEnum})`,
+      `CREATE TYPE action_enum AS ENUM (${this.actionTypeEnum})`,
     );
 
     await queryRunner.createTable(
@@ -57,15 +57,15 @@ export class CreateUserActivityLogsTable1738687442693
             default: "'audio'",
           },
           {
-            name: 'action_type',
+            name: 'action',
             type: 'enum',
-            enumName: 'action_type_enum',
+            enumName: 'action_enum',
             isNullable: false,
           },
           {
-            name: 'credit_used',
-            type: 'int',
-            default: 0,
+            name: 'meta',
+            type: 'jsonb',
+            isNullable: true,
           },
           {
             name: 'created_at',
@@ -113,6 +113,6 @@ export class CreateUserActivityLogsTable1738687442693
 
     await queryRunner.dropTable(this.tableName);
     await queryRunner.query('DROP TYPE IF EXISTS item_type_enum');
-    await queryRunner.query('DROP TYPE IF EXISTS action_type_enum');
+    await queryRunner.query('DROP TYPE IF EXISTS action_enum');
   }
 }
