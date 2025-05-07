@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { MEDIA, Media, USER_ACTIVITY, UserActivity } from 'src/constants';
+import { UserActivityMeta } from '../user.interface';
 
 @Entity({ name: 'user_activity_logs' })
 export class UserActivityLog extends BaseEntity {
@@ -37,7 +38,7 @@ export class UserActivityLog extends BaseEntity {
   action: UserActivity;
 
   @Column({ type: 'jsonb', nullable: true })
-  meta: object;
+  meta: UserActivityMeta;
 
   @CreateDateColumn()
   created_at: Date;

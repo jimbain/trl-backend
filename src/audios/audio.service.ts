@@ -811,8 +811,8 @@ export class AudioService {
       user_id: user.id,
       item_type: 'audio',
       item_id: audioId,
-      action_type: eventType,
-      credit_used: 0,
+      action: 'play',
+      meta: {},
     });
 
     if (eventType === 'play' && audioId) {

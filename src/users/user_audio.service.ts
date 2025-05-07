@@ -14,6 +14,8 @@ import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { ConfigService } from '@nestjs/config';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioService } from 'src/audios/audio.service';
+import { CompanyService } from 'src/companies/company.service';
+import { MEDIA, USER_ACTIVITY } from 'src/constants';
 
 interface AudioFindawayworldLicensePurchase {
   id: string;
@@ -60,6 +62,7 @@ export class UserAudioService {
     private readonly audioService: AudioService,
     private readonly appConfigService: AppConfigService,
     private readonly audioEngineService: AudioEngineService,
+    private readonly companyService: CompanyService,
     private readonly configService: ConfigService,
   ) {
     this.audioEngineAccountId = this.configService.getOrThrow<string>(
@@ -149,17 +152,17 @@ export class UserAudioService {
   async storeUserActivityLog(
     user: User,
     audio: Audio,
-    action: 'queue' | 'rent' | 'keep',
-    credit: number = 0,
+    action: 'queue' | 'rent' | 'keep' | 'renew',
+    meta: any = {},
   ) {
+    const credit = Number(meta?.credit_used ?? 0);
+
     const userActivityLog = this.userActivityLogRepository.create({
       user_id: user.id,
       item_id: audio.id,
-      item_type: 'audio',
+      item_type: MEDIA.AUDIO,
       action: action,
-      meta: {
-        credit,
-      },
+      meta: meta,
     });
 
     await this.userActivityLogRepository.save(userActivityLog);
@@ -216,7 +219,10 @@ export class UserAudioService {
       updated_at: new Date(),
     });
 
-    await this.storeUserActivityLog(user, audio, 'queue', 0);
+    await this.storeUserActivityLog(user, audio, USER_ACTIVITY.QUEUE, {
+      credit_used: 0,
+    });
+
     return this.userAudioStatusRepository.save(queueAudio);
   }
 
@@ -243,16 +249,16 @@ export class UserAudioService {
   }
 
   async rentAudio(audioId: string, user: User) {
-    const appConfigs = await this.appConfigService.getAppConfigs([
-      'audio_rental_credit_cost',
-      'audio_rental_period_in_days',
-      'max_audio_rental_items_on_hand',
-      'rental_period_in_hours',
-      'max_audio_rental_items_per_period',
-    ]);
+    const company = await this.companyService.findByIdWithCache(
+      user.company.id,
+    );
+
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
 
     const rentalPeriodInHours =
-      parseInt(appConfigs['rental_period_in_hours'], 10) ?? 24;
+      parseInt(appConfigs['audio_rental_period_in_days'], 10) ?? 24;
 
     const intervalStartTime = new Date(
       Date.now() - rentalPeriodInHours * 60 * 60 * 1000,
@@ -358,12 +364,11 @@ export class UserAudioService {
         { id: audioId },
         { total_rented: (audio.total_rented || 0) + 1 },
       ),
-      this.storeUserActivityLog(
-        user,
-        audio,
-        'rent',
-        parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
-      ),
+      this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENT, {
+        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
+        start_time: updatedUserAudio.updated_at,
+        end_time: updatedUserAudio.rental_expire_at,
+      }),
     ]);
 
     return this.userAudioStatusRepository.findOne({
@@ -418,12 +423,10 @@ export class UserAudioService {
     updatedUserAudio.license_id = license.id;
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
-    await this.storeUserActivityLog(
-      user,
-      audio,
-      'keep',
-      audio.bookshelf_credit_cost || 0,
-    );
+    await this.storeUserActivityLog(user, audio, USER_ACTIVITY.KEEP, {
+      credit_used: audio.bookshelf_credit_cost || 0,
+      keep_at: updatedUserAudio.updated_at,
+    });
 
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },
@@ -431,12 +434,13 @@ export class UserAudioService {
   }
 
   async renewRentedAudio(audioId: string, user: User) {
+    const company = await this.companyService.findByIdWithCache(
+      user.company.id,
+    );
+
     const [audio, appConfigs, userAudio] = await Promise.all([
       this.audioService.findById(audioId, ['metadata']),
-      this.appConfigService.getAppConfigs([
-        'audio_rental_period_in_days',
-        'audio_rental_credit_cost',
-      ]),
+      this.appConfigService.getCompanyConfig(company.app_configs),
       this.userAudioStatusRepository.findOne({
         where: {
           audio_id: audioId,
@@ -467,6 +471,8 @@ export class UserAudioService {
         'US',
       );
     }
+
+    const previousExpireAt = userAudio.rental_expire_at;
 
     const remainingTimeInMinutes = Math.max(
       0,
@@ -500,12 +506,11 @@ export class UserAudioService {
         { id: audioId },
         { total_rented: (audio.total_rented || 0) + 1 },
       ),
-      this.storeUserActivityLog(
-        user,
-        audio,
-        'rent',
-        parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
-      ),
+      this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENEW, {
+        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
+        start_time: previousExpireAt,
+        end_time: userAudio.rental_expire_at,
+      }),
     ]);
 
     return this.userAudioStatusRepository.findOne({
@@ -529,6 +534,23 @@ export class UserAudioService {
     }
 
     userAudio.rental_expire_at = new Date();
-    return this.userAudioStatusRepository.save(userAudio);
+
+    const activity = await this.userActivityLogRepository.findOne({
+      where: {
+        user_id: user.id,
+        item_type: MEDIA.AUDIO,
+        item_id: audioId,
+        action: USER_ACTIVITY.RENT,
+      },
+    });
+
+    activity.meta.end_time = new Date();
+
+    const [updatedUserAudio, updatedActivity] = await Promise.all([
+      this.userAudioStatusRepository.save(userAudio),
+      this.userActivityLogRepository.save(activity),
+    ]);
+
+    return updatedUserAudio;
   }
 }

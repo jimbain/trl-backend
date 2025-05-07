@@ -1,26 +1,26 @@
 services:
-  trl_backend_app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - ./:/app
-      - /app/node_modules
-    ports:
-      - ${APP_PORT}:${APP_PORT}
-    environment:
-      - DB_HOST=trl_db
-      - DB_PORT=5432
-      - DB_USERNAME=${DB_USERNAME}
-      - REDIS_HOST=trl_redis
-      - REDIS_PORT=6379
-    depends_on:
-      trl_db:
-        condition: service_healthy
-      trl_redis:
-        condition: service_started
-    networks:
-      - trl-net
+  # trl_backend_app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   volumes:
+  #     - ./:/app
+  #     - /app/node_modules
+  #   ports:
+  #     - ${APP_PORT}:${APP_PORT}
+  #   environment:
+  #     - DB_HOST=trl_db
+  #     - DB_PORT=5432
+  #     - DB_USERNAME=${DB_USERNAME}
+  #     - REDIS_HOST=trl_redis
+  #     - REDIS_PORT=6379
+  #   depends_on:
+  #     trl_db:
+  #       condition: service_healthy
+  #     trl_redis:
+  #       condition: service_started
+  #   networks:
+  #     - trl-net
 
   trl_db:
     image: postgres:16
@@ -44,7 +44,7 @@ services:
     image: redis:7
     restart: always
     ports:
-      - "${FORWARD_REDIS_PORT}:${REDIS_PORT}"
+      - "${FORWARD_REDIS_PORT}:6379"
     networks:
       - trl-net
     volumes:

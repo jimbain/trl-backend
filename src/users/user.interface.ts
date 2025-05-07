@@ -11,3 +11,10 @@ export interface ExportUser {
   email: string;
   status: 'Active' | 'Inactive';
 }
+
+export interface UserActivityMeta {
+  credit_used?: number;
+  start_time?: Date;
+  end_time?: Date;
+  keep_at?: Date;
+}

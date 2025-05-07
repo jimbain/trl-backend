@@ -1,5 +1,6 @@
-import { IsIn, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+import { IsIn, IsNotEmpty, IsObject, IsString } from 'class-validator';
 import { MEDIA, Media, USER_ACTIVITY, UserActivity } from 'src/constants';
+import { UserActivityMeta } from '../user.interface';
 
 export class CreateUserActivityLogDto {
   @IsString()
@@ -16,10 +17,9 @@ export class CreateUserActivityLogDto {
 
   @IsNotEmpty()
   @IsIn(Object.values(USER_ACTIVITY))
-  action_type: UserActivity;
+  action: UserActivity;
 
-  @IsInt()
-  @Min(0)
+  @IsObject()
   @IsNotEmpty()
-  credit_used: number;
+  meta: UserActivityMeta;
 }
