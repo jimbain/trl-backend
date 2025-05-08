@@ -36,6 +36,7 @@ import { AdminCatalogService } from './services/admin-catalog.service';
 import { AdminVideoController } from './controllers/admin-video.controller';
 import { AdminPharmaController } from './controllers/admin-pharma.controller';
 import { CommonModule } from 'src/common/common.module';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { CommonModule } from 'src/common/common.module';
       User,
       UserAudioStatus,
       UserAudioplayerPosition,
+      UserActivityLog,
       Notification,
     ]),
     forwardRef(() => CompanyModule),

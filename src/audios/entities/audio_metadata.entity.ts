@@ -115,7 +115,7 @@ export class AudioMetadata extends BaseEntity {
   deleted_at: Date;
 }
 
-interface AudioChapter {
+export interface AudioChapter {
   part_number: number;
   chapter_number: number;
   duration: number;

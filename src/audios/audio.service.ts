@@ -10,6 +10,7 @@ import {
   In,
   IsNull,
   MoreThanOrEqual,
+  Raw,
   Repository,
 } from 'typeorm';
 import { Audio } from './entities/audio.entity';
@@ -21,7 +22,7 @@ import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
-import { MEDIA, USER_MEDIA_STATUS } from 'src/constants';
+import { MEDIA, USER_ACTIVITY, USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { UserActivityLogService } from 'src/users/user_activity_log.service';
 import { CompanyService } from 'src/companies/company.service';
@@ -32,6 +33,8 @@ import { AudioCategoryDto } from 'src/categories/dto/category.dto';
 import { CacheService } from 'src/common/services/cache.service';
 import { QueryAudioDto } from './dto/query-audio.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { AudioChapter } from './entities/audio_metadata.entity';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 
 @Injectable()
 export class AudioService {
@@ -43,6 +46,9 @@ export class AudioService {
 
   @InjectRepository(UserAudioplayerPosition)
   private readonly userAudioplayerPositionRepository: Repository<UserAudioplayerPosition>;
+
+  @InjectRepository(UserActivityLog)
+  private readonly userActivityLogRepository: Repository<UserActivityLog>;
 
   constructor(
     private readonly companyService: CompanyService,
@@ -785,43 +791,153 @@ export class AudioService {
     payload: TriggerAudioPlayerEventDto,
     user: User,
   ) {
-    const existingUserAudioPosition =
-      await this.userAudioplayerPositionRepository.findOne({
-        where: { audio_id: audioId, user_id: user.id },
-      });
+    const audio = await this.findByIdWithCache(audioId);
 
-    const updatedUserAudioplayerPosition = existingUserAudioPosition
-      ? {
-          ...existingUserAudioPosition,
-          part_number: payload.part_number,
-          chapter_number: payload.chapter_number,
-          play_position: payload.play_position,
-          updated_at: new Date(),
-        }
-      : this.userAudioplayerPositionRepository.create({
-          user_id: user.id,
-          audio_id: audioId,
-          part_number: payload.part_number,
-          chapter_number: payload.chapter_number,
-          play_position: payload.play_position,
-          updated_at: new Date(),
-        });
+    // Validate chapter existence and payload
+    const chapter = audio.metadata.chapters.find(
+      (ch: AudioChapter) =>
+        ch.part_number === payload.part_number &&
+        ch.chapter_number === payload.chapter_number,
+    );
 
-    await this.userActivityLogService.create({
-      user_id: user.id,
-      item_type: 'audio',
-      item_id: audioId,
-      action: 'play',
-      meta: {},
-    });
-
-    if (eventType === 'play' && audioId) {
-      await this.incrementTotalPlayedOfAudio(audioId);
+    if (!chapter || payload.play_position > chapter.duration) {
+      throw new BadRequestException(
+        'Invalid chapter or play position exceeds chapter duration',
+      );
     }
 
-    return await this.userAudioplayerPositionRepository.save(
-      updatedUserAudioplayerPosition,
-    );
+    // Handle pause event
+    if (eventType === 'pause') {
+      // Update user audio position
+      const existingUserAudioPosition =
+        await this.userAudioplayerPositionRepository.findOne({
+          where: { audio_id: audioId, user_id: user.id },
+        });
+
+      const updatedUserAudioplayerPosition = existingUserAudioPosition
+        ? {
+            ...existingUserAudioPosition,
+            part_number: payload.part_number,
+            chapter_number: payload.chapter_number,
+            play_position: payload.play_position,
+            updated_at: new Date(),
+          }
+        : this.userAudioplayerPositionRepository.create({
+            user_id: user.id,
+            audio_id: audioId,
+            part_number: payload.part_number,
+            chapter_number: payload.chapter_number,
+            play_position: payload.play_position,
+            updated_at: new Date(),
+          });
+
+      await this.userAudioplayerPositionRepository.save(
+        updatedUserAudioplayerPosition,
+      );
+
+      // Find latest play activity for pause event
+      const latestPlayActivity = await this.userActivityLogRepository.findOne({
+        where: {
+          user_id: user.id,
+          item_type: 'audio',
+          item_id: audioId,
+          action: USER_ACTIVITY.PLAY,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      if (latestPlayActivity) {
+        const meta = latestPlayActivity.meta || {};
+        const totalTimePlayed = this.calculateTotalTimePlayed(
+          audio.metadata.chapters,
+          {
+            part_number: meta.start_part_number,
+            chapter_number: meta.start_chapter_number,
+            position: meta.start_position,
+          },
+          {
+            part_number: payload.part_number,
+            chapter_number: payload.chapter_number,
+            position: payload.play_position,
+          },
+        );
+
+        await this.userActivityLogService.create({
+          user_id: user.id,
+          item_type: 'audio',
+          item_id: audioId,
+          action: USER_ACTIVITY.PLAY,
+          meta: {
+            start_part_number: meta.start_part_number,
+            start_chapter_number: meta.start_chapter_number,
+            start_position: meta.start_position,
+            end_part_number: Math.max(
+              meta.start_part_number,
+              payload.part_number,
+            ),
+            end_chapter_number: Math.max(
+              meta.start_chapter_number,
+              payload.chapter_number,
+            ),
+            end_position: Math.max(meta.start_position, payload.play_position),
+            total_time_played: totalTimePlayed,
+          },
+        });
+      }
+    }
+
+    // Handle play event
+    if (eventType === 'play') {
+      // Check for existing play activity on current date
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const existingPlayActivity = await this.userActivityLogRepository.findOne(
+        {
+          where: {
+            user_id: user.id,
+            item_type: 'audio',
+            item_id: audioId,
+            action: USER_ACTIVITY.PLAY,
+            created_at: Raw((alias) => `DATE(${alias}) = :date`, {
+              date: today,
+            }),
+          },
+        },
+      );
+
+      const meta = existingPlayActivity
+        ? {
+            start_part_number: Math.min(
+              existingPlayActivity.meta.start_part_number,
+              payload.part_number,
+            ),
+            start_chapter_number: Math.min(
+              existingPlayActivity.meta.start_chapter_number,
+              payload.chapter_number,
+            ),
+            start_position: Math.min(
+              existingPlayActivity.meta.start_position,
+              payload.play_position,
+            ),
+            total_time_played: 0,
+          }
+        : {
+            start_part_number: payload.part_number,
+            start_chapter_number: payload.chapter_number,
+            start_position: payload.play_position,
+            total_time_played: 0,
+          };
+
+      await Promise.all([
+        this.incrementTotalPlayedOfAudio(audioId),
+        this.userActivityLogService.create({
+          user_id: user.id,
+          item_type: 'audio',
+          item_id: audioId,
+          action: USER_ACTIVITY.PLAY,
+          meta,
+        }),
+      ]);
+    }
   }
 
   async assignCategory(category: Category, ids: string[]) {
@@ -886,5 +1002,57 @@ export class AudioService {
       .getRawMany();
 
     return audios.map((audio) => audio.id);
+  }
+
+  // Helper method to calculate total time played
+  private calculateTotalTimePlayed(
+    chapters: AudioChapter[],
+    start: { part_number: number; chapter_number: number; position: number },
+    end: { part_number: number; chapter_number: number; position: number },
+  ): number {
+    let totalTime = 0;
+
+    // Sort chapters to process them in order
+    const sortedChapters = [...chapters].sort((a, b) => {
+      if (a.part_number !== b.part_number) {
+        return a.part_number - b.part_number;
+      }
+      return a.chapter_number - b.chapter_number;
+    });
+
+    for (const chapter of sortedChapters) {
+      // Check if chapter is within the played range
+      if (
+        (chapter.part_number > start.part_number ||
+          (chapter.part_number === start.part_number &&
+            chapter.chapter_number >= start.chapter_number)) &&
+        (chapter.part_number < end.part_number ||
+          (chapter.part_number === end.part_number &&
+            chapter.chapter_number <= end.chapter_number))
+      ) {
+        // For start chapter
+        if (
+          chapter.part_number === start.part_number &&
+          chapter.chapter_number === start.chapter_number
+        ) {
+          totalTime += chapter.duration - start.position;
+          continue;
+        }
+
+        // For end chapter
+        if (
+          chapter.part_number === end.part_number &&
+          chapter.chapter_number === end.chapter_number
+        ) {
+          totalTime += end.position;
+          break;
+        }
+
+        // For chapters in between
+        totalTime += chapter.duration;
+      }
+    }
+
+    return totalTime;
   }
 }

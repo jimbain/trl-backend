@@ -22,6 +22,7 @@ import { CatalogModule } from 'src/catalog/catalog.module';
 import { CompanyModule } from 'src/companies/company.module';
 import { CategoryModule } from 'src/categories/category.module';
 import { CommonModule } from 'src/common/common.module';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { CommonModule } from 'src/common/common.module';
       AudioReview,
       UserAudioStatus,
       UserAudioplayerPosition,
+      UserActivityLog,
     ]),
     forwardRef(() => UserModule),
     forwardRef(() => CompanyModule),

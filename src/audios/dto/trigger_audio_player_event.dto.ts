@@ -13,6 +13,6 @@ export class TriggerAudioPlayerEventDto {
 
   @IsInt()
   @IsNotEmpty()
-  @Min(1, { message: 'play_position must be greater than 0' })
+  @Min(0, { message: 'Play position must be greater than or equal to 0' })
   play_position: number;
 }

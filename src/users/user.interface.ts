@@ -17,4 +17,11 @@ export interface UserActivityMeta {
   start_time?: Date;
   end_time?: Date;
   keep_at?: Date;
+  start_part_number?: number;
+  start_chapter_number?: number;
+  start_position?: number;
+  end_part_number?: number;
+  end_chapter_number?: number;
+  end_position?: number;
+  total_time_played?: number;
 }
