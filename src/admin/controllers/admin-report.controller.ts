@@ -9,6 +9,7 @@ import {
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminReportService } from '../services/admin-report.service';
 import { Response } from 'express';
+import { AdminReportGetUserActivityLogsQueryDto } from '../dto/report/admin-report-get-user-activity-log-query.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/reports')
@@ -21,7 +22,10 @@ export class AdminReportController {
   }
 
   @Get('user-activity-logs')
-  async findUserActivityLogs(@Query() query: any = {}, @Res() res: Response) {
+  async findUserActivityLogs(
+    @Query() query: AdminReportGetUserActivityLogsQueryDto = {},
+    @Res() res: Response,
+  ) {
     const result = await this.adminReportService.getUserActivityLogs(query);
 
     if (result instanceof StreamableFile) {

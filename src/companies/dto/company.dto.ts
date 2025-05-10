@@ -45,6 +45,20 @@ export class CompanyListDto {
   created_at: string;
 }
 
+export class CompanyBasicDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  @Transform(({ value }) =>
+    value ? `${process.env.DO_BUCKET_FRONTEND_ENDPOINT}/${value}` : null,
+  )
+  logo_url: string;
+}
+
 export class CompanyDto {
   @Expose()
   id: string;

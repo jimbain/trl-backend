@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
@@ -6,6 +6,8 @@ import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { AdminReportUserActivityLogDto } from '../dto/report/admin-report-user-activity-log.dto';
+import { AdminReportGetUserActivityLogsQueryDto } from '../dto/report/admin-report-get-user-activity-log-query.dto';
 
 export interface OverviewInterface {
   company_count: number;
@@ -46,27 +48,15 @@ export class AdminReportService {
     };
   }
 
-  async getUserActivityLogs(query: any = {}) {
+  async getUserActivityLogs(query: AdminReportGetUserActivityLogsQueryDto) {
     const {
+      created_at_from,
+      created_at_to,
       page,
       per_page,
-      category_id,
-      is_included_in_category,
-      is_active,
-      search_text,
-      search_for,
-      is_searching_whole_word,
-      street_date_from,
-      street_date_to,
-      bookshelf_credit_cost,
-      retail_price_min,
-      retail_price_max,
-      retail_content_cost_min,
-      retail_content_cost_max,
-      is_featured,
-      is_excluded,
-      order_by_column,
-      order_by,
+      company_ids,
+      item_type,
+      user_ids,
       is_export,
     } = query;
 
@@ -84,60 +74,85 @@ export class AdminReportService {
       )
       .leftJoin('audio.metadata', 'metadata')
       .select([
-        'log.id',
-        'log.item_type',
-        'log.action',
-        'log.meta',
-        'user.id',
-        'user.first_name',
-        'user.last_name',
-        'user.email',
-        'metadata.runtime',
-        'company.id',
-        'company.name',
-        'company.logo_url',
-        'audio.id',
-        'audio.display_title',
-        'audio.sku',
-        'audio.bookshelf_credit_cost',
+        'log.id AS id',
+        'log.item_type AS item_type',
+        'log.action AS action',
+        'log.created_at AS created_at',
+        'log.meta AS meta',
+        'user.id AS user_id',
+        'user.first_name AS user_first_name',
+        'user.last_name AS user_last_name',
+        'user.email AS user_email',
+        'metadata.runtime AS metadata_runtime',
+        'company.id AS company_id',
+        'company.name AS company_name',
+        'company.logo_url AS company_logo_url',
+        'audio.id AS audio_id',
+        'audio.display_title AS audio_display_title',
+        'audio.sku AS audio_sku',
+        'audio.bookshelf_credit_cost AS audio_bookshelf_credit_cost',
+        `(
+          SELECT COALESCE(SUM((sub_log.meta->>'total_time_played')::bigint), 0) AS total_time_played_sum_ms
+          FROM user_activity_logs sub_log
+          WHERE sub_log.action = 'play'
+          AND sub_log.item_id = log.item_id
+          AND sub_log.item_type = log.item_type
+          AND (
+            CASE 
+              WHEN log.action IN ('rent', 'renew') THEN
+                sub_log.created_at BETWEEN 
+                  (log.meta->>'start_time')::timestamp AND 
+                  (log.meta->>'end_time')::timestamp
+              WHEN log.action = 'keep' THEN
+                sub_log.created_at > (log.meta->>'keep_at')::timestamp
+              ELSE FALSE
+            END
+          )
+        ) AS listened_time_ms`,
       ])
       .where('log.action IN (:...actions)', {
         actions: ['rent', 'keep', 'renew'],
       });
 
-    const paginatedResult = await paginate(queryBuilder, page, per_page);
+    // Apply dynamic filters
+    if (created_at_from) {
+      queryBuilder.andWhere('DATE(log.created_at) >= :created_at_from', {
+        created_at_from,
+      });
+    }
 
-    return paginatedResult;
-    // return logs.map((log) => ({
-    //   audio:
-    //     log.log_item_type === 'audio'
-    //       ? {
-    //           id: log.audio_id,
-    //           title: log.audio_display_title,
-    //           sku: log.audio_sku,
-    //           runtime: log.metadata_runtime,
-    //           trl_cost: log.audio_bookshelf_credit_cost,
-    //         }
-    //       : null,
-    //   item_type: log.log_item_type,
-    //   action: ['rent', 'renew'].includes(log.log_action) ? 'Rent' : 'Purchase',
-    //   company: {
-    //     id: log.company_id,
-    //     name: log.company_name,
-    //     logo: log.company_logo_url
-    //       ? `${process.env.DO_BUCKET_FRONTEND_ENDPOINT}/${log.company_logo_url}`
-    //       : null,
-    //   },
-    //   user: {
-    //     id: log.user_id,
-    //     first_name: log.user_first_name,
-    //     last_name: log.user_last_name,
-    //     email: log.user_email,
-    //   },
-    //   trl_credit: log.log_meta.credit_used,
-    //   start_date: log.log_meta.start_time,
-    //   end_date: log.log_meta.end_time,
-    //   is_renewed: log.log_action === 'renew',
-    // }));
+    if (created_at_to) {
+      queryBuilder.andWhere('DATE(log.created_at) <= :created_at_to', {
+        created_at_to,
+      });
+    }
+
+    if (company_ids?.length) {
+      queryBuilder.andWhere('company.id IN (:...company_ids)', { company_ids });
+    }
+
+    if (item_type) {
+      queryBuilder.andWhere('log.item_type = :item_type', { item_type });
+    }
+
+    if (user_ids?.length) {
+      queryBuilder.andWhere('user.id IN (:...user_ids)', { user_ids });
+    }
+
+    // Apply sorting
+    queryBuilder.orderBy('log.created_at', 'DESC');
+
+    try {
+      return await paginate(
+        queryBuilder,
+        page,
+        per_page,
+        AdminReportUserActivityLogDto,
+      );
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to fetch user activity logs: ${error.message}`,
+      );
+    }
   }
 }

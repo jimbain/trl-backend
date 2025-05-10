@@ -22,6 +22,8 @@ import { chunk } from 'lodash';
 import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
 import { UserRegistrationLog } from './entities/user_registration_log.entity';
 import { Readable } from 'stream';
+import { QueryUserDto } from './dto/query-user.dto';
+import { paginate } from 'src/common/helpers/pagination.helper';
 
 @Injectable()
 export class UserService {
@@ -67,71 +69,76 @@ export class UserService {
   }
 
   async findAll(
-    query: any = {},
+    query: QueryUserDto,
     relations: string[] = [],
-  ): Promise<{
-    data: UserListDto[];
-    meta: PaginationMeta;
-  }> {
-    const parsedPage = parseInt(query.page, 10) || 1;
-    const parsedPerPage = parseInt(query.per_page, 10) || 10;
+  ): Promise<
+    | {
+        data: UserListDto[];
+        meta: PaginationMeta;
+      }
+    | { id: string; name: string }[]
+  > {
+    const {
+      page,
+      per_page,
+      company_id,
+      name,
+      email,
+      status,
+      sort_order,
+      sort_column,
+      is_basic,
+    } = query;
 
-    const qb = this.userRepository.createQueryBuilder('user');
+    const queryBuilder = this.userRepository.createQueryBuilder('user');
+
+    if (is_basic) {
+      const users = await queryBuilder
+        .leftJoin('user.company', 'company')
+        .select([
+          'user.id AS id',
+          `user.first_name || ' ' || user.last_name AS name`,
+        ])
+        .orderBy('company.name', 'ASC')
+        .getRawMany();
+
+      return users;
+    }
 
     relations.forEach((relation) => {
-      qb.leftJoinAndSelect(`user.${relation}`, relation);
+      queryBuilder.leftJoinAndSelect(`user.${relation}`, relation);
     });
 
-    if (query.company_id) {
-      qb.andWhere('user.company_id = :companyId', {
-        companyId: query.company_id,
+    if (company_id) {
+      queryBuilder.andWhere('user.company_id = :companyId', {
+        companyId: company_id,
       });
     }
 
-    if (query.name) {
-      qb.andWhere(
+    if (name) {
+      queryBuilder.andWhere(
         '(user.first_name ILIKE :name OR user.last_name ILIKE :name)',
         {
-          name: `%${query.name}%`,
+          name: `%${name}%`,
         },
       );
     }
 
-    if (query.email) {
-      qb.andWhere('LOWER(user.email) LIKE LOWER(:email)', {
-        email: `%${query.email}%`,
+    if (email) {
+      queryBuilder.andWhere('user.email ILIKE :email', {
+        email: `%${email}%`,
       });
     }
 
-    if (query.status === 'active') {
-      qb.andWhere('user.is_active = :status', { status: true });
-    } else if (query.status === 'inactive') {
-      qb.andWhere('user.is_active = :status', { status: false });
+    if (status === 'active') {
+      queryBuilder.andWhere('user.is_active = :status', { status: true });
+    } else if (status === 'inactive') {
+      queryBuilder.andWhere('user.is_active = :status', { status: false });
     }
 
-    qb.orderBy('user.created_at', 'DESC');
+    queryBuilder.orderBy(`user.${sort_column}`, sort_order);
 
-    const [users, total] = await qb
-      .skip((parsedPage - 1) * parsedPerPage)
-      .take(parsedPerPage)
-      .getManyAndCount();
-
-    const from = total > 0 ? (parsedPage - 1) * parsedPerPage + 1 : null;
-    const to = Math.min(parsedPage * parsedPerPage, total);
-
-    return {
-      data: plainToInstance(UserListDto, users, {
-        excludeExtraneousValues: true,
-      }),
-      meta: {
-        current_page: parsedPage,
-        per_page: parsedPerPage,
-        total,
-        last_page: Math.ceil(total / parsedPerPage),
-        from,
-        to,
-      },
-    };
+    return paginate(queryBuilder, page, per_page, UserListDto);
   }
 
   findOne(id: string) {

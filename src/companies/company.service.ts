@@ -9,11 +9,14 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
-import { instanceToPlain, plainToInstance } from 'class-transformer';
-import { CompanyDto, CompanyListDto } from './dto/company.dto';
+import {
+  instanceToPlain,
+  plainToClass,
+  plainToInstance,
+} from 'class-transformer';
+import { CompanyBasicDto, CompanyDto, CompanyListDto } from './dto/company.dto';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CompanyCreditLog } from './entities/company_credit_log.entity';
-import { CompanySearchInterface } from 'src/admin/admin.interface';
 import { FileManagerService } from 'src/common/services/file-manager.service';
 import { CreateCompanyCreditLogDto } from './dto/create-company-credit-log.dto';
 import { CompanyCreditLogDto } from './dto/company-credit-log.dto';
@@ -21,6 +24,7 @@ import { paginate } from 'src/common/helpers/pagination.helper';
 import { UpdateCompanyAppConfigDto } from 'src/admin/dto/company/update-company-app-config.dto';
 import { CacheService } from 'src/common/services/cache.service';
 import { CachedCompany } from './company.interface';
+import { AdminCompanySearchQueryDto } from 'src/admin/dto/company/admin-company-query.dto';
 
 @Injectable()
 export class CompanyService {
@@ -36,53 +40,70 @@ export class CompanyService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async findAll(query: CompanySearchInterface) {
-    const sortOrder = ['asc', 'desc'].includes(query.sort_order?.toLowerCase())
-      ? query.sort_order.toUpperCase()
-      : 'ASC';
+  async findAll(query: AdminCompanySearchQueryDto) {
+    const { page, per_page, name, status, sort_order, sort_column, is_basic } =
+      query;
 
-    const sortColumn = query.sort_column ? query.sort_column : 'created_at';
+    let selections = [
+      'company.id AS id',
+      'company.name AS name',
+      'company.logo_url AS logo_url',
+    ];
 
-    const qb = this.companyRepository
-      .createQueryBuilder('company')
+    const queryBuilder = this.companyRepository.createQueryBuilder('company');
+
+    if (is_basic) {
+      const users = queryBuilder
+        .select(selections)
+        .orderBy('company.name', 'ASC')
+        .getRawMany();
+
+      return plainToClass(CompanyBasicDto, users);
+    }
+
+    selections = [
+      ...new Set([
+        ...selections,
+        ...[
+          'company.available_medias AS available_medias',
+          'company.available_credits AS available_credits',
+          'company.available_credits AS available_credits',
+          'company.is_active AS is_active',
+          "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
+          'COALESCE(COUNT(user.id), 0) AS active_user_count',
+        ],
+      ]),
+    ];
+
+    queryBuilder
       .leftJoinAndSelect(
         'company.users',
         'user',
         'user.is_active = :userActive',
         { userActive: true },
       )
-      .select([
-        'company.id AS id',
-        'company.name AS name',
-        'company.logo_url AS logo_url',
-        'company.available_medias AS available_medias',
-        'company.available_credits AS available_credits',
-        'company.available_credits AS available_credits',
-        'company.is_active AS is_active',
-        "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
-        'COALESCE(COUNT(user.id), 0) AS active_user_count',
-      ])
+      .select(selections)
       .groupBy('company.id')
       .orderBy(
-        sortColumn === 'active_user_count'
+        sort_column === 'active_user_count'
           ? 'active_user_count'
-          : `company.${sortColumn}`,
-        sortOrder as 'ASC' | 'DESC',
+          : `company.${sort_column}`,
+        sort_order as 'ASC' | 'DESC',
       );
 
-    if (query.name) {
-      qb.andWhere('company.name ILIKE :name', {
+    if (name) {
+      queryBuilder.andWhere('company.name ILIKE :name', {
         name: `%${query.name}%`,
       });
     }
 
-    if (query.status === 'active') {
-      qb.andWhere('company.is_active = :status', { status: true });
+    if (status === 'active') {
+      queryBuilder.andWhere('company.is_active = :status', { status: true });
     } else if (query.status === 'inactive') {
-      qb.andWhere('company.is_active = :status', { status: false });
+      queryBuilder.andWhere('company.is_active = :status', { status: false });
     }
 
-    return paginate(qb, query.page, query.per_page, CompanyListDto);
+    return paginate(queryBuilder, page, per_page, CompanyListDto);
   }
 
   async create(payload: CreateCompanyDto, logo?: Express.Multer.File) {

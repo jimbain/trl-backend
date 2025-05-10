@@ -15,8 +15,8 @@ import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { CreateCompanyDto } from 'src/companies/dto/create-company.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateCompanyDto } from 'src/companies/dto/update-company.dto';
-import { CompanySearchInterface } from '../admin.interface';
 import { UpdateCompanyAppConfigDto } from '../dto/company/update-company-app-config.dto';
+import { AdminCompanySearchQueryDto } from '../dto/company/admin-company-query.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/companies')
@@ -24,7 +24,7 @@ export class AdminCompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Get()
-  findAll(@Query() query: CompanySearchInterface) {
+  findAll(@Query() query: AdminCompanySearchQueryDto) {
     return this.companyService.findAll(query);
   }
 

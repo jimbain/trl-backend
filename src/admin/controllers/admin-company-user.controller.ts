@@ -21,6 +21,7 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
 import { Response } from 'express';
+import { QueryUserDto } from 'src/users/dto/query-user.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/companies')
@@ -28,9 +29,9 @@ export class AdminCompanyUserController {
   constructor(private readonly userService: UserService) {}
 
   @Get(':id/users')
-  findAll(@Param('id') id: string, @Query() query: any) {
+  findAll(@Param('id') id: string, @Query() query: QueryUserDto) {
     query.company_id = id;
-    return this.userService.findAll(query, ['company']);
+    return this.userService.findAll(query);
   }
 
   @Post(':id/users')
