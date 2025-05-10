@@ -1,7 +1,8 @@
 import {
+  Body,
   Controller,
   Get,
-  Query,
+  Post,
   Res,
   StreamableFile,
   UseGuards,
@@ -9,7 +10,7 @@ import {
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminReportService } from '../services/admin-report.service';
 import { Response } from 'express';
-import { AdminReportGetUserActivityLogsQueryDto } from '../dto/report/admin-report-get-user-activity-log-query.dto';
+import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-user-activity-log-query.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/reports')
@@ -21,12 +22,12 @@ export class AdminReportController {
     return this.adminReportService.getOverview();
   }
 
-  @Get('user-activity-logs')
+  @Post('user-activity-logs')
   async findUserActivityLogs(
-    @Query() query: AdminReportGetUserActivityLogsQueryDto = {},
+    @Body() payload: AdminReportUserActivityLogsQueryDto,
     @Res() res: Response,
   ) {
-    const result = await this.adminReportService.getUserActivityLogs(query);
+    const result = await this.adminReportService.getUserActivityLogs(payload);
 
     if (result instanceof StreamableFile) {
       res.setHeader('Content-Type', 'text/csv');

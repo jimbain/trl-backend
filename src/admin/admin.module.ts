@@ -37,6 +37,7 @@ import { AdminVideoController } from './controllers/admin-video.controller';
 import { AdminPharmaController } from './controllers/admin-pharma.controller';
 import { CommonModule } from 'src/common/common.module';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { AdminUserController } from './controllers/admin-user.controller';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
     AdminPharmaController,
     AdminReportController,
     AdminNotificationController,
+    AdminUserController,
   ],
   providers: [
     AdminAuthService,

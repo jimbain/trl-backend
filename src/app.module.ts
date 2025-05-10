@@ -15,6 +15,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from './notification/notification.module';
 import { AdminModule } from './admin/admin.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { AppErrorLogModule } from './app-error-log/app-error-log.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { CatalogModule } from './catalog/catalog.module';
     NotificationModule,
     AdminModule,
     CatalogModule,
+    AppErrorLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

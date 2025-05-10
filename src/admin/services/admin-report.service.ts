@@ -11,7 +11,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { AdminReportUserActivityLogDto } from '../dto/report/admin-report-user-activity-log.dto';
-import { AdminReportGetUserActivityLogsQueryDto } from '../dto/report/admin-report-get-user-activity-log-query.dto';
+import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-user-activity-log-query.dto';
 import { Readable } from 'stream';
 import { plainToInstance } from 'class-transformer';
 
@@ -54,7 +54,7 @@ export class AdminReportService {
     };
   }
 
-  async getUserActivityLogs(query: AdminReportGetUserActivityLogsQueryDto) {
+  async getUserActivityLogs(query: AdminReportUserActivityLogsQueryDto) {
     const {
       created_at_from,
       created_at_to,

@@ -82,6 +82,7 @@ export class UserService {
       page,
       per_page,
       company_id,
+      company_ids,
       name,
       email,
       status,
@@ -91,6 +92,12 @@ export class UserService {
     } = query;
 
     const queryBuilder = this.userRepository.createQueryBuilder('user');
+
+    if (company_ids?.length) {
+      queryBuilder.andWhere('user.company_id IN (:...company_ids)', {
+        company_ids,
+      });
+    }
 
     if (is_basic) {
       const users = await queryBuilder

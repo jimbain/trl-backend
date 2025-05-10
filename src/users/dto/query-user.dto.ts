@@ -8,6 +8,7 @@ import {
   IsIn,
   IsBoolean,
   IsEmail,
+  IsArray,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -41,6 +42,12 @@ export class QueryUserDto {
   @IsOptional()
   @IsString()
   company_id?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Type(() => String)
+  company_ids?: string[];
 
   @IsOptional()
   @IsString()

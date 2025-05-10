@@ -12,7 +12,7 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { Media, MEDIA } from 'src/constants';
 
-export class AdminReportGetUserActivityLogsQueryDto {
+export class AdminReportUserActivityLogsQueryDto {
   @IsOptional()
   @IsDateString()
   created_at_from?: string;
@@ -52,6 +52,5 @@ export class AdminReportGetUserActivityLogsQueryDto {
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ obj }) => obj?.is_export === 'true')
   is_export?: boolean;
 }
