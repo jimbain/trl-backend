@@ -848,6 +848,22 @@ export class AudioService {
 
       if (latestPlayActivity) {
         const meta = latestPlayActivity.meta || {};
+
+        // Derive the updated end values
+        const end_part_number = Math.max(
+          meta.end_part_number ?? 0,
+          payload.part_number,
+        );
+        const end_chapter_number = Math.max(
+          meta.end_chapter_number ?? 0,
+          payload.chapter_number,
+        );
+        const end_position = Math.max(
+          meta.end_position ?? 0,
+          payload.play_position,
+        );
+
+        // Now calculate total time played after computing end values
         const totalTimePlayed = this.calculateTotalTimePlayed(
           audio.metadata.chapters,
           {
@@ -856,40 +872,32 @@ export class AudioService {
             position: meta.start_position,
           },
           {
-            part_number: payload.part_number,
-            chapter_number: payload.chapter_number,
-            position: payload.play_position,
+            part_number: end_part_number,
+            chapter_number: end_chapter_number,
+            position: end_position,
           },
         );
 
-        await this.userActivityLogService.create({
-          user_id: user.id,
-          item_type: 'audio',
-          item_id: audioId,
-          action: USER_ACTIVITY.PLAY,
-          meta: {
-            start_part_number: meta.start_part_number,
-            start_chapter_number: meta.start_chapter_number,
-            start_position: meta.start_position,
-            end_part_number: Math.max(
-              meta.start_part_number,
-              payload.part_number,
-            ),
-            end_chapter_number: Math.max(
-              meta.start_chapter_number,
-              payload.chapter_number,
-            ),
-            end_position: Math.max(meta.start_position, payload.play_position),
-            total_time_played: totalTimePlayed,
-          },
-        });
+        latestPlayActivity.meta = {
+          start_part_number: meta.start_part_number,
+          start_chapter_number: meta.start_chapter_number,
+          start_position: meta.start_position,
+          end_part_number,
+          end_chapter_number,
+          end_position,
+          total_time_played: totalTimePlayed,
+        };
+
+        latestPlayActivity.updated_at = new Date();
+
+        await this.userActivityLogRepository.save(latestPlayActivity);
       }
     }
 
     // Handle play event
     if (eventType === 'play') {
-      // Check for existing play activity on current date
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
       const existingPlayActivity = await this.userActivityLogRepository.findOne(
         {
           where: {
@@ -904,39 +912,73 @@ export class AudioService {
         },
       );
 
-      const meta = existingPlayActivity
-        ? {
-            start_part_number: Math.min(
-              existingPlayActivity.meta.start_part_number,
-              payload.part_number,
-            ),
-            start_chapter_number: Math.min(
-              existingPlayActivity.meta.start_chapter_number,
-              payload.chapter_number,
-            ),
-            start_position: Math.min(
-              existingPlayActivity.meta.start_position,
-              payload.play_position,
-            ),
-            total_time_played: 0,
-          }
-        : {
-            start_part_number: payload.part_number,
-            start_chapter_number: payload.chapter_number,
-            start_position: payload.play_position,
-            total_time_played: 0,
-          };
+      if (existingPlayActivity) {
+        const meta = existingPlayActivity.meta || {};
 
-      await Promise.all([
-        this.incrementTotalPlayedOfAudio(audioId),
-        this.userActivityLogService.create({
-          user_id: user.id,
-          item_type: 'audio',
-          item_id: audioId,
-          action: USER_ACTIVITY.PLAY,
-          meta,
-        }),
-      ]);
+        // Derive the updated end values
+        const start_part_number = Math.min(
+          meta.start_part_number,
+          payload.part_number,
+        );
+        const start_chapter_number = Math.min(
+          meta.start_chapter_number,
+          payload.chapter_number,
+        );
+        const start_position = Math.min(
+          meta.start_position,
+          payload.play_position,
+        );
+
+        // Now calculate total time played after computing end values
+        const totalTimePlayed = this.calculateTotalTimePlayed(
+          audio.metadata.chapters,
+          {
+            part_number: start_part_number,
+            chapter_number: start_chapter_number,
+            position: start_position,
+          },
+          {
+            part_number: meta.end_part_number,
+            chapter_number: meta.end_chapter_number,
+            position: meta.end_position,
+          },
+        );
+
+        existingPlayActivity.meta = {
+          start_part_number: start_part_number,
+          start_chapter_number: start_chapter_number,
+          start_position: start_position,
+          end_part_number: meta.end_part_number,
+          end_chapter_number: meta.end_chapter_number,
+          end_position: meta.end_position,
+          total_time_played: totalTimePlayed,
+        };
+
+        existingPlayActivity.updated_at = new Date();
+
+        await Promise.all([
+          this.incrementTotalPlayedOfAudio(audioId),
+          this.userActivityLogRepository.save(existingPlayActivity),
+        ]);
+      } else {
+        const meta = {
+          start_part_number: payload.part_number,
+          start_chapter_number: payload.chapter_number,
+          start_position: payload.play_position,
+          total_time_played: 0,
+        };
+
+        await Promise.all([
+          this.incrementTotalPlayedOfAudio(audioId),
+          this.userActivityLogService.create({
+            user_id: user.id,
+            item_type: 'audio',
+            item_id: audioId,
+            action: USER_ACTIVITY.PLAY,
+            meta,
+          }),
+        ]);
+      }
     }
   }
 
