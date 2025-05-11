@@ -38,6 +38,8 @@ import { AdminPharmaController } from './controllers/admin-pharma.controller';
 import { CommonModule } from 'src/common/common.module';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { AdminUserController } from './controllers/admin-user.controller';
+import { AdminAppErrorLogController } from './controllers/admin-app-error-log.controller';
+import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
 
 @Module({
   imports: [
@@ -67,6 +69,7 @@ import { AdminUserController } from './controllers/admin-user.controller';
       UserActivityLog,
       Notification,
     ]),
+    forwardRef(() => AppErrorLogModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
@@ -88,6 +91,7 @@ import { AdminUserController } from './controllers/admin-user.controller';
     AdminReportController,
     AdminNotificationController,
     AdminUserController,
+    AdminAppErrorLogController,
   ],
   providers: [
     AdminAuthService,
