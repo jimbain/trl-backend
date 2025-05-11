@@ -3,7 +3,7 @@ import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AppErrorLogService } from 'src/app-error-log/app-error-log.service';
 
 @UseGuards(JwtAdminAuthGuard)
-@Controller('admin/users')
+@Controller('admin/app-error-logs')
 export class AdminAppErrorLogController {
   constructor(private readonly appErrorLogService: AppErrorLogService) {}
 
