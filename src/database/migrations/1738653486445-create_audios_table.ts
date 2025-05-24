@@ -16,6 +16,12 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
       referencedColumnName: 'sku',
       onDelete: 'SET NULL',
     },
+    {
+      columnName: 'primary_category_id',
+      referencedTable: 'categories',
+      referencedColumnName: 'id',
+      onDelete: 'SET NULL',
+    },
   ];
 
   private indices = [
@@ -142,6 +148,11 @@ export class CreateAudiosTable1738653486445 implements MigrationInterface {
             type: 'jsonb',
             isNullable: true,
             default: `'[]'::jsonb`,
+          },
+          {
+            name: 'primary_category_id',
+            type: 'varchar',
+            isNullable: true,
           },
           {
             name: 'suggestions',

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 import { AudioMetadata } from './audio_metadata.entity';
+import { Category } from 'src/categories/entities/category.entity';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
@@ -69,6 +70,9 @@ export class Audio extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true, default: [] })
   categories: string[]; // categories.id[]
 
+  @Column({ type: 'varchar', nullable: true })
+  primary_category_id: string;
+
   @Column({ type: 'jsonb', nullable: false, default: [] })
   suggestions: string[]; // audios.id[]
 
@@ -93,6 +97,10 @@ export class Audio extends BaseEntity {
   @OneToOne(() => AudioMetadata)
   @JoinColumn({ name: 'sku', referencedColumnName: 'sku' })
   metadata: AudioMetadata;
+
+  @OneToOne(() => Category)
+  @JoinColumn({ name: 'primary_category_id', referencedColumnName: 'id' })
+  primaryCategory: Category;
 
   @BeforeInsert()
   generateUlid() {

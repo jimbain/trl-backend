@@ -15,6 +15,8 @@ export async function paginate<T, DTO>(
     (select) => !select?.aliasName && select.selection.includes(' AS '),
   );
 
+  console.time('Pagination');
+
   let items: any[];
   let total: number;
 
@@ -35,6 +37,8 @@ export async function paginate<T, DTO>(
 
   const from = total > 0 ? (page - 1) * limit + 1 : null;
   const to = Math.min(page * limit, total);
+
+  console.timeEnd('Pagination');
 
   return {
     data: dto

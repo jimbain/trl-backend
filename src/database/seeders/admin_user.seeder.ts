@@ -18,7 +18,7 @@ export class AdminUserSeeder {
     const users = [
       {
         name: 'Mark Ramm',
-        email: 'markramm.trlaudio@gmail.com',
+        email: 'mkramm@trlonline.com',
         password: 'test',
       },
     ];

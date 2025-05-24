@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as fs from 'fs';
-import { join } from 'path';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 config();
@@ -28,6 +27,11 @@ export const getDataSourceOptions = (): DataSourceOptions => ({
   logging: true,
   namingStrategy: new SnakeNamingStrategy(),
   migrations: ['dist/database/migrations/*.js'],
+  extra: {
+    max: 15,
+    min: 2,
+    idleTimeoutMillis: 30000,
+  },
 });
 
 export const AppDataSource = new DataSource(getDataSourceOptions());

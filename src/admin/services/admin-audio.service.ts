@@ -48,13 +48,7 @@ export class AdminAudioService {
     const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .innerJoin('audio.metadata', 'metadata')
-      .leftJoin(
-        'categories',
-        'category',
-        'category.id IN (SELECT jsonb_array_elements_text(audio.categories)) AND category.type = :categoryType',
-        { categoryType: 'default' },
-      )
-      .groupBy('audio.id, metadata.sku')
+      .leftJoin('audio.primaryCategory', 'primaryCategory')
       .select([
         'audio.id AS id',
         'audio.sku AS sku',
@@ -64,8 +58,7 @@ export class AdminAudioService {
         'audio.is_excluded AS is_excluded',
         'audio.is_featured AS is_featured',
         'audio.is_active AS is_active',
-        'array_agg(category.name) AS categories',
-        'MIN(category.name) AS first_category_name',
+        'primaryCategory.name AS first_category_name',
         'metadata.findaway_retail_price AS fa_retail_price',
         'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
         'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
@@ -259,7 +252,7 @@ export class AdminAudioService {
         sku: 'audio.sku',
         title: 'audio.display_title',
         author: 'audio.display_authors->>0',
-        category: 'first_category_name',
+        category: 'primaryCategory.name',
         publisher: 'metadata.publisher',
         street_date: 'metadata.street_date',
         activated_at: 'audio.activated_at',
@@ -328,7 +321,7 @@ export class AdminAudioService {
             [
               `"${item.title.replace(/"/g, '""')}"`,
               `"${item.authors ? item.authors.join(', ').replace(/"/g, '""') : ''}"`,
-              `"${item.categories ? item.categories.join(', ').replace(/"/g, '""') : ''}"`,
+              `"${item.first_category_name ?? ''}"`,
               `"${item.publisher ? item.publisher.replace(/"/g, '""') : ''}"`,
               item.is_excluded ? '1' : '0',
               `"${item.street_date ?? ''}"`,
