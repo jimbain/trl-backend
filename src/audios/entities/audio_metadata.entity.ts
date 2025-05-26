@@ -32,7 +32,7 @@ export class AudioMetadata extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   language: string;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'bigint', default: 0 })
   actual_size: number;
 
   @Column({ type: 'jsonb', default: [] })
