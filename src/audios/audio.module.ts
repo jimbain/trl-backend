@@ -54,7 +54,7 @@ import { AudioMeilisearchSyncService } from './audio_meilisearch_sync.service';
     CategoryService,
     AudioEngineService,
     AppConfigService,
-    AudioMeilisearchSyncService,
+    // AudioMeilisearchSyncService,
   ],
   exports: [AudioService, AudioSeedService],
 })

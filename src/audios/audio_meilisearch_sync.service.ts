@@ -30,6 +30,11 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
     await this.client.createIndex('audios', { primaryKey: 'id' });
 
     const index = this.client.index('audios');
+    await index.updateSettings({
+      pagination: {
+        maxTotalHits: 1000000, // set higher than your total records
+      },
+    });
 
     const total = await this.audioRepo
       .createQueryBuilder('audio')
