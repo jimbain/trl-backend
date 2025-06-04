@@ -23,6 +23,7 @@ import { CompanyModule } from 'src/companies/company.module';
 import { CategoryModule } from 'src/categories/category.module';
 import { CommonModule } from 'src/common/common.module';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { AudioMeilisearchSyncService } from './audio_meilisearch_sync.service';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
     CategoryService,
     AudioEngineService,
     AppConfigService,
+    AudioMeilisearchSyncService,
   ],
   exports: [AudioService, AudioSeedService],
 })

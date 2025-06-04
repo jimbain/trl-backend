@@ -40,6 +40,7 @@ import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { AdminUserController } from './controllers/admin-user.controller';
 import { AdminAppErrorLogController } from './controllers/admin-app-error-log.controller';
 import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
+import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch.service';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
     AdminNotificationService,
     AdminCatalogService,
     AdminCompanyCatalogService,
+    AdminAudioMeiliSearchService,
   ],
   exports: [],
 })
