@@ -25,29 +25,69 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
   }
 
   async syncAudios() {
-    // await this.client.index('audios').update({ primaryKey: 'id' });
     await this.client.deleteIndex('audios');
     await this.client.createIndex('audios', { primaryKey: 'id' });
 
     const index = this.client.index('audios');
+
+    // ✅ Set filterable and sortable attributes
     await index.updateSettings({
+      filterableAttributes: [
+        'sku',
+        'title',
+        'category_ids',
+        'authors',
+        'bisac_codes',
+        'is_active',
+        'is_excluded',
+        'is_featured',
+        'bookshelf_credit_cost',
+        'fa_retail_price',
+        'fa_retail_content_cost',
+        'language',
+        'street_date',
+        'activated_at',
+        'curated_at',
+        'publisher',
+      ],
+      sortableAttributes: [
+        'sku',
+        'title',
+        'category',
+        'publisher',
+        'street_date',
+        'activated_at',
+        'curated_at',
+        'fa_retail_price',
+        'fa_retail_content_cost',
+        'bookshelf_credit_cost',
+        'language',
+        'runtime',
+        'copyright',
+        'is_active',
+        'is_excluded',
+        'is_featured',
+      ],
       pagination: {
-        maxTotalHits: 1000000, // set higher than your total records
+        maxTotalHits: 1000000,
       },
     });
 
-    const total = await this.audioRepo
-      .createQueryBuilder('audio')
-      .getCount();
-
+    const total = await this.audioRepo.createQueryBuilder('audio').getCount();
     const totalPages = Math.ceil(total / this.batchSize);
     this.logger.log(`Total audios: ${total}, Syncing in ${totalPages} pages`);
 
     for (let page = 0; page < totalPages; page++) {
-      const data = await this.audioRepo
+      const audios = await this.audioRepo
         .createQueryBuilder('audio')
         .innerJoin('audio.metadata', 'metadata')
-        .leftJoin('audio.primaryCategory', 'primaryCategory')
+        .leftJoin(
+          'categories',
+          'category',
+          'category.id IN (SELECT jsonb_array_elements_text(audio.categories)) AND category.type = :categoryType',
+          { categoryType: 'default' },
+        )
+        .groupBy('audio.id, metadata.sku')
         .select([
           'audio.id AS id',
           'audio.sku AS sku',
@@ -57,7 +97,8 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
           'audio.is_excluded AS is_excluded',
           'audio.is_featured AS is_featured',
           'audio.is_active AS is_active',
-          'primaryCategory.name AS first_category_name',
+          'array_agg(category.id) AS category_ids',
+          'MIN(category.name) AS primary_category',
           'metadata.findaway_retail_price AS fa_retail_price',
           'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
           'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
@@ -65,20 +106,46 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
           'metadata.bisac_codes AS bisac_codes',
           'metadata.runtime AS runtime',
           'audio.display_copyright AS copyright',
-          `TO_CHAR(metadata.street_date, 'MM-DD-YYYY') AS street_date`,
-          `TO_CHAR(audio.activated_at, 'MM-DD-YYYY') AS activated_at`,
-          `TO_CHAR(audio.curated_at, 'MM-DD-YYYY') AS curated_at`,
+          'EXTRACT(EPOCH FROM metadata.street_date)::BIGINT AS street_date',
+          'EXTRACT(EPOCH FROM audio.activated_at)::BIGINT AS activated_at',
+          'EXTRACT(EPOCH FROM audio.curated_at)::BIGINT AS curated_at',
         ])
         .offset(page * this.batchSize)
         .limit(this.batchSize)
         .getRawMany();
 
-      if (data.length > 0) {
-        const task = await index.addDocuments(data);
-        this.logger.log(`Synced batch ${page + 1}/${totalPages} (taskUid: ${task.taskUid})`);
+      // ✨ Format & Clean Data
+      const transformed = audios.map((item) => ({
+        id: item.id,
+        sku: item.sku,
+        title: item.title,
+        authors: item.authors,
+        publisher: item.publisher,
+        is_excluded: Boolean(item.is_excluded),
+        is_featured: Boolean(item.is_featured),
+        is_active: Boolean(item.is_active),
+        category: item.primary_category,
+        category_ids: item.category_ids,
+        fa_retail_price: parseFloat(item.fa_retail_price) || 0,
+        fa_retail_content_cost: parseFloat(item.fa_retail_content_cost) || 0,
+        bookshelf_credit_cost: parseInt(item.bookshelf_credit_cost) || 0,
+        language: item.language,
+        bisac_codes: item.bisac_codes,
+        runtime: item.runtime,
+        copyright: item.display_copyright,
+        street_date: item.street_date,
+        activated_at: item.activated_at,
+        curated_at: item.curated_at,
+      }));
+
+      if (transformed.length > 0) {
+        const task = await index.addDocuments(transformed);
+        this.logger.log(
+          `Synced batch ${page + 1}/${totalPages} (taskUid: ${task.taskUid})`,
+        );
       }
     }
 
-    this.logger.log('Completed syncing all audios to Meilisearch');
+    this.logger.log('✅ Completed syncing all audios to Meilisearch');
   }
 }
