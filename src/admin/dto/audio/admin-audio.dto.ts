@@ -1,43 +1,75 @@
 import { Expose, Transform, Type } from 'class-transformer';
+import dayjs from 'dayjs';
 
 export class AdminAudioListDto {
   @Expose()
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj?.display_title ?? obj?.title)
-  title: string;
-
-  @Expose()
-  @Transform(({ obj }) =>
-    obj?.display_authors?.length ? obj?.display_authors : obj?.authors,
-  )
-  authors?: string[];
-
-  @Expose()
-  @Transform(({ obj }) => obj?.display_copyright ?? obj?.copyright)
-  copyright?: string;
-
-  @Expose()
-  @Transform(({ obj }) => obj?.cover_url ?? null)
-  image_url?: string;
-
-  @Expose()
-  @Transform(({ obj }) => obj?.available_for ?? null)
-  available_for: 'rent' | 'bookshelf' | 'both' | null;
-
-  @Expose()
   sku: string;
 
   @Expose()
+  title: string;
+
+  @Expose()
+  category: string;
+
+  @Expose()
+  authors?: string[];
+
+  @Expose()
+  publisher?: string;
+
+  @Expose()
+  copyright?: string;
+
+  @Expose()
+  is_excluded: boolean;
+
+  @Expose()
+  is_featured: boolean;
+
+  @Expose()
+  is_active: boolean;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseFloat(value) : null))
+  fa_retail_price?: string;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseFloat(value) : null))
+  fa_retail_content_cost?: string;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseInt(value) : 0))
   bookshelf_credit_cost: number;
 
   @Expose()
-  @Transform(({ value }) => {
-    const date = new Date(value);
-    return date.toLocaleDateString('en-GB').split('/').join('-');
-  })
-  created_at: Date;
+  language?: string;
+
+  @Expose()
+  bisac_codes?: string[];
+
+  @Expose()
+  runtime?: string;
+
+  @Expose()
+  @Transform(({ value }) =>
+    value ? dayjs.unix(value).format('MM/DD/YYYY') : null,
+  )
+  street_date?: string;
+
+  @Expose()
+  @Transform(({ value }) =>
+    value ? dayjs.unix(value).format('MM/DD/YYYY') : null,
+  )
+  activated_at?: string;
+
+  @Expose()
+  @Transform(({ value }) =>
+    value ? dayjs.unix(value).format('MM/DD/YYYY') : null,
+  )
+  curated_at?: string;
 }
 
 export class MetadataDto {

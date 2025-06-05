@@ -1,11 +1,11 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MeiliSearch } from 'meilisearch';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 
 @Injectable()
-export class AudioMeilisearchSyncService implements OnModuleInit {
+export class AudioMeilisearchSyncService {
   private client: MeiliSearch;
   private readonly logger = new Logger(AudioMeilisearchSyncService.name);
   private readonly batchSize = 1000;
@@ -20,53 +20,50 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
     });
   }
 
-  async onModuleInit() {
-    await this.syncAudios();
-  }
-
   async syncAudios() {
     await this.client.deleteIndex('audios');
     await this.client.createIndex('audios', { primaryKey: 'id' });
 
     const index = this.client.index('audios');
 
-    // ✅ Set filterable and sortable attributes
     await index.updateSettings({
+      searchableAttributes: [
+        'title',
+        'description',
+        'authors',
+        'publisher',
+        'bisac_codes',
+      ],
       filterableAttributes: [
         'sku',
-        'title',
         'category_ids',
-        'authors',
-        'bisac_codes',
+        'fa_retail_price',
+        'fa_retail_content_cost',
+        'bookshelf_credit_cost',
+        'street_date',
         'is_active',
         'is_excluded',
         'is_featured',
-        'bookshelf_credit_cost',
-        'fa_retail_price',
-        'fa_retail_content_cost',
-        'language',
-        'street_date',
-        'activated_at',
-        'curated_at',
-        'publisher',
       ],
       sortableAttributes: [
         'sku',
         'title',
         'category',
+        'author',
+        'bisac_code',
         'publisher',
-        'street_date',
-        'activated_at',
-        'curated_at',
-        'fa_retail_price',
-        'fa_retail_content_cost',
-        'bookshelf_credit_cost',
         'language',
         'runtime',
         'copyright',
+        'fa_retail_price',
+        'fa_retail_content_cost',
+        'bookshelf_credit_cost',
         'is_active',
         'is_excluded',
         'is_featured',
+        'street_date',
+        'activated_at',
+        'curated_at',
       ],
       pagination: {
         maxTotalHits: 1000000,
@@ -92,6 +89,7 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
           'audio.id AS id',
           'audio.sku AS sku',
           'audio.display_title AS title',
+          'audio.display_description AS description',
           'audio.display_authors AS authors',
           'metadata.publisher AS publisher',
           'audio.is_excluded AS is_excluded',
@@ -119,7 +117,9 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
         id: item.id,
         sku: item.sku,
         title: item.title,
+        description: item.description,
         authors: item.authors,
+        author: item.authors?.[0] ?? null,
         publisher: item.publisher,
         is_excluded: Boolean(item.is_excluded),
         is_featured: Boolean(item.is_featured),
@@ -131,11 +131,12 @@ export class AudioMeilisearchSyncService implements OnModuleInit {
         bookshelf_credit_cost: parseInt(item.bookshelf_credit_cost) || 0,
         language: item.language,
         bisac_codes: item.bisac_codes,
+        bisac_code: item.bisac_codes?.[0] ?? null,
         runtime: item.runtime,
         copyright: item.display_copyright,
-        street_date: item.street_date,
-        activated_at: item.activated_at,
-        curated_at: item.curated_at,
+        street_date: parseInt(item.street_date) || 0,
+        activated_at: parseInt(item.activated_at) || 0,
+        curated_at: parseInt(item.curated_at) || 0,
       }));
 
       if (transformed.length > 0) {

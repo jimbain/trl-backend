@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { MeiliSearch } from 'meilisearch';
-import { QueryAdminAudioDto } from '../dto/audio/query-admin-audio.dto';
+import {
+  QueryAdminAudioDto,
+  SearchFor,
+} from '../dto/audio/query-admin-audio.dto';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { MeiliAudio } from 'src/audios/audio.interface';
+import { plainToInstance } from 'class-transformer';
+import { AdminAudioListDto } from '../dto/audio/admin-audio.dto';
 
 @Injectable()
 export class AdminAudioMeiliSearchService {
@@ -42,6 +47,9 @@ export class AdminAudioMeiliSearchService {
 
     const index = this.client.index('audios');
 
+    // ------------------------------
+    // 1. Filters
+    // ------------------------------
     const filters: string[] = [];
 
     if (is_active !== undefined) filters.push(`is_active = ${is_active}`);
@@ -68,24 +76,24 @@ export class AdminAudioMeiliSearchService {
 
     if (category_id !== undefined) {
       const clause = is_included_in_category
-        ? `categories IN [${category_id}]`
-        : `categories NOT IN [${category_id}]`;
+        ? `category_ids IN [${category_id}]`
+        : `category_ids NOT IN [${category_id}]`;
       filters.push(clause);
     }
 
     const filterString = filters.length > 0 ? filters.join(' AND ') : undefined;
 
-    console.log(filterString);
-
+    // ------------------------------
+    // 2. Sorting
+    // ------------------------------
     let sortField = undefined;
     if (order_by_column && order_by) {
       const orderByMap: Record<string, string> = {
         sku: 'sku',
         title: 'title',
         publisher: 'publisher',
-        street_date: 'street_date',
-        activated_at: 'activated_at',
-        curated_at: 'curated_at',
+        author: 'author',
+        bisac_code: 'bisac_code',
         fa_retail_price: 'fa_retail_price',
         fa_retail_content_cost: 'fa_retail_content_cost',
         bookshelf_credit_cost: 'bookshelf_credit_cost',
@@ -95,6 +103,9 @@ export class AdminAudioMeiliSearchService {
         is_active: 'is_active',
         is_excluded: 'is_excluded',
         is_featured: 'is_featured',
+        street_date: 'street_date',
+        activated_at: 'activated_at',
+        curated_at: 'curated_at',
       };
 
       const column = orderByMap[order_by_column];
@@ -104,34 +115,64 @@ export class AdminAudioMeiliSearchService {
         : undefined;
     }
 
-    const q = search_text || ''; // Empty string fetches all
+    // ------------------------------
+    // 3. Search Query Building
+    // ------------------------------
+    let meiliQuery = '';
+    if (search_text) {
+      const words = search_text.trim().split(/\s+/).filter(Boolean);
 
+      switch (search_for) {
+        case SearchFor.PHRASE:
+          // Search as-is
+          meiliQuery = `"${search_text.trim()}"`;
+          break;
+
+        case SearchFor.ALL_WORDS:
+          if (is_searching_whole_word) {
+            // Whole-word logic not natively supported — approximate with AND
+            meiliQuery = words.map((w) => `"${w}"`).join(' ');
+          } else {
+            meiliQuery = words.join(' ');
+          }
+          break;
+
+        case SearchFor.ANY_WORD:
+          if (is_searching_whole_word) {
+            // OR logic using quotes to approximate whole-word match
+            meiliQuery = words.map((w) => `"${w}"`).join(' OR ');
+          } else {
+            meiliQuery = words.join(' ');
+          }
+          break;
+
+        default:
+          meiliQuery = search_text.trim();
+      }
+    }
+
+    // ------------------------------
+    // 4. Execute Search
+    // ------------------------------
     const searchParams: any = {
-      q,
+      q: meiliQuery,
       filter: filterString,
       sort: sortField ? [sortField] : undefined,
       limit: per_page,
       offset: (page - 1) * per_page,
     };
 
-    const results = await index.search(q, searchParams);
+    const results = await index.search<MeiliAudio>(meiliQuery, searchParams);
+
+    // ------------------------------
+    // 5. Return Paginated Results
+    // ------------------------------
     const total = results.estimatedTotalHits;
 
-    const data = results.hits.map((item: any) => ({
-      ...item,
-      street_date: item.street_date
-        ? dayjs.unix(item.street_date).format('YYYY-MM-DD')
-        : null,
-      activated_at: item.activated_at
-        ? dayjs.unix(item.activated_at).format('YYYY-MM-DD')
-        : null,
-      curated_at: item.curated_at
-        ? dayjs.unix(item.curated_at).format('YYYY-MM-DD')
-        : null,
-    }));
-
     return {
-      data,
+      data: plainToInstance(AdminAudioListDto, results.hits, {
+        excludeExtraneousValues: true,
+      }),
       meta: {
         total: total,
         per_page,
