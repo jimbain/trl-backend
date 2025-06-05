@@ -28,7 +28,7 @@
     "db:clean": "node dist/database/refresh_db.js",
     "db:seed": "node dist/database/seeders/seed.js",
     "prepare": "husky install",
-    "meili:sync-audios": "node dist/audios/scripts/sync-audios.js"
+    "meili:sync-audios": "NODE_OPTIONS='--max-old-space-size=4096 --expose-gc' node dist/audios/scripts/sync-audios.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
