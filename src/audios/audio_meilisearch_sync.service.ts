@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MeiliSearch } from 'meilisearch';
+import { MeiliSearch, MeiliSearchApiError } from 'meilisearch';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
@@ -20,9 +20,18 @@ export class AudioMeilisearchSyncService {
     });
   }
 
+  async ensureIndexExists(indexUid: string, primaryKey: string) {
+    try {
+      await this.client.getIndex(indexUid);
+      console.log(`Index '${indexUid}' already exists.`);
+    } catch (error) {
+      await this.client.createIndex(indexUid, { primaryKey });
+      console.log(`Index '${indexUid}' created.`);
+    }
+  }
+
   async syncAudios() {
-    await this.client.deleteIndex('audios');
-    await this.client.createIndex('audios', { primaryKey: 'id' });
+    await this.ensureIndexExists('audios', 'id');
 
     const index = this.client.index('audios');
 
