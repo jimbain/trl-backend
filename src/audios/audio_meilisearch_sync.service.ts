@@ -168,4 +168,80 @@ export class AudioMeilisearchSyncService {
 
     this.logger.log('✅ Completed syncing all audios to Meilisearch');
   }
+
+  async syncAudioById(id: string) {
+    const index = this.client.index('audios');
+
+    const audio = await this.audioRepo
+      .createQueryBuilder('audio')
+      .innerJoin('audio.metadata', 'metadata')
+      .leftJoin(
+        'categories',
+        'category',
+        'category.id IN (SELECT jsonb_array_elements_text(audio.categories)) AND category.type = :categoryType',
+        { categoryType: 'default' },
+      )
+      .groupBy('audio.id, metadata.sku')
+      .select([
+        'audio.id AS id',
+        'audio.sku AS sku',
+        'audio.display_title AS title',
+        'audio.display_description AS description',
+        'audio.display_authors AS authors',
+        'metadata.publisher AS publisher',
+        'audio.is_excluded AS is_excluded',
+        'audio.is_featured AS is_featured',
+        'audio.is_active AS is_active',
+        'array_agg(category.id) AS category_ids',
+        'MIN(category.name) AS primary_category',
+        'metadata.findaway_retail_price AS fa_retail_price',
+        'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'metadata.language AS language',
+        'metadata.bisac_codes AS bisac_codes',
+        'metadata.runtime AS runtime',
+        'audio.display_copyright AS copyright',
+        'EXTRACT(EPOCH FROM metadata.street_date)::BIGINT AS street_date',
+        'EXTRACT(EPOCH FROM audio.activated_at)::BIGINT AS activated_at',
+        'EXTRACT(EPOCH FROM audio.curated_at)::BIGINT AS curated_at',
+      ])
+      .where('audio.id = :id', { id })
+      .getRawOne();
+
+    if (!audio) {
+      this.logger.warn(`Audio with id ${id} not found`);
+      return;
+    }
+
+    const transformed = {
+      id: audio.id,
+      sku: audio.sku,
+      title: audio.title,
+      description: audio.description,
+      authors: audio.authors,
+      author: audio.authors?.[0] ?? null,
+      publisher: audio.publisher,
+      is_excluded: Boolean(audio.is_excluded),
+      is_featured: Boolean(audio.is_featured),
+      is_active: Boolean(audio.is_active),
+      category: audio.primary_category,
+      category_ids: audio.category_ids,
+      fa_retail_price: parseFloat(audio.fa_retail_price) || 0,
+      fa_retail_content_cost: parseFloat(audio.fa_retail_content_cost) || 0,
+      bookshelf_credit_cost: parseInt(audio.bookshelf_credit_cost) || 0,
+      language: audio.language,
+      bisac_codes: audio.bisac_codes,
+      bisac_code: audio.bisac_codes?.[0] ?? null,
+      runtime: audio.runtime,
+      copyright: audio.copyright,
+      street_date: parseInt(audio.street_date) || 0,
+      activated_at: parseInt(audio.activated_at) || 0,
+      curated_at: parseInt(audio.curated_at) || 0,
+    };
+
+    const task = await index.addDocuments([transformed]);
+    this.logger.log(
+      `Synced audio ID ${id} to Meilisearch (taskUid: ${task.taskUid})`,
+    );
+  }
 }

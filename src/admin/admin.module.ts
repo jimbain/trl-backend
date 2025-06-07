@@ -41,6 +41,7 @@ import { AdminUserController } from './controllers/admin-user.controller';
 import { AdminAppErrorLogController } from './controllers/admin-app-error-log.controller';
 import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
 import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch.service';
+import { AudioModule } from 'src/audios/audio.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch
       Notification,
     ]),
     forwardRef(() => AppErrorLogModule),
+    forwardRef(() => AudioModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),

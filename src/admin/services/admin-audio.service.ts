@@ -13,13 +13,17 @@ import {
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 import { Readable } from 'stream';
+import { AudioMeilisearchSyncService } from 'src/audios/audio_meilisearch_sync.service';
 
 @Injectable()
 export class AdminAudioService {
   @InjectRepository(Audio)
   private readonly audioRepository: Repository<Audio>;
 
-  constructor(private readonly cacheService: CacheService) {}
+  constructor(
+    private readonly audioMeilisearchSyncService: AudioMeilisearchSyncService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async findAll(query: QueryAdminAudioDto = {}) {
     const {
@@ -394,6 +398,8 @@ export class AdminAudioService {
       this.cacheService.delete(id),
       this.audioRepository.save(audio),
     ]);
+
+    await this.audioMeilisearchSyncService.syncAudioById(id);
   }
 
   async bulkUpdate(payload: AdminBulkUpdateAudioDto) {
@@ -430,5 +436,9 @@ export class AdminAudioService {
     });
 
     await this.audioRepository.save(updatedAudios);
+
+    await Promise.all(
+      ids.map((id) => this.audioMeilisearchSyncService.syncAudioById(id)),
+    );
   }
 }
