@@ -43,8 +43,10 @@ export class AdminAudioMeiliSearchService {
       is_excluded,
       order_by_column,
       order_by,
+      is_export,
     } = query;
 
+    const searchWords = search_text.trim().split(/\s+/).filter(Boolean) ?? [];
     const index = this.client.index('audios');
 
     // ------------------------------
@@ -120,30 +122,17 @@ export class AdminAudioMeiliSearchService {
     // ------------------------------
     let meiliQuery = '';
     if (search_text) {
-      const words = search_text.trim().split(/\s+/).filter(Boolean);
-
       switch (search_for) {
         case SearchFor.PHRASE:
-          // Search as-is
           meiliQuery = `"${search_text.trim()}"`;
           break;
 
-        case SearchFor.ALL_WORDS:
-          if (is_searching_whole_word) {
-            // Whole-word logic not natively supported — approximate with AND
-            meiliQuery = words.map((w) => `"${w}"`).join(' ');
-          } else {
-            meiliQuery = words.join(' ');
-          }
+        case SearchFor.ANY_WORD:
+          meiliQuery = searchWords.join(' ');
           break;
 
-        case SearchFor.ANY_WORD:
-          if (is_searching_whole_word) {
-            // OR logic using quotes to approximate whole-word match
-            meiliQuery = words.map((w) => `"${w}"`).join(' OR ');
-          } else {
-            meiliQuery = words.join(' ');
-          }
+        case SearchFor.ALL_WORDS:
+          meiliQuery = searchWords.map((word) => `"${word}"`).join(' ');
           break;
 
         default:

@@ -24,6 +24,8 @@ import { CategoryModule } from 'src/categories/category.module';
 import { CommonModule } from 'src/common/common.module';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { AudioMeilisearchSyncService } from './audio_meilisearch_sync.service';
+import { AudioElasticsearchSyncService } from './audio-elasticsearch-sync.service';
+import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { AudioMeilisearchSyncService } from './audio_meilisearch_sync.service';
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
     forwardRef(() => CommonModule),
+    forwardRef(() => AppElasticsearchModule),
   ],
   controllers: [AudioController],
   providers: [
@@ -55,7 +58,13 @@ import { AudioMeilisearchSyncService } from './audio_meilisearch_sync.service';
     AudioEngineService,
     AppConfigService,
     AudioMeilisearchSyncService,
+    AudioElasticsearchSyncService,
   ],
-  exports: [AudioService, AudioSeedService, AudioMeilisearchSyncService],
+  exports: [
+    AudioService,
+    AudioSeedService,
+    AudioMeilisearchSyncService,
+    AudioElasticsearchSyncService,
+  ],
 })
 export class AudioModule {}

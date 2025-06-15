@@ -15,19 +15,21 @@ import { AdminUpdateAudioDto } from '../dto/audio/admin-update-audio.dto';
 import { QueryAdminAudioDto } from '../dto/audio/query-admin-audio.dto';
 import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 import { Response } from 'express';
-import { AdminAudioMeiliSearchService } from '../services/admin-audio-meilisearch.service';
+// import { AdminAudioMeiliSearchService } from '../services/admin-audio-meilisearch.service';
+import { AdminAudioElasticsearchService } from '../services/admin-audio-elasticsearch.service';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/audios')
 export class AdminAudioController {
   constructor(
     private readonly adminAudioService: AdminAudioService,
-    private readonly adminAudioMeiliSearchService: AdminAudioMeiliSearchService,
+    // private readonly adminAudioMeiliSearchService: AdminAudioMeiliSearchService,
+    private readonly adminAudioElasticsearchService: AdminAudioElasticsearchService,
   ) {}
 
   @Get()
   async findAll(@Query() query: QueryAdminAudioDto, @Res() res: Response) {
-    const result = await this.adminAudioMeiliSearchService.findAll(query);
+    const result = await this.adminAudioElasticsearchService.findAll(query);
 
     if (result instanceof StreamableFile) {
       res.setHeader('Content-Type', 'text/csv');

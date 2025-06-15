@@ -42,6 +42,8 @@ import { AdminAppErrorLogController } from './controllers/admin-app-error-log.co
 import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
 import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch.service';
 import { AudioModule } from 'src/audios/audio.module';
+import { AdminAudioElasticsearchService } from './services/admin-audio-elasticsearch.service';
+import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
 
 @Module({
   imports: [
@@ -79,6 +81,7 @@ import { AudioModule } from 'src/audios/audio.module';
     forwardRef(() => AppConfigModule),
     forwardRef(() => CommonModule),
     forwardRef(() => UserModule),
+    forwardRef(() => AppElasticsearchModule),
   ],
   controllers: [
     AdminAuthController,
@@ -106,6 +109,7 @@ import { AudioModule } from 'src/audios/audio.module';
     AdminCatalogService,
     AdminCompanyCatalogService,
     AdminAudioMeiliSearchService,
+    AdminAudioElasticsearchService,
   ],
   exports: [],
 })
