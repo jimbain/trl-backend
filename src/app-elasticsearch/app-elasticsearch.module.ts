@@ -9,7 +9,7 @@ import { AppElasticsearchService } from './services/app-elasticsearch.service';
       useFactory: (configService: ConfigService) => ({
         node: configService.getOrThrow<string>('ELASTICSEARCH_NODE'),
         auth: {
-          username: 'elastic',
+          username: configService.getOrThrow<string>('ELASTICSEARCH_USERNAME'),
           password: configService.getOrThrow<string>('ELASTICSEARCH_PASSWORD'),
         },
         tls: {

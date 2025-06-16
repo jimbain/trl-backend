@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, StreamableFile } from '@nestjs/common';
 import {
   QueryAdminAudioDto,
   SearchFor,
@@ -14,10 +14,11 @@ import {
   QueryDslQueryContainer,
   Sort,
 } from '@elastic/elasticsearch/lib/api/types';
+import { Readable } from 'stream';
 
 @Injectable()
 export class AdminAudioElasticsearchService {
-  private readonly index = 'audios';
+  private readonly index = 'es_audios';
 
   constructor(
     private readonly appElasticsearchService: AppElasticsearchService,
@@ -48,9 +49,6 @@ export class AdminAudioElasticsearchService {
       order_by,
       is_export,
     } = query;
-
-    const searchWords = search_text?.trim().split(/\s+/).filter(Boolean) ?? [];
-
     // ------------------------------
     // 1. Build Query Body
     // ------------------------------
@@ -117,64 +115,110 @@ export class AdminAudioElasticsearchService {
     // 3. Search Query
     // ------------------------------
     if (search_text) {
-      let searchQuery: any;
+      const fullTextFields = ['title', 'description', 'publisher']; // text fields
+      const arrayFields = ['authors', 'bisac_codes']; // array fields
+
+      const searchWords = search_text.split(/\s+/).filter((w) => !!w);
+
+      let searchQuery: QueryDslQueryContainer;
+
+      const buildFieldShouldConditions = (
+        word: string,
+        wholeWord: boolean,
+      ): QueryDslQueryContainer[] => {
+        const textFieldQueries = fullTextFields.map((field) => ({
+          match_phrase: {
+            [field]: word,
+          },
+        }));
+
+        const arrayFieldQueries = arrayFields.map((field) =>
+          wholeWord
+            ? {
+                term: {
+                  [`${field}`]: {
+                    value: `${word.toLowerCase()}`,
+                    case_insensitive: true,
+                  },
+                },
+              }
+            : {
+                wildcard: {
+                  [`${field}`]: {
+                    value: `${word.toLowerCase()}*`,
+                    case_insensitive: true,
+                  },
+                },
+              },
+        );
+
+        return [...textFieldQueries, ...arrayFieldQueries];
+      };
+
       switch (search_for) {
         case SearchFor.PHRASE:
           searchQuery = {
-            query_string: {
-              query: `"${search_text.trim()}"`,
-              fields: [
-                'title',
-                'authors',
-                'publisher',
-                'bisac_codes',
-                'description',
+            bool: {
+              should: [
+                // Phrase match for full-text fields
+                {
+                  multi_match: {
+                    query: search_text,
+                    fields: fullTextFields,
+                    type: 'phrase',
+                  },
+                },
+                // Phrase match (as exact) for array fields
+                ...arrayFields.map((field) => ({
+                  term: {
+                    [`${field}`]: {
+                      value: `${search_text.toLowerCase()}`,
+                      case_insensitive: true,
+                    },
+                  },
+                })),
               ],
+              minimum_should_match: 1,
             },
           };
           break;
+
         case SearchFor.ANY_WORD:
           searchQuery = {
-            query_string: {
-              query: searchWords.join(' OR '),
-              fields: [
-                'title',
-                'authors',
-                'publisher',
-                'bisac_codes',
-                'description',
-              ],
+            bool: {
+              should: searchWords.flatMap((word) =>
+                buildFieldShouldConditions(word, is_searching_whole_word),
+              ),
+              minimum_should_match: 1,
             },
           };
           break;
+
         case SearchFor.ALL_WORDS:
           searchQuery = {
-            query_string: {
-              query: searchWords.map((word) => `"${word}"`).join(' AND '),
-              fields: [
-                'title',
-                'authors',
-                'publisher',
-                'bisac_codes',
-                'description',
-              ],
+            bool: {
+              must: searchWords.map((word) => ({
+                bool: {
+                  should: buildFieldShouldConditions(
+                    word,
+                    is_searching_whole_word,
+                  ),
+                  minimum_should_match: 1,
+                },
+              })),
             },
           };
           break;
+
         default:
           searchQuery = {
-            query_string: {
-              query: search_text.trim(),
-              fields: [
-                'title',
-                'authors',
-                'publisher',
-                'bisac_codes',
-                'description',
-              ],
+            simple_query_string: {
+              query: search_text,
+              fields: [...fullTextFields, ...arrayFields],
             },
           };
       }
+
       must.push(searchQuery);
     }
 
@@ -186,23 +230,29 @@ export class AdminAudioElasticsearchService {
       },
     };
 
+    if (is_export) {
+      const stream = await this.export(esQuery);
+      return new StreamableFile(stream);
+    }
+
     // ------------------------------
     // 4. Sorting
     // ------------------------------
-    let sort: Sort[] = [{ _id: { order: 'asc' } }]; // Default sort
+    let sort: Sort = { id: { order: 'asc' } };
     if (order_by_column && order_by) {
       const orderByMap: Record<string, string> = {
         sku: 'sku',
-        title: 'title',
-        publisher: 'publisher',
-        author: 'author',
-        bisac_code: 'bisac_code',
+        title: 'title.keyword',
+        publisher: 'publisher.keyword',
+        author: 'author.keyword',
+        bisac_code: 'bisac_code.keyword',
+        category: 'category.keyword',
         fa_retail_price: 'fa_retail_price',
         fa_retail_content_cost: 'fa_retail_content_cost',
         bookshelf_credit_cost: 'bookshelf_credit_cost',
-        language: 'language',
-        runtime: 'runtime',
-        copyright: 'copyright',
+        language: 'language.keyword',
+        runtime: 'runtime.keyword',
+        copyright: 'copyright.keyword',
         is_active: 'is_active',
         is_excluded: 'is_excluded',
         is_featured: 'is_featured',
@@ -215,7 +265,7 @@ export class AdminAudioElasticsearchService {
       const order = order_by.toLowerCase() === 'desc' ? 'desc' : 'asc';
 
       if (column) {
-        sort = [{ [column]: { order } }];
+        sort = { [column]: { order } };
       }
     }
 
@@ -224,16 +274,14 @@ export class AdminAudioElasticsearchService {
     // ------------------------------
     const searchParams: SearchRequest = {
       index: this.index,
-      body: {
-        query:
-          must.length > 0 || filter.length > 0 || must_not.length > 0
-            ? esQuery
-            : { match_all: {} },
-        sort,
-        from: (page - 1) * per_page,
-        size: per_page,
-        track_total_hits: true,
-      },
+      from: (page - 1) * per_page,
+      size: per_page,
+      track_total_hits: true,
+      query:
+        must.length || filter.length || must_not.length
+          ? esQuery
+          : { match_all: {} },
+      sort,
     };
 
     const { hits } =
@@ -259,5 +307,109 @@ export class AdminAudioElasticsearchService {
         to: Math.min(page * per_page, total),
       },
     };
+  }
+
+  async export(esQuery: QueryDslQueryContainer): Promise<Readable> {
+    const stream = new Readable({
+      read() {}, // Manual push streaming
+      highWaterMark: 1024 * 1024, // 1MB buffer to control backpressure
+    });
+
+    // Write CSV Header
+    stream.push(
+      'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
+    );
+
+    const batchSize = 1000;
+    let scrollId: string | undefined;
+    let hasMoreData = true;
+
+    try {
+      // Initial search with scroll API for large datasets
+      const searchParams: SearchRequest = {
+        index: this.index,
+        query:
+          esQuery.bool?.must || esQuery.bool?.filter || esQuery.bool?.must_not
+            ? esQuery
+            : { match_all: {} },
+        scroll: '1m', // Keep scroll context alive for 1 minute
+        size: batchSize,
+        sort: { id: { order: 'asc' } }, // Sort by _id for consistent pagination
+      };
+
+      let response =
+        await this.appElasticsearchService.search<MeiliAudio>(searchParams);
+
+      while (hasMoreData) {
+        const items = response.hits.hits.map((hit) => hit._source);
+
+        if (items.length === 0) {
+          hasMoreData = false;
+          break;
+        }
+
+        // Stream CSV rows
+        for (const item of items) {
+          const row =
+            [
+              `"${item.title?.replace(/"/g, '""') ?? ''}"`,
+              `"${item.authors?.join(', ').replace(/"/g, '""') ?? ''}"`,
+              `"${item.category ?? ''}"`,
+              `"${item.publisher?.replace(/"/g, '""') ?? ''}"`,
+              item.is_excluded ? '1' : '0',
+              `"${item.street_date ? dayjs.unix(parseInt(item.street_date)).format('MM/DD/YYYY') : ''}"`,
+              `"${item.fa_retail_price ? `$${item.fa_retail_price}` : ''}"`,
+              `"${item.fa_retail_content_cost ? `$${item.fa_retail_content_cost}` : ''}"`,
+              `"${item.activated_at ? dayjs.unix(parseInt(item.activated_at)).format('MM/DD/YYYY') : ''}"`,
+              `"${item.bookshelf_credit_cost ?? ''}"`,
+              `"${item.curated_at ? dayjs.unix(parseInt(item.curated_at)).format('MM/DD/YYYY') : ''}"`,
+              item.is_featured ? '1' : '0',
+              item.is_active ? '1' : '0',
+              `"${item.language?.replace(/"/g, '""') ?? ''}"`,
+              `"${item.bisac_codes?.join(', ').replace(/"/g, '""') ?? ''}"`,
+              `"${item.runtime ?? ''}"`,
+              `"${item.copyright?.replace(/"/g, '""') ?? ''}"`,
+            ].join(',') + '\n';
+
+          // Check for backpressure
+          if (!stream.push(row)) {
+            // Pause if stream is full
+            await new Promise((resolve) => stream.once('drain', resolve));
+          }
+        }
+
+        scrollId = response._scroll_id;
+        if (!scrollId || items.length < batchSize) {
+          hasMoreData = false;
+          break;
+        }
+
+        // Fetch next batch using scroll API
+        response = await this.appElasticsearchService.scroll({
+          scroll_id: scrollId,
+          scroll: '1m',
+        });
+      }
+
+      // End the stream
+      stream.push(null);
+
+      // Clean up scroll context
+      if (scrollId) {
+        await this.appElasticsearchService.clearScroll({ scroll_id: scrollId });
+      }
+    } catch (error) {
+      stream.emit('error', error);
+      stream.push(null);
+
+      // Clean up scroll context on error
+      if (scrollId) {
+        await this.appElasticsearchService
+          .clearScroll({ scroll_id: scrollId })
+          .catch(() => {});
+      }
+    }
+
+    return stream;
   }
 }

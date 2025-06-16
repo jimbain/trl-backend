@@ -34,7 +34,7 @@ interface AudioTransformed {
 @Injectable()
 export class AudioElasticsearchSyncService {
   private readonly logger = new Logger(AudioElasticsearchSyncService.name);
-  private readonly index = 'audios';
+  private readonly index = 'es_audios';
   private readonly batchSize = 1000;
 
   constructor(
@@ -122,24 +122,48 @@ export class AudioElasticsearchSyncService {
       await this.appElasticsearchService.createIndex(this.index, {
         id: { type: 'keyword' },
         sku: { type: 'keyword' },
-        title: { type: 'text' },
+        title: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
         description: { type: 'text' },
         authors: { type: 'text' },
-        author: { type: 'text' },
-        publisher: { type: 'text' },
+        author: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        publisher: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
         is_excluded: { type: 'boolean' },
         is_featured: { type: 'boolean' },
         is_active: { type: 'boolean' },
-        category: { type: 'text' },
         category_ids: { type: 'keyword' },
+        category: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
         fa_retail_price: { type: 'float' },
         fa_retail_content_cost: { type: 'float' },
         bookshelf_credit_cost: { type: 'integer' },
-        language: { type: 'text' },
+        language: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
         bisac_codes: { type: 'text' },
-        bisac_code: { type: 'text' },
-        runtime: { type: 'text' },
-        copyright: { type: 'text' },
+        bisac_code: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        runtime: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        copyright: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
         street_date: { type: 'long' },
         activated_at: { type: 'long' },
         curated_at: { type: 'long' },

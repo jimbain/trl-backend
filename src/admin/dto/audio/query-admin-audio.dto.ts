@@ -47,6 +47,7 @@ export class QueryAdminAudioDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : null))
   search_text?: string;
 
   @IsOptional()

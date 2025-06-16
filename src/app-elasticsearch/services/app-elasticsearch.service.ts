@@ -1,6 +1,8 @@
 import {
   BulkRequest,
+  ClearScrollRequest,
   IndexRequest,
+  ScrollRequest,
 } from '@elastic/elasticsearch/lib/api/types';
 import { Injectable } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -11,6 +13,14 @@ export class AppElasticsearchService {
 
   async search<T>(params: Parameters<ElasticsearchService['search']>[0]) {
     return this.elasticsearchService.search<T>(params);
+  }
+
+  async scroll<T>(params: ScrollRequest) {
+    return this.elasticsearchService.scroll<T>(params);
+  }
+
+  async clearScroll(params: ClearScrollRequest) {
+    return this.elasticsearchService.clearScroll(params);
   }
 
   async index<T>(params: IndexRequest<T>) {
