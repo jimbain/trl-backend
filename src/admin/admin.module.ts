@@ -47,6 +47,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
 import { AdminPharmaService } from './services/admin-pharma.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { StorageModule } from 'src/storage/storage.module';
+import { PharmaModule } from 'src/pharma/pharma.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { StorageModule } from 'src/storage/storage.module';
     ]),
     forwardRef(() => AppErrorLogModule),
     forwardRef(() => AudioModule),
+    forwardRef(() => PharmaModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),

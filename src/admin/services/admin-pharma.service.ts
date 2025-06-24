@@ -10,6 +10,7 @@ import { plainToInstance } from 'class-transformer';
 import { PaginationMeta } from 'src/common/interfaces';
 import { Readable } from 'stream';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { PharmaService } from 'src/pharma/pharma.service';
 
 @Injectable()
 export class AdminPharmaService {
@@ -17,6 +18,7 @@ export class AdminPharmaService {
     @InjectRepository(Pharma)
     private readonly pharmaRepository: Repository<Pharma>,
 
+    private readonly pharmaService: PharmaService,
     private readonly storageService: StorageService,
   ) {}
 
@@ -74,22 +76,6 @@ export class AdminPharmaService {
     return stream;
   }
 
-  async getTransformed(pharma: Pharma): Promise<Pharma> {
-    if (pharma.image_url) {
-      pharma.image_url = await this.storageService.generateSignedViewUrl(
-        pharma.image_url,
-      );
-    }
-
-    if (pharma.video_url) {
-      pharma.video_url = await this.storageService.generateSignedViewUrl(
-        pharma.video_url,
-      );
-    }
-
-    return pharma;
-  }
-
   async create(payload: AdminCreatePharmaDto): Promise<AdminPharmaDto> {
     if (payload.image_url) {
       payload.image_url = this.storageService.stripBucketUrl(payload.image_url);
@@ -102,24 +88,16 @@ export class AdminPharmaService {
     const pharma = this.pharmaRepository.create(payload);
     await this.pharmaRepository.save(pharma);
 
-    const transformedPharma = await this.getTransformed(pharma);
+    const transformedPharma = await this.pharmaService.getTransformed(pharma);
 
     return plainToInstance(AdminPharmaDto, transformedPharma, {
       excludeExtraneousValues: true,
     });
   }
 
-  async findById(id: string): Promise<Pharma> {
-    const pharma = await this.pharmaRepository.findOne({ where: { id } });
-    if (!pharma) {
-      throw new NotFoundException(`Pharma with id "${id}" not found`);
-    }
-    return pharma;
-  }
-
   async findOne(id: string): Promise<AdminPharmaDto> {
-    const pharma = await this.findById(id);
-    const transformedPharma = await this.getTransformed(pharma);
+    const pharma = await this.pharmaService.findById(id);
+    const transformedPharma = await this.pharmaService.getTransformed(pharma);
 
     return plainToInstance(AdminPharmaDto, transformedPharma, {
       excludeExtraneousValues: true,
@@ -130,7 +108,7 @@ export class AdminPharmaService {
     id: string,
     updatePharmaDto: AdminUpdatePharmaDto,
   ): Promise<AdminPharmaDto> {
-    const pharma = await this.findById(id);
+    const pharma = await this.pharmaService.findById(id);
     const updated = this.pharmaRepository.merge(pharma, updatePharmaDto);
 
     if (updated.image_url) {
@@ -142,7 +120,7 @@ export class AdminPharmaService {
     }
 
     await this.pharmaRepository.save(updated);
-    const transformedPharma = await this.getTransformed(pharma);
+    const transformedPharma = await this.pharmaService.getTransformed(pharma);
 
     return plainToInstance(AdminPharmaDto, transformedPharma, {
       excludeExtraneousValues: true,

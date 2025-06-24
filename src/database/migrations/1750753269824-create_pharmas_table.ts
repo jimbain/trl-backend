@@ -53,6 +53,12 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             isNullable: true,
           },
           {
+            name: 'categories',
+            type: 'jsonb',
+            isNullable: true,
+            default: `'[]'::jsonb`,
+          },
+          {
             name: 'runtime',
             type: 'varchar',
             isNullable: true,
