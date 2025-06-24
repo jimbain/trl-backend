@@ -13,7 +13,7 @@ import {
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 import { Readable } from 'stream';
-import { AudioMeilisearchSyncService } from 'src/audios/audio_meilisearch_sync.service';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 
 @Injectable()
 export class AdminAudioService {
@@ -21,7 +21,7 @@ export class AdminAudioService {
   private readonly audioRepository: Repository<Audio>;
 
   constructor(
-    private readonly audioMeilisearchSyncService: AudioMeilisearchSyncService,
+    private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -399,7 +399,7 @@ export class AdminAudioService {
       this.audioRepository.save(audio),
     ]);
 
-    await this.audioMeilisearchSyncService.syncAudioById(id);
+    await this.audioElasticsearchSyncService.syncAudioById(id);
   }
 
   async bulkUpdate(payload: AdminBulkUpdateAudioDto) {
@@ -438,7 +438,7 @@ export class AdminAudioService {
     await this.audioRepository.save(updatedAudios);
 
     await Promise.all(
-      ids.map((id) => this.audioMeilisearchSyncService.syncAudioById(id)),
+      ids.map((id) => this.audioElasticsearchSyncService.syncAudioById(id)),
     );
   }
 }
