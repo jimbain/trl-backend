@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { validationExceptionFactory } from './exceptions/validation.exception';
 import { useContainer } from 'class-validator';
 import { AllExceptionsFilter } from './exceptions/all-exceptions.filter';
+import { initBucketUrlValidator } from './storage/validators/is-bucket-url.validator';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -46,6 +47,8 @@ async function bootstrap() {
       },
     }),
   );
+
+  initBucketUrlValidator(configService);
 
   await app.listen(port);
 }

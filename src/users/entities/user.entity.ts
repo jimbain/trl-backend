@@ -16,6 +16,8 @@ import { ulid } from 'ulidx';
 import { Exclude } from 'class-transformer';
 import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entity';
 import { Company } from 'src/companies/entities/company.entity';
+import { PharmaReview } from 'src/pharma/entities/pharma-review.entity';
+import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -77,4 +79,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => PasswordResetToken, (token) => token.user)
   passwordResetTokens: PasswordResetToken[];
+
+  @OneToMany(() => PharmaReview, (review) => review.pharma)
+  pharmaReviews: PharmaReview[];
+
+  @OneToMany(() => PharmaUserStatus, (status) => status.user)
+  pharmaUserStatuses: PharmaUserStatus[];
 }

@@ -16,6 +16,8 @@ import { NotificationModule } from './notification/notification.module';
 import { AdminModule } from './admin/admin.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { AppErrorLogModule } from './app-error-log/app-error-log.module';
+import { PharmaModule } from './pharma/pharma.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { AppErrorLogModule } from './app-error-log/app-error-log.module';
     AdminModule,
     CatalogModule,
     AppErrorLogModule,
+    PharmaModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -44,6 +44,9 @@ import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch
 import { AudioModule } from 'src/audios/audio.module';
 import { AdminAudioElasticsearchService } from './services/admin-audio-elasticsearch.service';
 import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
+import { AdminPharmaService } from './services/admin-pharma.service';
+import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
   imports: [
@@ -66,6 +69,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     TypeOrmModule.forFeature([
       AdminUser,
       Audio,
+      Pharma,
       Company,
       User,
       UserAudioStatus,
@@ -82,6 +86,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     forwardRef(() => CommonModule),
     forwardRef(() => UserModule),
     forwardRef(() => AppElasticsearchModule),
+    forwardRef(() => StorageModule),
   ],
   controllers: [
     AdminAuthController,
@@ -110,6 +115,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     AdminCompanyCatalogService,
     AdminAudioMeiliSearchService,
     AdminAudioElasticsearchService,
+    AdminPharmaService,
   ],
   exports: [],
 })
