@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { StorageService } from 'src/storage/storage.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { AdminCreatePharmaDto } from '../dto/pharma/admin-create-pharma.dto';
 import { AdminUpdatePharmaDto } from '../dto/pharma/admin-update-pharma.dto';
 import { AdminPharmaDto } from '../dto/pharma/admin-pharma.dto';
 import { plainToInstance } from 'class-transformer';
+import { PaginationMeta } from 'src/common/interfaces';
+import { Readable } from 'stream';
+import { paginate } from 'src/common/helpers/pagination.helper';
 
 @Injectable()
 export class AdminPharmaService {
@@ -17,10 +20,58 @@ export class AdminPharmaService {
     private readonly storageService: StorageService,
   ) {}
 
-  async findAll(query: any = {}): Promise<Pharma[]> {
-    return await this.pharmaRepository.find({
-      order: { created_at: 'DESC' },
+  async findAll(query: any = {}): Promise<
+    | {
+        data: AdminPharmaDto[];
+        meta: PaginationMeta;
+      }
+    | StreamableFile
+  > {
+    const { page, per_page, is_export } = query;
+
+    const queryBuilder = this.pharmaRepository
+      .createQueryBuilder('pharma')
+      .orderBy('created_at', 'DESC');
+
+    if (is_export) {
+      const stream = await this.export(queryBuilder);
+      return new StreamableFile(stream);
+    }
+
+    const paginatedData = await paginate(
+      queryBuilder,
+      page,
+      per_page,
+      AdminPharmaDto,
+    );
+
+    paginatedData.data = await Promise.all(
+      paginatedData.data.map(async (item) => ({
+        ...item,
+        image_url: item.image_url
+          ? await this.storageService.generateSignedViewUrl(item.image_url)
+          : null,
+        video_url: item.video_url
+          ? await this.storageService.generateSignedViewUrl(item.video_url)
+          : null,
+      })),
+    );
+
+    return paginatedData;
+  }
+
+  async export(queryBuilder: SelectQueryBuilder<any>): Promise<Readable> {
+    const stream = new Readable({
+      read() {}, // Manual push streaming
+      highWaterMark: 1024 * 1024, // 1MB buffer to control backpressure
     });
+
+    // Write CSV Header
+    stream.push(
+      'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
+    );
+
+    return stream;
   }
 
   async getTransformed(pharma: Pharma): Promise<Pharma> {
