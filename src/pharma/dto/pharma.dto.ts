@@ -8,6 +8,9 @@ export class PharmaListDto {
   title: string;
 
   @Expose()
+  description: string;
+
+  @Expose()
   image_url?: string;
 }
 
