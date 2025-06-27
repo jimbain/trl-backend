@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
-import pLimit from 'p-limit';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 
 interface AudioTransformed {
@@ -181,6 +180,7 @@ export class AudioElasticsearchSyncService {
     const totalPages = Math.ceil(total / this.batchSize);
     this.logger.log(`Total audios: ${total}, syncing in ${totalPages} batches`);
 
+    const pLimit = (await import('p-limit')).default;
     const limit = pLimit(4);
     const tasks = [];
 

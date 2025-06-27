@@ -40,7 +40,6 @@ import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { AdminUserController } from './controllers/admin-user.controller';
 import { AdminAppErrorLogController } from './controllers/admin-app-error-log.controller';
 import { AppErrorLogModule } from 'src/app-error-log/app-error-log.module';
-import { AdminAudioMeiliSearchService } from './services/admin-audio-meilisearch.service';
 import { AudioModule } from 'src/audios/audio.module';
 import { AdminAudioElasticsearchService } from './services/admin-audio-elasticsearch.service';
 import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
@@ -115,7 +114,6 @@ import { PharmaModule } from 'src/pharma/pharma.module';
     AdminNotificationService,
     AdminCatalogService,
     AdminCompanyCatalogService,
-    AdminAudioMeiliSearchService,
     AdminAudioElasticsearchService,
     AdminPharmaService,
   ],

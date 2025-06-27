@@ -1,4 +1,4 @@
-export interface MeiliAudio {
+export interface ElasticAudio {
   id: number;
   sku: string;
   title: string;

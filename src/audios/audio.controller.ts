@@ -158,6 +158,6 @@ export class AudioController {
 
   @Get('seed-audios')
   seedAudio() {
-    return this.audioSeedService.seed();
+    return this.audioSeedService.syncMetadata();
   }
 }

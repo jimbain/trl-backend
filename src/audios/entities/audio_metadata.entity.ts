@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Audio } from './audio.entity';
 
 @Entity({ name: 'audio_metadata' })
 export class AudioMetadata extends BaseEntity {
@@ -113,6 +116,10 @@ export class AudioMetadata extends BaseEntity {
 
   @DeleteDateColumn()
   deleted_at: Date;
+
+  @OneToOne(() => Audio)
+  @JoinColumn({ name: 'sku', referencedColumnName: 'sku' })
+  audio: Audio;
 }
 
 export interface AudioChapter {

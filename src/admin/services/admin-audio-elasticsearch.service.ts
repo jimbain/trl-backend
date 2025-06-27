@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { plainToInstance } from 'class-transformer';
 import { AdminAudioListDto } from '../dto/audio/admin-audio.dto';
-import { MeiliAudio } from 'src/audios/audio.interface';
+import { ElasticAudio } from 'src/audios/audio.interface';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 import {
   SearchRequest,
@@ -285,7 +285,7 @@ export class AdminAudioElasticsearchService {
     };
 
     const { hits } =
-      await this.appElasticsearchService.search<MeiliAudio>(searchParams);
+      await this.appElasticsearchService.search<ElasticAudio>(searchParams);
 
     // ------------------------------
     // 6. Return Paginated Results
@@ -338,7 +338,7 @@ export class AdminAudioElasticsearchService {
       };
 
       let response =
-        await this.appElasticsearchService.search<MeiliAudio>(searchParams);
+        await this.appElasticsearchService.search<ElasticAudio>(searchParams);
 
       while (hasMoreData) {
         const items = response.hits.hits.map((hit) => hit._source);

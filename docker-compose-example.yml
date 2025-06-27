@@ -10,6 +10,7 @@ services:
       - ${APP_PORT}:${APP_PORT}
     depends_on:
       - trl_db
+      - trl_redis
     networks:
       - trl-net
 
@@ -26,10 +27,22 @@ services:
     networks:
       - trl-net
 
+  trl_redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "${FORWARD_REDIS_PORT}:${REDIS_PORT}"
+    networks:
+      - trl-net
+    volumes:
+      - trl-redis:/data
+
 networks:
   trl-net:
     external: true
 
 volumes:
   trl-pgsql:
+    driver: local
+  trl-redis:
     driver: local
