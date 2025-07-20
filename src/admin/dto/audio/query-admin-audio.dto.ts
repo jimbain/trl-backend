@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsNumber,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { IsValidDateFormat } from 'src/validation/validators/is-valid-date-format.validator';
@@ -121,4 +122,8 @@ export class QueryAdminAudioDto {
   @IsBoolean()
   @Transform(({ value }) => value === '1')
   is_export?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  search_after?: any[];
 }

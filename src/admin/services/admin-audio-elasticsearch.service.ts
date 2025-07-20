@@ -13,6 +13,7 @@ import {
   SearchRequest,
   QueryDslQueryContainer,
   Sort,
+  SortCombinations,
 } from '@elastic/elasticsearch/lib/api/types';
 import { Readable } from 'stream';
 
@@ -48,6 +49,7 @@ export class AdminAudioElasticsearchService {
       order_by_column,
       order_by,
       is_export,
+      search_after,
     } = query;
     // ------------------------------
     // 1. Build Query Body
@@ -238,7 +240,8 @@ export class AdminAudioElasticsearchService {
     // ------------------------------
     // 4. Sorting
     // ------------------------------
-    let sort: Sort = { id: { order: 'asc' } };
+    const sortArray: SortCombinations[] = [];
+
     if (order_by_column && order_by) {
       const orderByMap: Record<string, string> = {
         sku: 'sku',
@@ -264,10 +267,12 @@ export class AdminAudioElasticsearchService {
       const column = orderByMap[order_by_column];
       const order = order_by.toLowerCase() === 'desc' ? 'desc' : 'asc';
 
-      if (column) {
-        sort = { [column]: { order } };
-      }
+      if (column) sortArray.push({ [column]: { order } });
     }
+
+    sortArray.push({ id: { order: 'asc' } });
+
+    const isDeepPagination = (page - 1) * per_page > 10000;
 
     // ------------------------------
     // 5. Execute Search
@@ -281,7 +286,10 @@ export class AdminAudioElasticsearchService {
         must.length || filter.length || must_not.length
           ? esQuery
           : { match_all: {} },
-      sort,
+      sort: sortArray,
+      ...(isDeepPagination
+        ? { search_after }
+        : { from: (page - 1) * per_page }),
     };
 
     const { hits } =
@@ -305,6 +313,7 @@ export class AdminAudioElasticsearchService {
         last_page: Math.ceil(total / per_page),
         from: total > 0 ? (page - 1) * per_page + 1 : null,
         to: Math.min(page * per_page, total),
+        search_after: hits.hits[hits.hits.length - 1]?.sort || null,
       },
     };
   }
