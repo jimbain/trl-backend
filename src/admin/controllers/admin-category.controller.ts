@@ -18,7 +18,7 @@ import { AssignDeassignCategoryDto } from '../dto/category/assign-deassign-categ
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/categories')
-export class AdminCompanyCategoryController {
+export class AdminCategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
@@ -42,10 +42,6 @@ export class AdminCompanyCategoryController {
       throw new BadRequestException(
         `Invalid actionType. Allowed values: 'assign', 'deassign'`,
       );
-    }
-
-    if (!payload.ids.length) {
-      return;
     }
 
     if (actionType === 'assign') {

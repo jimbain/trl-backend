@@ -21,6 +21,7 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { Notification } from 'src/notification/entities/notification.entity';
 import { NotificationSeeder } from './seeders/notification.seeder';
 import { NotificationModule } from 'src/notification/notification.module';
+import { CompanyService } from 'src/companies/company.service';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { NotificationModule } from 'src/notification/notification.module';
       Notification,
     ]),
     AudioModule,
+    forwardRef(() => CompanyService),
     forwardRef(() => NotificationModule),
   ],
   providers: [

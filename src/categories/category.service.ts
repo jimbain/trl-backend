@@ -19,6 +19,7 @@ import { AudioService } from 'src/audios/audio.service';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { CacheService } from 'src/common/services/cache.service';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 
 @Injectable()
 export class CategoryService {
@@ -31,6 +32,7 @@ export class CategoryService {
     @Inject(forwardRef(() => AudioService))
     private audioService: AudioService,
 
+    private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
     private readonly catalogService: CatalogService,
     private readonly cacheService: CacheService,
   ) {}
@@ -258,6 +260,11 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.assignCategory(category, mediaIds);
+      await Promise.all(
+        mediaIds.map((id) =>
+          this.audioElasticsearchSyncService.syncAudioById(id),
+        ),
+      );
     }
 
     await this.cacheService.delete(id);
@@ -270,6 +277,11 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.deassignCategory(category, mediaIds);
+      await Promise.all(
+        mediaIds.map((id) =>
+          this.audioElasticsearchSyncService.syncAudioById(id),
+        ),
+      );
     }
 
     await this.cacheService.delete(id);

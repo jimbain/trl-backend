@@ -21,7 +21,7 @@ import { AdminCompanyCatalogController } from './controllers/admin-company-catal
 import { AdminAudioController } from './controllers/admin-audio.controller';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AdminAudioService } from './services/admin-audio.service';
-import { AdminCompanyCategoryController } from './controllers/admin-company-category.controller';
+import { AdminCategoryController } from './controllers/admin-category.controller';
 import { AdminReportController } from './controllers/admin-report.controller';
 import { AdminReportService } from './services/admin-report.service';
 import { Company } from 'src/companies/entities/company.entity';
@@ -96,7 +96,7 @@ import { PharmaModule } from 'src/pharma/pharma.module';
     AdminCatalogController,
     AdminCompanyUserController,
     AdminCompanyCatalogController,
-    AdminCompanyCategoryController,
+    AdminCategoryController,
     AdminAudioController,
     AdminVideoController,
     AdminPharmaController,

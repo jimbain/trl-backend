@@ -14,10 +14,37 @@ export function getAvailableFor(
       return audio.is_only_for_purchase ? 'bookshelf' : null;
 
     case MEDIA_AVAILABILITY_TYPE.BOTH:
-      if (canRent && audio.rental_credit_cost < audio.bookshelf_credit_cost) {
+      if (canRent && audio.rental_credit_cost <= audio.bookshelf_credit_cost) {
         return 'both';
+      } else {
+        return 'bookshelf';
       }
-      return 'bookshelf';
+
+    default:
+      return null;
+  }
+}
+
+export function getAvailableForMessage(audio: any): string | null {
+  const canRent = audio.total_rented < audio.purchased_rental_license_limit;
+  const rentalCost = audio.rental_credit_cost;
+  const bookshelfCost = audio.bookshelf_credit_cost;
+
+  switch (audio?.metadata?.available_for) {
+    case MEDIA_AVAILABILITY_TYPE.PURCHASABLE:
+      return audio.is_only_for_purchase
+        ? 'This book will be added to your bookshelf and does not need to be checked back in.'
+        : null;
+
+    case MEDIA_AVAILABILITY_TYPE.RENTAL:
+      return canRent ? 'This book will be available for two weeks.' : null;
+
+    case MEDIA_AVAILABILITY_TYPE.BOTH:
+      if (canRent && rentalCost <= bookshelfCost) {
+        return 'This book can be rented for two weeks or added to your bookshelf and not checked back in.';
+      } else {
+        return 'This book will be added to your bookshelf and does not need to be checked back in.';
+      }
 
     default:
       return null;
@@ -86,6 +113,10 @@ export class AudioDto {
   @Expose()
   @Transform(({ obj }) => getAvailableFor(obj))
   available_for: 'rent' | 'bookshelf' | 'both' | null;
+
+  @Expose()
+  @Transform(({ obj }) => getAvailableForMessage(obj))
+  available_for_message: string | null;
 
   @Expose()
   @Transform(({ obj }) => {

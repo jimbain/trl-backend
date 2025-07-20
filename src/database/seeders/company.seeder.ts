@@ -5,6 +5,7 @@ import { Company } from 'src/companies/entities/company.entity';
 import { faker } from '@faker-js/faker';
 import { COMPANY_LOGIN_TYPE, MEDIA, Media } from 'src/constants';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { CompanyService } from 'src/companies/company.service';
 
 @Injectable()
 export class CompanySeeder {
@@ -14,6 +15,8 @@ export class CompanySeeder {
 
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
+
+    private readonly companyService: CompanyService,
   ) {}
 
   async seed() {
@@ -84,7 +87,15 @@ export class CompanySeeder {
 
     for (const companyData of companies) {
       const company = this.companyRepository.create(companyData);
+
       await this.companyRepository.save(company);
+
+      if (company.available_credits > 0) {
+        await this.companyService.createCreditLog({
+          company_id: company.id,
+          purchased_credit: company.available_credits,
+        });
+      }
     }
 
     console.log(
