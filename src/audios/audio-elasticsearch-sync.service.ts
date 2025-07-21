@@ -231,10 +231,11 @@ export class AudioElasticsearchSyncService {
 
     const transformed = this.transformAudio(audio);
 
-    await this.appElasticsearchService.index({
+    await this.appElasticsearchService.update({
       index: this.index,
       id: transformed.id,
-      document: transformed,
+      doc: transformed,
+      docAsUpsert: true,
       refresh: 'true',
     });
 

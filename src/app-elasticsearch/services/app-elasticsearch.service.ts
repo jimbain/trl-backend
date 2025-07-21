@@ -31,6 +31,22 @@ export class AppElasticsearchService {
     return this.elasticsearchService.bulk(params);
   }
 
+  async update<T>(params: {
+    index: string;
+    id: string;
+    doc: T;
+    docAsUpsert?: boolean;
+    refresh?: boolean | 'true' | 'false' | 'wait_for';
+  }) {
+    return this.elasticsearchService.update({
+      index: params.index,
+      id: params.id,
+      doc: params.doc,
+      doc_as_upsert: params.docAsUpsert ?? true,
+      refresh: params.refresh ?? 'true',
+    });
+  }
+
   async delete(params: Parameters<ElasticsearchService['delete']>[0]) {
     return this.elasticsearchService.delete(params);
   }
