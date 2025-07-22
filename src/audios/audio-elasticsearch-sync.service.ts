@@ -63,7 +63,7 @@ export class AudioElasticsearchSyncService {
         'audio.is_excluded AS is_excluded',
         'audio.is_featured AS is_featured',
         'audio.is_active AS is_active',
-        'audio.category_ids AS category_ids',
+        'audio.categories AS category_ids',
         'array_agg(category.id) AS default_category_ids',
         'MIN(category.name) AS primary_category',
         'metadata.findaway_retail_price AS fa_retail_price',
@@ -232,9 +232,7 @@ export class AudioElasticsearchSyncService {
       return;
     }
 
-    console.log('Syncing Audio ID:', id);
     const transformed = this.transformAudio(audio);
-    console.log('Syncing Audio Transformed:', transformed);
 
     try {
       await this.appElasticsearchService.update({
