@@ -63,7 +63,8 @@ export class AudioElasticsearchSyncService {
         'audio.is_excluded AS is_excluded',
         'audio.is_featured AS is_featured',
         'audio.is_active AS is_active',
-        'array_agg(category.id) AS category_ids',
+        'audio.categories AS category_ids',
+        'array_agg(category.id) AS default_category_ids',
         'MIN(category.name) AS primary_category',
         'metadata.findaway_retail_price AS fa_retail_price',
         'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
@@ -221,6 +222,8 @@ export class AudioElasticsearchSyncService {
   }
 
   async syncAudioById(id: string) {
+    await this.ensureIndexExists();
+
     const query = await this.buildAudioQuery(id);
     const audio = await query.getRawOne();
 
@@ -231,13 +234,18 @@ export class AudioElasticsearchSyncService {
 
     const transformed = this.transformAudio(audio);
 
-    await this.appElasticsearchService.index({
-      index: this.index,
-      id: transformed.id,
-      document: transformed,
-      refresh: 'true',
-    });
+    try {
+      await this.appElasticsearchService.update({
+        index: this.index,
+        id: String(transformed.id),
+        doc: transformed,
+        docAsUpsert: true,
+        refresh: 'true',
+      });
 
-    this.logger.log(`Synced audio ID ${id} to Elasticsearch`);
+      this.logger.log(`Synced audio ID ${id} to Elasticsearch`);
+    } catch (error) {
+      this.logger.error(`Failed to sync audio ID ${id}`, error);
+    }
   }
 }

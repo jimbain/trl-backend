@@ -279,7 +279,6 @@ export class AdminAudioElasticsearchService {
     // ------------------------------
     const searchParams: SearchRequest = {
       index: this.index,
-      from: (page - 1) * per_page,
       size: per_page,
       track_total_hits: true,
       query:
