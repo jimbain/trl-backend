@@ -19,6 +19,7 @@ import { AppConfigService } from 'src/app-config/app-config.service';
 import { CompanyService } from 'src/companies/company.service';
 import { CsvService } from 'src/common/services/csv.service';
 import { chunk } from 'lodash';
+import * as bcrypt from 'bcryptjs';
 import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
 import { UserRegistrationLog } from './entities/user_registration_log.entity';
 import { Readable } from 'stream';
@@ -353,7 +354,7 @@ export class UserService {
 
       for (const userUpdateBatch of userToUpdateChunks) {
         await Promise.all(
-          userUpdateBatch.map((userData: any) => {
+          userUpdateBatch.map(async (userData: any) => {
             const updateFields: any = {
               first_name: userData.first_name,
               last_name: userData.last_name,
@@ -361,7 +362,10 @@ export class UserService {
             };
 
             if (userData.password) {
-              updateFields.password = userData.password;
+              updateFields.password = await bcrypt.hash(
+                userData.password,
+                await bcrypt.genSalt(10),
+              );
             }
 
             return this.userRepository.update(userData.id, updateFields);

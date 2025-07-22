@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { And, In, Not, Repository } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { AudioService } from './audio.service';
 import { AudioMetadata } from './entities/audio_metadata.entity';
@@ -60,7 +60,9 @@ export class AudioSeedService {
     }
 
     this.audioCategories = await this.categoryRepository.find({
-      where: { id: In(audioCatalog.categories ?? []) },
+      where: {
+        id: And(In(audioCatalog.categories ?? []), Not('category_0')),
+      },
     });
 
     while (true) {
@@ -251,6 +253,7 @@ export class AudioSeedService {
     audio.total_rented = totalRented;
     audio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
     audio.categories = [
+      'category_0',
       this.audioCategories[_.random(this.audioCategories.length - 1)].id,
     ];
     return audio;
