@@ -231,7 +231,9 @@ export class AudioElasticsearchSyncService {
       return;
     }
 
+    console.log('Syncing Audio ID:', id);
     const transformed = this.transformAudio(audio);
+    console.log('Syncing Audio Transformed:', transformed);
 
     try {
       await this.appElasticsearchService.update({
