@@ -221,6 +221,8 @@ export class AudioElasticsearchSyncService {
   }
 
   async syncAudioById(id: string) {
+    await this.ensureIndexExists();
+
     const query = await this.buildAudioQuery(id);
     const audio = await query.getRawOne();
 
@@ -231,14 +233,18 @@ export class AudioElasticsearchSyncService {
 
     const transformed = this.transformAudio(audio);
 
-    await this.appElasticsearchService.update({
-      index: this.index,
-      id: transformed.id,
-      doc: transformed,
-      docAsUpsert: true,
-      refresh: 'true',
-    });
+    try {
+      await this.appElasticsearchService.update({
+        index: this.index,
+        id: String(transformed.id),
+        doc: transformed,
+        docAsUpsert: true,
+        refresh: 'true',
+      });
 
-    this.logger.log(`Synced audio ID ${id} to Elasticsearch`);
+      this.logger.log(`Synced audio ID ${id} to Elasticsearch`);
+    } catch (error) {
+      this.logger.error(`Failed to sync audio ID ${id}`, error);
+    }
   }
 }
