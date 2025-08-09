@@ -15,11 +15,14 @@ interface AudioTransformed {
   is_excluded: boolean;
   is_featured: boolean;
   is_active: boolean;
+  is_for_sale: boolean;
   category: string;
   category_ids: string[];
   fa_retail_price: number;
   fa_retail_content_cost: number;
   bookshelf_credit_cost: number;
+  purchased_rental_license_limit: number;
+  total_rented: number;
   language: string;
   bisac_codes: string[];
   bisac_code: string | null;
@@ -69,9 +72,12 @@ export class AudioElasticsearchSyncService {
         'metadata.findaway_retail_price AS fa_retail_price',
         'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
         'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.total_rented AS total_rented',
         'metadata.language AS language',
         'metadata.bisac_codes AS bisac_codes',
         'metadata.runtime AS runtime',
+        'metadata.is_for_sale AS is_for_sale',
         'audio.display_copyright AS copyright',
         'EXTRACT(EPOCH FROM metadata.street_date)::BIGINT AS street_date',
         'EXTRACT(EPOCH FROM audio.activated_at)::BIGINT AS activated_at',
@@ -97,11 +103,15 @@ export class AudioElasticsearchSyncService {
       is_excluded: Boolean(audio.is_excluded),
       is_featured: Boolean(audio.is_featured),
       is_active: Boolean(audio.is_active),
+      is_for_sale: Boolean(audio.is_for_sale),
       category: audio.primary_category,
       category_ids: audio.category_ids,
       fa_retail_price: parseFloat(audio.fa_retail_price) || 0,
       fa_retail_content_cost: parseFloat(audio.fa_retail_content_cost) || 0,
       bookshelf_credit_cost: parseInt(audio.bookshelf_credit_cost) || 0,
+      purchased_rental_license_limit:
+        parseInt(audio.purchased_rental_license_limit) || 0,
+      total_rented: parseInt(audio.total_rented) || 0,
       language: audio.language,
       bisac_codes: audio.bisac_codes,
       bisac_code: audio.bisac_codes?.[0] ?? null,
@@ -113,64 +123,122 @@ export class AudioElasticsearchSyncService {
     };
   }
 
+  private getDesiredMapping() {
+    return {
+      id: { type: 'keyword' },
+      sku: { type: 'keyword' },
+      title: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      description: { type: 'text' },
+      authors: { type: 'text' },
+      author: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      publisher: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      is_excluded: { type: 'boolean' },
+      is_featured: { type: 'boolean' },
+      is_active: { type: 'boolean' },
+      is_for_sale: { type: 'boolean' },
+      category_ids: { type: 'keyword' },
+      category: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      fa_retail_price: { type: 'float' },
+      fa_retail_content_cost: { type: 'float' },
+      bookshelf_credit_cost: { type: 'integer' },
+      purchased_rental_license_limit: { type: 'integer' },
+      total_rented: { type: 'integer' },
+      language: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      bisac_codes: { type: 'text' },
+      bisac_code: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      runtime: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      copyright: {
+        type: 'text',
+        fields: { keyword: { type: 'keyword' } },
+      },
+      street_date: { type: 'long' },
+      activated_at: { type: 'long' },
+      curated_at: { type: 'long' },
+    };
+  }
+
+  private hasNewFields(currentMapping: any, desiredMapping: any): boolean {
+    for (const fieldName in desiredMapping) {
+      if (!currentMapping[fieldName]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private getNewFields(
+    currentMapping: any,
+    desiredMapping: any,
+  ): Record<string, any> {
+    const newFields: Record<string, any> = {};
+    for (const fieldName in desiredMapping) {
+      if (!currentMapping[fieldName]) {
+        newFields[fieldName] = desiredMapping[fieldName];
+      }
+    }
+    return newFields;
+  }
+
   async ensureIndexExists() {
     const indexExists = await this.appElasticsearchService.indexExists(
       this.index,
     );
+    const desiredMapping = this.getDesiredMapping();
 
     if (!indexExists) {
-      await this.appElasticsearchService.createIndex(this.index, {
-        id: { type: 'keyword' },
-        sku: { type: 'keyword' },
-        title: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        description: { type: 'text' },
-        authors: { type: 'text' },
-        author: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        publisher: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        is_excluded: { type: 'boolean' },
-        is_featured: { type: 'boolean' },
-        is_active: { type: 'boolean' },
-        category_ids: { type: 'keyword' },
-        category: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        fa_retail_price: { type: 'float' },
-        fa_retail_content_cost: { type: 'float' },
-        bookshelf_credit_cost: { type: 'integer' },
-        language: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        bisac_codes: { type: 'text' },
-        bisac_code: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        runtime: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        copyright: {
-          type: 'text',
-          fields: { keyword: { type: 'keyword' } },
-        },
-        street_date: { type: 'long' },
-        activated_at: { type: 'long' },
-        curated_at: { type: 'long' },
-      });
+      await this.appElasticsearchService.createIndex(
+        this.index,
+        desiredMapping,
+      );
       this.logger.log(`Index '${this.index}' created`);
     } else {
-      this.logger.log(`Index '${this.index}' already exists`);
+      // Index exists, check if mapping needs to be updated
+      try {
+        const currentMapping = await this.appElasticsearchService.getMapping(
+          this.index,
+        );
+
+        if (this.hasNewFields(currentMapping, desiredMapping)) {
+          const newFields = this.getNewFields(currentMapping, desiredMapping);
+          await this.appElasticsearchService.putMapping(this.index, newFields);
+
+          const fieldNames = Object.keys(newFields).join(', ');
+          this.logger.log(
+            `Index '${this.index}' mapping updated with new fields: ${fieldNames}`,
+          );
+        } else {
+          this.logger.log(
+            `Index '${this.index}' already exists with up-to-date mapping`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to check/update mapping for index '${this.index}':`,
+          error,
+        );
+        // Continue execution - don't fail the sync if mapping update fails
+      }
     }
   }
 
@@ -198,8 +266,8 @@ export class AudioElasticsearchSyncService {
 
           if (transformed.length > 0) {
             const bulkBody = transformed.flatMap((doc) => [
-              { index: { _index: this.index, _id: doc.id } },
-              doc,
+              { update: { _index: this.index, _id: doc.id } },
+              { doc: doc, doc_as_upsert: true },
             ]);
 
             const bulkResponse = await this.appElasticsearchService.bulk({

@@ -44,6 +44,9 @@ export class AdminAudioElasticsearchService {
       retail_price_max,
       retail_content_cost_min,
       retail_content_cost_max,
+      purchased_rental_license_limit_min,
+      purchased_rental_license_limit_max,
+      is_for_sale,
       is_featured,
       is_excluded,
       order_by_column,
@@ -70,6 +73,9 @@ export class AdminAudioElasticsearchService {
     if (is_excluded !== undefined) {
       filter.push({ term: { is_excluded } });
     }
+    if (is_for_sale !== undefined) {
+      filter.push({ term: { is_for_sale } });
+    }
     if (bookshelf_credit_cost !== undefined) {
       filter.push({ term: { bookshelf_credit_cost } });
     }
@@ -91,6 +97,24 @@ export class AdminAudioElasticsearchService {
     if (retail_content_cost_max !== undefined) {
       filter.push({
         range: { fa_retail_content_cost: { lte: retail_content_cost_max } },
+      });
+    }
+    if (purchased_rental_license_limit_min !== undefined) {
+      filter.push({
+        range: {
+          purchased_rental_license_limit: {
+            gte: purchased_rental_license_limit_min,
+          },
+        },
+      });
+    }
+    if (purchased_rental_license_limit_max !== undefined) {
+      filter.push({
+        range: {
+          purchased_rental_license_limit: {
+            lte: purchased_rental_license_limit_max,
+          },
+        },
       });
     }
     if (street_date_from !== undefined && dayjs(street_date_from).isValid()) {

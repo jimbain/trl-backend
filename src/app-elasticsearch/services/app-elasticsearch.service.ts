@@ -67,4 +67,21 @@ export class AppElasticsearchService {
       },
     });
   }
+
+  async getMapping(index: string): Promise<any> {
+    const response = await this.elasticsearchService.indices.getMapping({
+      index,
+    });
+    return response[index]?.mappings?.properties || {};
+  }
+
+  async putMapping(
+    index: string,
+    properties: Record<string, any>,
+  ): Promise<void> {
+    await this.elasticsearchService.indices.putMapping({
+      index,
+      properties,
+    });
+  }
 }

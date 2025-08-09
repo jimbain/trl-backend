@@ -33,6 +33,9 @@ export class AdminAudioListDto {
   is_active: boolean;
 
   @Expose()
+  is_for_sale: boolean;
+
+  @Expose()
   @Transform(({ value }) => (value ? parseFloat(value) : null))
   fa_retail_price?: string;
 
@@ -43,6 +46,14 @@ export class AdminAudioListDto {
   @Expose()
   @Transform(({ value }) => (value ? parseInt(value) : 0))
   bookshelf_credit_cost: number;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseInt(value) : 0))
+  purchased_rental_license_limit: number;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseInt(value) : 0))
+  total_rented: number;
 
   @Expose()
   language?: string;

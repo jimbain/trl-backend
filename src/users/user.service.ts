@@ -409,11 +409,11 @@ export class UserService {
       throw new NotFoundException('No users found for this company.');
     }
 
-    const header = 'First Name,Last Name,Email,Status\n';
+    const header = 'First Name,Last Name,Email,Status,Password\n';
     const csvData = users
       .map(
         (user) =>
-          `${user.first_name},${user.last_name},${user.email},${user.is_active ? 'Active' : 'Inactive'}`,
+          `${user.first_name},${user.last_name},${user.email},${user.is_active ? 'Active' : 'Inactive'},''`,
       )
       .join('\n');
 
