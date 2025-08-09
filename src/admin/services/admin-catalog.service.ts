@@ -52,7 +52,11 @@ export class AdminCatalogService {
     // Merge total_titles into categories
     const categoryDataWithTitles = categoryData.map((category: any) => ({
       ...category,
-      total_titles: totalTitlesMap[category.id] || 0, // Default to 0 if not found
+      total_titles: totalTitlesMap[category.id] || {
+        active: 0,
+        inactive: 0,
+        total: 0,
+      },
     }));
 
     return {

@@ -291,17 +291,24 @@ export class CategoryService {
   async getTotalTitleCounts(
     categoryIds: string[],
     mediaType: Media,
-  ): Promise<Record<string, number>> {
+  ): Promise<
+    Record<string, { active: number; inactive: number; total: number }>
+  > {
     if (categoryIds.length === 0) return {};
 
-    let result: { category_id: string; count: number }[] = [];
+    let result: {
+      category_id: string;
+      active_count: number;
+      inactive_count: number;
+    }[] = [];
 
     if (mediaType === 'audio') {
       result = await this.audioRepository.query(
         `
         SELECT 
             jsonb_array_elements_text(a.categories) AS category_id, 
-            COUNT(*) AS count
+            COUNT(*) FILTER (WHERE a.is_active = true) AS active_count,
+            COUNT(*) FILTER (WHERE a.is_active = false) AS inactive_count
         FROM audios a
         WHERE a.categories ?| $1
         GROUP BY category_id
@@ -309,17 +316,24 @@ export class CategoryService {
         [categoryIds],
       );
     } else if (mediaType === 'video') {
+      // TODO: implement for video
     } else if (mediaType === 'pharma') {
+      // TODO: implement for pharma
     }
 
     return categoryIds.reduce(
       (acc, id) => {
-        acc[id] = Number(
-          result.find((row) => row.category_id === id)?.count || 0,
-        );
+        const row = result.find((r) => r.category_id === id);
+        const active = Number(row?.active_count || 0);
+        const inactive = Number(row?.inactive_count || 0);
+        acc[id] = {
+          active,
+          inactive,
+          total: active + inactive,
+        };
         return acc;
       },
-      {} as Record<string, number>,
+      {} as Record<string, { active: number; inactive: number; total: number }>,
     );
   }
 
