@@ -52,8 +52,12 @@ export class AudioElasticsearchSyncService {
       .leftJoin(
         'categories',
         'category',
-        'category.id IN (SELECT jsonb_array_elements_text(audio.categories)) AND category.type = :categoryType',
-        { categoryType: 'default' },
+        `category.id IN (
+            SELECT jsonb_array_elements_text(audio.categories)
+          )
+          AND category.type = :categoryType
+          AND category.id <> :excludedCategory`,
+        { categoryType: 'default', excludedCategory: 'category_0' },
       )
       .groupBy('audio.id, metadata.sku')
       .select([
