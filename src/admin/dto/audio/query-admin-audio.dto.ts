@@ -139,7 +139,7 @@ export class QueryAdminAudioDto {
   order_by?: OrderBy;
 
   @IsOptional()
-  @Transform(({ value }) => value?.toUpperCase())
+  @Transform(({ value }) => value?.toLowerCase())
   @IsEnum(ExportType)
   export_type?: ExportType;
 
