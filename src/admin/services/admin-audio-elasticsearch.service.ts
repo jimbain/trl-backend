@@ -1,5 +1,6 @@
 import { Injectable, StreamableFile } from '@nestjs/common';
 import {
+  ExportType,
   QueryAdminAudioDto,
   SearchFor,
 } from '../dto/audio/query-admin-audio.dto';
@@ -51,6 +52,7 @@ export class AdminAudioElasticsearchService {
       is_excluded,
       order_by_column,
       order_by,
+      export_type,
       is_export,
       search_after,
     } = query;
@@ -256,8 +258,8 @@ export class AdminAudioElasticsearchService {
       },
     };
 
-    if (is_export) {
-      const stream = await this.export(esQuery);
+    if (is_export && export_type) {
+      const stream = await this.export(esQuery, export_type);
       return new StreamableFile(stream);
     }
 
@@ -341,16 +343,23 @@ export class AdminAudioElasticsearchService {
     };
   }
 
-  async export(esQuery: QueryDslQueryContainer): Promise<Readable> {
+  async export(
+    esQuery: QueryDslQueryContainer,
+    exportType: ExportType,
+  ): Promise<Readable> {
     const stream = new Readable({
       read() {}, // Manual push streaming
       highWaterMark: 1024 * 1024, // 1MB buffer to control backpressure
     });
 
-    // Write CSV Header
-    stream.push(
-      'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
-    );
+    // Write CSV Header based on export type
+    if (exportType === ExportType.CURATION) {
+      stream.push(
+        'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
+      );
+    } else {
+      stream.push('SKU,Title,QTO,QOH,QIC,Active\n');
+    }
 
     const batchSize = 1000;
     let scrollId: string | undefined;
@@ -380,28 +389,48 @@ export class AdminAudioElasticsearchService {
           break;
         }
 
-        // Stream CSV rows
+        // Stream CSV rows based on export type
         for (const item of items) {
-          const row =
-            [
-              `"${item.title?.replace(/"/g, '""') ?? ''}"`,
-              `"${item.authors?.join(', ').replace(/"/g, '""') ?? ''}"`,
-              `"${item.category ?? ''}"`,
-              `"${item.publisher?.replace(/"/g, '""') ?? ''}"`,
-              item.is_excluded ? '1' : '0',
-              `"${item.street_date ? dayjs.unix(parseInt(item.street_date)).format('MM/DD/YYYY') : ''}"`,
-              `"${item.fa_retail_price ? `$${item.fa_retail_price}` : ''}"`,
-              `"${item.fa_retail_content_cost ? `$${item.fa_retail_content_cost}` : ''}"`,
-              `"${item.activated_at ? dayjs.unix(parseInt(item.activated_at)).format('MM/DD/YYYY') : ''}"`,
-              `"${item.bookshelf_credit_cost ?? ''}"`,
-              `"${item.curated_at ? dayjs.unix(parseInt(item.curated_at)).format('MM/DD/YYYY') : ''}"`,
-              item.is_featured ? '1' : '0',
-              item.is_active ? '1' : '0',
-              `"${item.language?.replace(/"/g, '""') ?? ''}"`,
-              `"${item.bisac_codes?.join(', ').replace(/"/g, '""') ?? ''}"`,
-              `"${item.runtime ?? ''}"`,
-              `"${item.copyright?.replace(/"/g, '""') ?? ''}"`,
-            ].join(',') + '\n';
+          let row: string;
+
+          if (exportType === ExportType.CURATION) {
+            // Curation export format
+            row =
+              [
+                `"${item.title?.replace(/"/g, '""') ?? ''}"`,
+                `"${item.authors?.join(', ').replace(/"/g, '""') ?? ''}"`,
+                `"${item.category ?? ''}"`,
+                `"${item.publisher?.replace(/"/g, '""') ?? ''}"`,
+                item.is_excluded ? '1' : '0',
+                `"${item.street_date ? dayjs.unix(item.street_date).format('MM/DD/YYYY') : ''}"`,
+                `"${item.fa_retail_price ? `$${item.fa_retail_price}` : ''}"`,
+                `"${item.fa_retail_content_cost ? `$${item.fa_retail_content_cost}` : ''}"`,
+                `"${item.activated_at ? dayjs.unix(item.activated_at).format('MM/DD/YYYY') : ''}"`,
+                `"${item.bookshelf_credit_cost ?? ''}"`,
+                `"${item.curated_at ? dayjs.unix(item.curated_at).format('MM/DD/YYYY') : ''}"`,
+                item.is_featured ? '1' : '0',
+                item.is_active ? '1' : '0',
+                `"${item.language?.replace(/"/g, '""') ?? ''}"`,
+                `"${item.bisac_codes?.join(', ').replace(/"/g, '""') ?? ''}"`,
+                `"${item.runtime ?? ''}"`,
+                `"${item.copyright?.replace(/"/g, '""') ?? ''}"`,
+              ].join(',') + '\n';
+          } else {
+            // Inventory export format
+            const qto = item.purchased_rental_license_limit ?? 0;
+            const qoh = item.total_rented ?? 0;
+            const qic = qto - qoh;
+
+            row =
+              [
+                `"${item.sku ?? ''}"`,
+                `"${item.title?.replace(/"/g, '""') ?? ''}"`,
+                qto.toString(),
+                qoh.toString(),
+                qic.toString(),
+                item.is_active ? '1' : '0',
+              ].join(',') + '\n';
+          }
 
           // Check for backpressure
           if (!stream.push(row)) {

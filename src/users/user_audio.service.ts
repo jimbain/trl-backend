@@ -16,6 +16,7 @@ import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioService } from 'src/audios/audio.service';
 import { CompanyService } from 'src/companies/company.service';
 import { MEDIA, USER_ACTIVITY } from 'src/constants';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 
 interface AudioFindawayworldLicensePurchase {
   id: string;
@@ -60,6 +61,7 @@ export class UserAudioService {
     private readonly companyRepository: Repository<Company>,
 
     private readonly audioService: AudioService,
+    private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
     private readonly appConfigService: AppConfigService,
     private readonly audioEngineService: AudioEngineService,
     private readonly companyService: CompanyService,
@@ -371,6 +373,8 @@ export class UserAudioService {
       }),
     ]);
 
+    await this.audioElasticsearchSyncService.syncAudioById(audioId);
+
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },
     });
@@ -512,6 +516,8 @@ export class UserAudioService {
         end_time: userAudio.rental_expire_at,
       }),
     ]);
+
+    await this.audioElasticsearchSyncService.syncAudioById(audioId);
 
     return this.userAudioStatusRepository.findOne({
       where: { audio_id: audioId, user_id: user.id },

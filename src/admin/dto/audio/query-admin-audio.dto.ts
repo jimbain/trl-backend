@@ -21,6 +21,11 @@ export enum OrderBy {
   DESC = 'DESC',
 }
 
+export enum ExportType {
+  CURATION = 'curation',
+  PURCHASABLE = 'purchasable',
+}
+
 export class QueryAdminAudioDto {
   @IsOptional()
   @IsInt()
@@ -132,6 +137,11 @@ export class QueryAdminAudioDto {
   @Transform(({ value }) => value?.toUpperCase())
   @IsEnum(OrderBy)
   order_by?: OrderBy;
+
+  @IsOptional()
+  @Transform(({ value }) => value?.toUpperCase())
+  @IsEnum(ExportType)
+  export_type?: ExportType;
 
   @IsOptional()
   @IsBoolean()
