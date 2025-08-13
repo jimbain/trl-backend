@@ -16,6 +16,9 @@ export class Pharma {
   @PrimaryColumn({ type: 'varchar', length: 34 })
   id: string;
 
+  @Column({ type: 'varchar', unique: true })
+  sku?: string;
+
   @Column({ type: 'varchar' })
   title: string;
 
@@ -30,6 +33,9 @@ export class Pharma {
 
   @Column({ type: 'varchar', nullable: true })
   video_url?: string;
+
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  categories: string[];
 
   @Column({ type: 'varchar', nullable: true })
   runtime?: string;

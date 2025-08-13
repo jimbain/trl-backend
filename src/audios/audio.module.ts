@@ -7,7 +7,6 @@ import { AudioReview } from './entities/audio_review.entity';
 import { AudioReviewService } from './audio_review.service';
 import { Category } from 'src/categories/entities/category.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
-import { CategoryService } from 'src/categories/category.service';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { HttpModule } from '@nestjs/axios';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
@@ -53,7 +52,6 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     AudioMetadataService,
     AudioSeedService,
     AudioReviewService,
-    CategoryService,
     AudioEngineService,
     AppConfigService,
     AudioElasticsearchSyncService,

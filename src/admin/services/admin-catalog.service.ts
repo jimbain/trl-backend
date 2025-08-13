@@ -21,6 +21,24 @@ export class AdminCatalogService {
       ]);
     }
 
+    if (!catalog.categories || catalog.categories.length === 0) {
+      return {
+        id: catalog.id,
+        name: catalog.name,
+        categories: {
+          data: [],
+          meta: {
+            current_page: 1,
+            per_page: query.per_page || 20,
+            total: 0,
+            last_page: 1,
+            from: 0,
+            to: 0,
+          },
+        },
+      };
+    }
+
     const categories: any = await this.categoryService.findMany(
       catalog.categories,
       query,

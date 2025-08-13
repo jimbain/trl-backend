@@ -20,6 +20,7 @@ import { paginate } from 'src/common/helpers/pagination.helper';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { CacheService } from 'src/common/services/cache.service';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
+import { Pharma } from 'src/pharma/entities/pharma.entity';
 
 @Injectable()
 export class CategoryService {
@@ -28,6 +29,8 @@ export class CategoryService {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
+    @InjectRepository(Pharma)
+    private readonly pharmaRepository: Repository<Pharma>,
 
     @Inject(forwardRef(() => AudioService))
     private audioService: AudioService,
@@ -318,7 +321,18 @@ export class CategoryService {
     } else if (mediaType === 'video') {
       // TODO: implement for video
     } else if (mediaType === 'pharma') {
-      // TODO: implement for pharma
+      result = await this.pharmaRepository.query(
+        `
+        SELECT 
+            jsonb_array_elements_text(p.categories) AS category_id, 
+            COUNT(*) FILTER (WHERE p.is_active = true) AS active_count,
+            COUNT(*) FILTER (WHERE p.is_active = false) AS inactive_count
+        FROM pharmas p
+        WHERE p.categories ?| $1
+        GROUP BY category_id
+        `,
+        [categoryIds],
+      );
     }
 
     return categoryIds.reduce(

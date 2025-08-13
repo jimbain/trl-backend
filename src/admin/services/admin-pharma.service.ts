@@ -11,6 +11,8 @@ import { PaginationMeta } from 'src/common/interfaces';
 import { Readable } from 'stream';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { PharmaService } from 'src/pharma/pharma.service';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { MEDIA } from 'src/constants';
 
 @Injectable()
 export class AdminPharmaService {
@@ -20,6 +22,7 @@ export class AdminPharmaService {
 
     private readonly pharmaService: PharmaService,
     private readonly storageService: StorageService,
+    private readonly catalogService: CatalogService,
   ) {}
 
   async findAll(query: any = {}): Promise<
@@ -77,6 +80,24 @@ export class AdminPharmaService {
   }
 
   async create(payload: AdminCreatePharmaDto): Promise<AdminPharmaDto> {
+    // Get default pharma catalog to validate categories
+    const pharmaCatalog = await this.catalogService.findDefaultByType(
+      MEDIA.PHARMA,
+    );
+
+    // Validate that all provided categories exist in the default pharma catalog
+    const validCategories = pharmaCatalog.categories || [];
+    const invalidCategories = payload.categories.filter(
+      (categoryId) => !validCategories.includes(categoryId),
+    );
+
+    if (invalidCategories.length > 0) {
+      throw new NotFoundException(
+        `Invalid category IDs: ${invalidCategories.join(', ')}. Only default pharma categories are allowed.`,
+      );
+    }
+
+    // Strip bucket URL to store only the path in database
     if (payload.image_url) {
       payload.image_url = this.storageService.stripBucketUrl(payload.image_url);
     }
@@ -109,8 +130,27 @@ export class AdminPharmaService {
     updatePharmaDto: AdminUpdatePharmaDto,
   ): Promise<AdminPharmaDto> {
     const pharma = await this.pharmaService.findById(id);
+
+    // If categories are being updated, validate them
+    if (updatePharmaDto.categories && updatePharmaDto.categories.length > 0) {
+      const pharmaCatalog = await this.catalogService.findDefaultByType(
+        MEDIA.PHARMA,
+      );
+      const validCategories = pharmaCatalog.categories || [];
+      const invalidCategories = updatePharmaDto.categories.filter(
+        (categoryId) => !validCategories.includes(categoryId),
+      );
+
+      if (invalidCategories.length > 0) {
+        throw new NotFoundException(
+          `Invalid category IDs: ${invalidCategories.join(', ')}. Only default pharma categories are allowed.`,
+        );
+      }
+    }
+
     const updated = this.pharmaRepository.merge(pharma, updatePharmaDto);
 
+    // Strip bucket URL to store only the path in database
     if (updated.image_url) {
       updated.image_url = this.storageService.stripBucketUrl(updated.image_url);
     }
@@ -120,7 +160,7 @@ export class AdminPharmaService {
     }
 
     await this.pharmaRepository.save(updated);
-    const transformedPharma = await this.pharmaService.getTransformed(pharma);
+    const transformedPharma = await this.pharmaService.getTransformed(updated);
 
     return plainToInstance(AdminPharmaDto, transformedPharma, {
       excludeExtraneousValues: true,

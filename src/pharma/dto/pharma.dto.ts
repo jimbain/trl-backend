@@ -5,6 +5,9 @@ export class PharmaListDto {
   id: string;
 
   @Expose()
+  sku: string;
+
+  @Expose()
   title: string;
 
   @Expose()
