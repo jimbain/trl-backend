@@ -27,6 +27,7 @@
     "schema:sync": "npm run typeorm schema:sync -- -d src/database/data_source.ts",
     "db:clean": "node dist/database/refresh_db.js",
     "db:seed": "node dist/database/seeders/seed.js",
+    "fresh-migrate-seed": "npm run db:clean && npm run migration:run && npm run db:seed",
     "prepare": "husky install",
     "elastic:sync-audios": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios.js"
   },

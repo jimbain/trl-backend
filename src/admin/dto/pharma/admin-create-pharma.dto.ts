@@ -5,10 +5,15 @@ import {
   IsUrl,
   IsNumber,
   IsNotEmpty,
+  IsArray,
 } from 'class-validator';
 import { IsBucketUrl } from 'src/storage/validators/is-bucket-url.validator';
 
 export class AdminCreatePharmaDto {
+  @IsString()
+  @IsNotEmpty()
+  sku: string;
+
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -20,6 +25,9 @@ export class AdminCreatePharmaDto {
   @IsBoolean()
   @IsOptional()
   is_active?: boolean;
+
+  @IsArray()
+  categories: string[];
 
   @IsString()
   @IsOptional()

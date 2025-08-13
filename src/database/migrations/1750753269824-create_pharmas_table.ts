@@ -5,6 +5,11 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
 
   private indices = [
     {
+      columnName: 'sku',
+      indexName: 'IDX_PHARMAS_SKU',
+      isUnique: true,
+    },
+    {
       columnName: 'is_active',
       indexName: 'IDX_PHARMAS_IS_ACTIVE',
       isUnique: false,
@@ -28,6 +33,12 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             isPrimary: true,
           },
           {
+            name: 'sku',
+            type: 'varchar',
+            isUnique: true,
+            isNullable: true,
+          },
+          {
             name: 'title',
             type: 'varchar',
             isNullable: false,
@@ -36,11 +47,6 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             name: 'description',
             type: 'text',
             isNullable: true,
-          },
-          {
-            name: 'is_active',
-            type: 'boolean',
-            default: true,
           },
           {
             name: 'image_url',
@@ -62,6 +68,11 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             name: 'runtime',
             type: 'varchar',
             isNullable: true,
+          },
+          {
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
           },
           {
             name: 'avg_rating',
