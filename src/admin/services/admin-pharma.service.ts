@@ -16,6 +16,10 @@ import { paginate } from 'src/common/helpers/pagination.helper';
 import { PharmaService } from 'src/pharma/pharma.service';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { MEDIA } from 'src/constants';
+import {
+  QueryAdminPharmaDto,
+  SearchFor,
+} from '../dto/pharma/query-admin-pharma.dto';
 
 @Injectable()
 export class AdminPharmaService {
@@ -28,18 +32,146 @@ export class AdminPharmaService {
     private readonly catalogService: CatalogService,
   ) {}
 
-  async findAll(query: any = {}): Promise<
+  async findAll(query: QueryAdminPharmaDto = {}): Promise<
     | {
         data: AdminPharmaDto[];
         meta: PaginationMeta;
       }
     | StreamableFile
   > {
-    const { page, per_page, is_export } = query;
+    const {
+      page,
+      per_page,
+      category_ids,
+      is_active,
+      is_featured,
+      search_text,
+      search_for,
+      is_searching_whole_word,
+      order_by_column,
+      order_by,
+      is_export,
+    } = query;
 
     const queryBuilder = this.pharmaRepository
       .createQueryBuilder('pharma')
-      .orderBy('created_at', 'DESC');
+      .select([
+        'pharma.id AS id',
+        'pharma.sku AS sku',
+        'pharma.title AS title',
+        'pharma.is_active AS is_active',
+        'pharma.is_featured AS is_featured',
+      ]);
+
+    // Apply filters
+    const filters: Array<[any, string, Record<string, any>]> = [
+      [is_active, 'pharma.is_active = :is_active', { is_active }],
+      [is_featured, 'pharma.is_featured = :is_featured', { is_featured }],
+    ];
+
+    for (const [condition, clause, params] of filters) {
+      if (condition !== undefined) {
+        queryBuilder.andWhere(clause, params);
+      }
+    }
+
+    // Category filtering
+    if (category_ids && category_ids.length > 0) {
+      const categoryConditions = category_ids.map(
+        (_, index) => `pharma.categories @> :categoryId${index}`,
+      );
+      const categoryParams = category_ids.reduce(
+        (params, categoryId, index) => ({
+          ...params,
+          [`categoryId${index}`]: JSON.stringify([categoryId]),
+        }),
+        {},
+      );
+
+      queryBuilder.andWhere(
+        `(${categoryConditions.join(' OR ')})`,
+        categoryParams,
+      );
+    }
+
+    // Search functionality
+    if (search_text && search_for) {
+      const searchFields = ['pharma.title', 'pharma.description', 'pharma.sku'];
+
+      // Sanitize search text
+      const sanitizedSearchText = search_text.trim();
+      const words = sanitizedSearchText
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+
+      if (words.length > 0 || search_for === SearchFor.PHRASE) {
+        if (search_for === SearchFor.PHRASE) {
+          // Treat search_text as a single phrase
+          const searchPattern = `%${sanitizedSearchText}%`;
+          const conditions = searchFields.map(
+            (field) => `${field} ILIKE :searchPattern`,
+          );
+          queryBuilder.andWhere(`(${conditions.join(' OR ')})`, {
+            searchPattern,
+          });
+        } else {
+          const isWholeWord = is_searching_whole_word;
+          if (search_for === SearchFor.ALL_WORDS) {
+            // Match all words
+            const conditions = words.map((word, index) => {
+              const paramName = `pattern${index}`;
+              const pattern = isWholeWord ? `\\m${word}\\M` : `${word}%`;
+              const fieldConditions = searchFields.map(
+                (field) =>
+                  `${field} ${isWholeWord ? '~*' : 'ILIKE'} :${paramName}`,
+              );
+              return `(${fieldConditions.join(' OR ')})`;
+            });
+            queryBuilder.andWhere(
+              `(${conditions.join(' AND ')})`,
+              words.reduce(
+                (params, word, index) => ({
+                  ...params,
+                  [`pattern${index}`]: isWholeWord
+                    ? `\\m${word}\\M`
+                    : `${word}%`,
+                }),
+                {},
+              ),
+            );
+          } else if (search_for === SearchFor.ANY_WORD) {
+            // Match any word
+            const pattern = isWholeWord
+              ? words.map((word) => `\\m${word}\\M`).join('|')
+              : words.map((word) => `${word}%`).join('|');
+            const conditions = searchFields.map(
+              (field) => `${field} ${isWholeWord ? '~*' : 'ILIKE'} :pattern`,
+            );
+            queryBuilder.andWhere(`(${conditions.join(' OR ')})`, { pattern });
+          }
+        }
+      }
+    }
+
+    // Ordering
+    if (order_by_column && order_by) {
+      const orderByMap: Record<string, string> = {
+        sku: 'pharma.sku',
+        title: 'pharma.title',
+        is_active: 'pharma.is_active',
+        is_featured: 'pharma.is_featured',
+        created_at: 'pharma.created_at',
+      };
+
+      const column = orderByMap[order_by_column];
+
+      if (column) {
+        queryBuilder.orderBy(column, order_by);
+      }
+    } else {
+      // Default ordering
+      queryBuilder.orderBy('pharma.created_at', 'DESC');
+    }
 
     if (is_export) {
       const stream = await this.export(queryBuilder);
@@ -56,9 +188,54 @@ export class AdminPharmaService {
     });
 
     // Write CSV Header
-    stream.push(
-      'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
-    );
+    stream.push('SKU,Title,Active,Featured\n');
+
+    const batchSize = 1000;
+    let lastId: string | null = null;
+    let hasMoreData = true;
+
+    try {
+      while (hasMoreData) {
+        // Use cursor-based pagination instead of offset
+        const qb = queryBuilder.clone(); // Clone to avoid modifying original query
+        if (lastId) {
+          qb.andWhere('pharma.id > :lastId', { lastId });
+        }
+        qb.orderBy('pharma.id', 'ASC').limit(batchSize);
+
+        const items = await qb.getRawMany();
+
+        if (items.length === 0) {
+          hasMoreData = false;
+          break;
+        }
+
+        // Stream CSV rows
+        items.forEach((item) => {
+          const row =
+            [
+              `"${item.sku ? item.sku.replace(/"/g, '""') : ''}"`,
+              `"${item.title ? item.title.replace(/"/g, '""') : ''}"`,
+              item.is_active ? 'Yes' : 'No',
+              item.is_featured ? 'Yes' : 'No',
+            ].join(',') + '\n';
+
+          // Check for backpressure
+          if (!stream.push(row)) {
+            // Pause if stream is full
+            return new Promise((resolve) => stream.once('drain', resolve));
+          }
+        });
+
+        lastId = items[items.length - 1].id;
+      }
+
+      // End the stream
+      stream.push(null);
+    } catch (error) {
+      stream.emit('error', error);
+      stream.push(null);
+    }
 
     return stream;
   }

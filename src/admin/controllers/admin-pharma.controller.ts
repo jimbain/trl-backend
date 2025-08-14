@@ -16,6 +16,7 @@ import { AdminPharmaService } from '../services/admin-pharma.service';
 import { Response } from 'express';
 import { AdminCreatePharmaDto } from '../dto/pharma/admin-create-pharma.dto';
 import { AdminUpdatePharmaDto } from '../dto/pharma/admin-update-pharma.dto';
+import { QueryAdminPharmaDto } from '../dto/pharma/query-admin-pharma.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/pharmas')
@@ -23,7 +24,7 @@ export class AdminPharmaController {
   constructor(private readonly adminPharmaService: AdminPharmaService) {}
 
   @Get()
-  async findAll(@Query() query: any, @Res() res: Response) {
+  async findAll(@Query() query: QueryAdminPharmaDto, @Res() res: Response) {
     const result = await this.adminPharmaService.findAll(query);
 
     if (result instanceof StreamableFile) {
