@@ -12,6 +12,10 @@ import { CatalogService } from 'src/catalog/catalog.service';
 import { CategoryService } from 'src/categories/category.service';
 import { MEDIA } from 'src/constants';
 import { PharmaCategoryDto } from './dto/pharma-category.dto';
+import { User } from 'src/users/entities/user.entity';
+import { AppConfigService } from 'src/app-config/app-config.service';
+import { PharmaUserStatus } from './entities/pharma-user-status.entity';
+import { QueryPharmaDto } from './dto/query-pharma.dto';
 
 @Injectable()
 export class PharmaService {
@@ -19,21 +23,60 @@ export class PharmaService {
     @InjectRepository(Pharma)
     private readonly pharmaRepository: Repository<Pharma>,
 
+    private readonly appConfigService: AppConfigService,
     private readonly companyService: CompanyService,
     private readonly catalogService: CatalogService,
     private readonly categoryService: CategoryService,
     private readonly storageService: StorageService,
   ) {}
-  async findAll(query: any = {}): Promise<{
+  async findAll(
+    query: QueryPharmaDto,
+    user: User,
+  ): Promise<{
     data: PharmaListDto[];
     meta: PaginationMeta;
   }> {
-    const { page, per_page } = query;
+    const { page, per_page, category_ids, is_featured } = query;
+
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
 
     const queryBuilder = this.pharmaRepository
       .createQueryBuilder('pharma')
-      .where('pharma.is_active = true')
-      .orderBy('created_at', 'DESC');
+      .leftJoinAndMapOne(
+        'pharma.userStatuses',
+        PharmaUserStatus,
+        'pharmaUserStatus',
+        'pharmaUserStatus.pharma_id = pharma.id AND pharmaUserStatus.user_id = :userId',
+        { userId: user.id },
+      )
+      .andWhere('pharma.is_active = :isActive', { isActive: true })
+      .select([
+        'pharma.id AS id',
+        'pharma.title AS title',
+        'pharma.image_url AS image_url',
+        'pharmaUserStatus.status AS status',
+        'pharmaUserStatus.current_rental_expire_at AS current_rental_expire_at',
+        'pharmaUserStatus.next_rental_expire_at AS next_rental_expire_at',
+      ]);
+
+    if (is_featured !== undefined) {
+      queryBuilder.andWhere('pharma.is_featured = :isFeatured', {
+        isFeatured: is_featured,
+      });
+    }
+
+    if (category_ids && category_ids.length > 0) {
+      queryBuilder.andWhere(
+        `array(SELECT jsonb_array_elements_text(pharma.categories)) && :categoryIds`,
+        { categoryIds: JSON.stringify(category_ids) },
+      );
+    }
 
     const paginatedData = await paginate(
       queryBuilder,
@@ -48,6 +91,7 @@ export class PharmaService {
         image_url: item.image_url
           ? await this.storageService.generateSignedViewUrl(item.image_url)
           : null,
+        rental_credit_cost: appConfigs.pharma_rental_credit_cost,
       })),
     );
 
@@ -99,7 +143,7 @@ export class PharmaService {
     return pharmas.map((pharma) => pharma.id);
   }
 
-  async findAllAudioCategoriesForCompany(companyId: string) {
+  async findAllPharmaCategoryForCompany(companyId: string) {
     const company = await this.companyService.findById(companyId);
     const catalogs = await this.catalogService.findMany(company.catalogs);
     const pharmaCatalog =
@@ -114,14 +158,14 @@ export class PharmaService {
     });
   }
 
-  async findAudiosByCategory(
+  async findPharmasByCategory(
     user: User,
     categoryId: string,
     page: number = 1,
     limit: number = 10,
   ): Promise<{
     category: { id: string; title: string };
-    data: AudioListDto[];
+    data: PharmaListDto[];
     meta: PaginationMeta;
   }> {
     const company = await this.companyService.findByIdWithCache(
@@ -145,47 +189,44 @@ export class PharmaService {
       );
     }
 
-    const queryBuilder = this.audioRepository
-      .createQueryBuilder('audio')
-      .innerJoin('audio.metadata', 'metadata')
+    const queryBuilder = this.pharmaRepository
+      .createQueryBuilder('pharma')
       .leftJoinAndMapOne(
-        'audio.userAudioStatus',
-        UserAudioStatus,
-        'userAudioStatus',
-        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        'pharma.userStatuses',
+        PharmaUserStatus,
+        'pharmaUserStatus',
+        'pharmaUserStatus.pharma_id = pharma.id AND pharmaUserStatus.user_id = :userId',
         { userId: user.id },
       )
       .where(
-        `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
+        `array(SELECT jsonb_array_elements_text(pharma.categories)) && :categoryIds`,
         { categoryIds: categoryIds },
       )
-      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('pharma.is_active = :isActive', { isActive: true })
       .select([
-        'audio.id AS id',
-        'audio.display_title AS title',
-        'audio.display_authors AS authors',
-        'metadata.cover_url AS image_url',
-        'audio.avg_rating AS avg_rating',
-        'audio.total_rented AS total_rented',
-        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
-        'audio.is_only_for_purchase AS is_only_for_purchase',
-        'metadata.available_for as available_for',
-        'metadata.chapters AS chapters',
-        'userAudioStatus.updated_at AS updated_at',
-        'userAudioStatus.status AS status',
-        'userAudioStatus.rental_expire_at AS rental_expires_at',
-        'userAudioStatus.audio_id AS audio_id',
+        'pharma.id AS id',
+        'pharma.title AS title',
+        'pharma.image_url AS image_url',
+        'pharmaUserStatus.status AS status',
+        'pharmaUserStatus.current_rental_expire_at AS current_rental_expire_at',
+        'pharmaUserStatus.next_rental_expire_at AS next_rental_expire_at',
       ]);
 
-    const paginatedData = await paginate(queryBuilder, page, limit);
+    const paginatedData = await paginate(
+      queryBuilder,
+      page,
+      limit,
+      PharmaListDto,
+    );
 
-    paginatedData.data = paginatedData.data.map((audio) =>
-      plainToInstance(
-        AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
-        { excludeExtraneousValues: true },
-      ),
+    paginatedData.data = await Promise.all(
+      paginatedData.data.map(async (item) => ({
+        ...item,
+        image_url: item.image_url
+          ? await this.storageService.generateSignedViewUrl(item.image_url)
+          : null,
+        rental_credit_cost: appConfigs.pharma_rental_credit_cost,
+      })),
     );
 
     return {
@@ -194,6 +235,67 @@ export class PharmaService {
         title: categoryId !== 'category_0' ? category?.name : 'All categories',
       },
       ...paginatedData,
+    };
+  }
+
+  async findPharmaReviews(id: string, user: User): Promise<AudioReviewDto[]> {
+    const audio = await this.audioService.findById(audioId);
+
+    // Find the current user's review, if it exists
+    const userReview = await this.audioReviewRepository.findOne({
+      where: { audio_id: audio.id, user: { id: user.id }, review: Not('null') },
+      relations: ['user'],
+    });
+
+    // Find other reviews, excluding the current user's review, sorted by created_at descending
+    const otherReviews = await this.audioReviewRepository.find({
+      where: {
+        audio_id: audio.id,
+        user: { id: Not(user.id) },
+        review: Not('null'),
+      },
+      relations: ['user'],
+      order: { created_at: 'DESC' },
+    });
+
+    // Combine the reviews with the current user's review first, if it exists
+    const reviews = userReview ? [userReview, ...otherReviews] : otherReviews;
+
+    return plainToInstance(AudioReviewDto, reviews, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async storeAudioReview(
+    audioId: string,
+    payload: CreateAudioReview,
+    user: User,
+  ): Promise<{ average_review_rating: number; review: AudioReviewDto }> {
+    const audio = await this.audioService.findById(audioId);
+
+    const review = await this.audioReviewRepository.findOne({
+      where: { audio_id: audioId, user_id: user.id },
+    });
+
+    if (review) {
+      throw new ConflictException(
+        'You have already submitted a review for this audio.',
+      );
+    }
+
+    let newReview = this.audioReviewRepository.create({
+      audio: audio,
+      user: user,
+      ...payload,
+    });
+
+    newReview = await this.audioReviewRepository.save(newReview);
+
+    return {
+      average_review_rating: await this.updateAverageReviewRate(audio),
+      review: plainToInstance(AudioReviewDto, newReview, {
+        excludeExtraneousValues: true,
+      }),
     };
   }
 }

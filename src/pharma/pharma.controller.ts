@@ -1,18 +1,26 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { PharmaService } from './pharma.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { QueryPharmaDto } from './dto/query-pharma.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class PharmaController {
   constructor(private readonly pharmaService: PharmaService) {}
+
+  @Get('pharmas')
+  findAll(@Request() req, @Query() query: QueryPharmaDto) {
+    return this.pharmaService.findAll(query, req.user);
+  }
 
   @Get('pharma-categories')
   findAudioCategories(@Request() req) {
@@ -37,5 +45,19 @@ export class PharmaController {
       parsedPage,
       parsedPerPage,
     );
+  }
+
+  @Get('pharmas/:id/reviews')
+  findPharmaReviews(@Request() req, @Param('id') id: string) {
+    return this.pharmaService.findPharmaReviews(id, req.user);
+  }
+
+  @Post('pharmas/:id/reviews')
+  storePharmaReview(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() payload: CreatePharmaReview,
+  ) {
+    return this.pharmaService.storePharmaReview(id, payload, req.user);
   }
 }

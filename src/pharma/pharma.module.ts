@@ -7,10 +7,12 @@ import { StorageModule } from 'src/storage/storage.module';
 import { CompanyModule } from 'src/companies/company.module';
 import { CatalogModule } from 'src/catalog/catalog.module';
 import { CategoryModule } from 'src/categories/category.module';
+import { AppConfigModule } from 'src/app-config/app-config.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Pharma]),
+    forwardRef(() => AppConfigModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
