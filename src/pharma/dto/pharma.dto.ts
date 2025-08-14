@@ -11,7 +11,10 @@ export class PharmaListDto {
   title: string;
 
   @Expose()
-  description: string;
+  is_active: boolean;
+
+  @Expose()
+  is_featured: boolean;
 
   @Expose()
   image_url?: string;
@@ -22,19 +25,25 @@ export class PharmaDto {
   id: string;
 
   @Expose()
+  sku: string;
+
+  @Expose()
   title: string;
 
   @Expose()
   description: string;
 
   @Expose()
+  is_active: boolean;
+
+  @Expose()
+  is_featured: boolean;
+
+  @Expose()
   image_url?: string;
 
   @Expose()
   video_url?: string;
-
-  @Expose()
-  is_active: boolean;
 
   @Expose()
   runtime?: string;

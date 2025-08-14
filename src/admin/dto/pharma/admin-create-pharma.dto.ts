@@ -35,6 +35,10 @@ export class AdminCreatePharmaDto {
   @IsOptional()
   is_active?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  is_featured?: boolean;
+
   @IsArray()
   @ArrayMinSize(1, { message: 'At least one category is required' })
   @IsString({ each: true, message: 'Each category must be a string' })

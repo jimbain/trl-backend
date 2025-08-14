@@ -21,6 +21,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { CacheService } from 'src/common/services/cache.service';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { PharmaService } from 'src/pharma/pharma.service';
 
 @Injectable()
 export class CategoryService {
@@ -38,6 +39,7 @@ export class CategoryService {
     private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
     private readonly catalogService: CatalogService,
     private readonly cacheService: CacheService,
+    private readonly pharmaService: PharmaService,
   ) {}
 
   async findAll(): Promise<Category[]> {
@@ -74,6 +76,10 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       data.title_ids = await this.audioService.getAudioIdsByCategory(
+        category.id,
+      );
+    } else if (catalog.media_type === MEDIA.PHARMA) {
+      data.title_ids = await this.pharmaService.getPharmaIdsByCategory(
         category.id,
       );
     }
@@ -172,11 +178,8 @@ export class CategoryService {
     });
 
     await this.categoryRepository.save(category);
-
-    await Promise.all([
-      this.catalogService.assignCategory(catalog, category),
-      this.findByIdWithCache(category.id),
-    ]);
+    await this.catalogService.assignCategory(catalog, category);
+    await this.findByIdWithCache(category.id);
 
     return plainToInstance(CategoryDto, category, {
       excludeExtraneousValues: true,

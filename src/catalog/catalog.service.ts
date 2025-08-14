@@ -59,7 +59,9 @@ export class CatalogService {
       .getOne();
 
     if (!catalog) {
-      throw new NotFoundException(`Catalog with ID ${category.id} not found`);
+      throw new NotFoundException(
+        `Catalog with Category ID ${category.id} not found`,
+      );
     }
 
     return catalog;

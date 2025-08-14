@@ -75,6 +75,11 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             default: true,
           },
           {
+            name: 'is_featured',
+            type: 'boolean',
+            default: false,
+          },
+          {
             name: 'avg_rating',
             type: 'float',
             default: 0,

@@ -8,12 +8,14 @@ import { AudioModule } from 'src/audios/audio.module';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { CommonModule } from 'src/common/common.module';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { PharmaModule } from 'src/pharma/pharma.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Category, Audio, Pharma]),
     forwardRef(() => CatalogModule),
     forwardRef(() => AudioModule),
+    forwardRef(() => PharmaModule),
     forwardRef(() => CommonModule),
   ],
   controllers: [CategoryController],

@@ -5,7 +5,10 @@ import { StorageService } from 'src/storage/storage.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { AdminCreatePharmaDto } from '../dto/pharma/admin-create-pharma.dto';
 import { AdminUpdatePharmaDto } from '../dto/pharma/admin-update-pharma.dto';
-import { AdminPharmaDto } from '../dto/pharma/admin-pharma.dto';
+import {
+  AdminPharmaDto,
+  AdminPharmaListDto,
+} from '../dto/pharma/admin-pharma.dto';
 import { plainToInstance } from 'class-transformer';
 import { PaginationMeta } from 'src/common/interfaces';
 import { Readable } from 'stream';
@@ -43,26 +46,7 @@ export class AdminPharmaService {
       return new StreamableFile(stream);
     }
 
-    const paginatedData = await paginate(
-      queryBuilder,
-      page,
-      per_page,
-      AdminPharmaDto,
-    );
-
-    paginatedData.data = await Promise.all(
-      paginatedData.data.map(async (item) => ({
-        ...item,
-        image_url: item.image_url
-          ? await this.storageService.generateSignedViewUrl(item.image_url)
-          : null,
-        video_url: item.video_url
-          ? await this.storageService.generateSignedViewUrl(item.video_url)
-          : null,
-      })),
-    );
-
-    return paginatedData;
+    return paginate(queryBuilder, page, per_page, AdminPharmaListDto);
   }
 
   async export(queryBuilder: SelectQueryBuilder<any>): Promise<Readable> {

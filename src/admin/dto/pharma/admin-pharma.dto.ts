@@ -1,8 +1,28 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose } from 'class-transformer';
+
+export class AdminPharmaListDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  sku: string;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  is_active: boolean;
+
+  @Expose()
+  is_featured: boolean;
+}
 
 export class AdminPharmaDto {
   @Expose()
   id: string;
+
+  @Expose()
+  sku: string;
 
   @Expose()
   title: string;
@@ -11,13 +31,16 @@ export class AdminPharmaDto {
   description: string;
 
   @Expose()
+  is_active: boolean;
+
+  @Expose()
+  is_featured: boolean;
+
+  @Expose()
   image_url?: string;
 
   @Expose()
   video_url?: string;
-
-  @Expose()
-  is_active: boolean;
 
   @Expose()
   runtime?: string;

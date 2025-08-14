@@ -77,4 +77,16 @@ export class PharmaService {
       excludeExtraneousValues: true,
     });
   }
+
+  async getPharmaIdsByCategory(categoryId: string) {
+    const pharmas = await this.pharmaRepository
+      .createQueryBuilder('pharma')
+      .select('pharma.id AS id')
+      .andWhere('pharma.categories @> :categoryId', {
+        categoryId: JSON.stringify([categoryId]),
+      })
+      .getRawMany();
+
+    return pharmas.map((pharma) => pharma.id);
+  }
 }

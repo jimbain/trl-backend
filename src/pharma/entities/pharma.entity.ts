@@ -28,6 +28,9 @@ export class Pharma {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  is_featured: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   image_url?: string;
 
