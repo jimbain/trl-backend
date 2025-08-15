@@ -157,6 +157,53 @@ export class PharmaService {
     return pharma;
   }
 
+  async findOne(id: string, user: User): Promise<any> {
+    const pharma = await this.pharmaRepository
+      .createQueryBuilder('pharma')
+      .leftJoinAndMapOne(
+        'pharma.userStatus',
+        PharmaUserStatus,
+        'pharmaUserStatus',
+        'pharmaUserStatus.pharma_id = pharma.id AND pharmaUserStatus.user_id = :userId',
+        { userId: user.id },
+      )
+      .where('pharma.id = :id', { id })
+      .select([
+        'pharma.id AS id',
+        'pharma.title AS title',
+        'pharma.description AS description',
+        'pharma.image_url AS image_url',
+        'pharma.video_url AS video_url',
+        'pharma.categories AS categories',
+        'pharma.runtime AS runtime',
+        'pharma.avg_rating AS avg_rating',
+        'pharma.is_featured AS is_featured',
+        'pharmaUserStatus.status AS status',
+        'pharmaUserStatus.current_rental_expire_at AS current_rental_expire_at',
+        'pharmaUserStatus.next_rental_expire_at AS next_rental_expire_at',
+        'pharmaUserStatus.rental_start_at AS rental_start_at',
+      ])
+      .getRawOne();
+
+    if (!pharma) {
+      throw new NotFoundException(`Pharma with id "${id}" not found`);
+    }
+
+    // Transform image URLs
+    if (pharma.image_url) {
+      pharma.image_url = await this.storageService.generateSignedViewUrl(
+        pharma.image_url,
+      );
+    }
+    if (pharma.video_url) {
+      pharma.video_url = await this.storageService.generateSignedViewUrl(
+        pharma.video_url,
+      );
+    }
+
+    return pharma;
+  }
+
   async getTransformed(pharma: Pharma): Promise<Pharma> {
     if (pharma.image_url) {
       pharma.image_url = await this.storageService.generateSignedViewUrl(
@@ -171,15 +218,6 @@ export class PharmaService {
     }
 
     return pharma;
-  }
-
-  async findOne(id: string): Promise<PharmaDto> {
-    const pharma = await this.findById(id);
-    const transformedPharma = await this.getTransformed(pharma);
-
-    return plainToInstance(PharmaDto, transformedPharma, {
-      excludeExtraneousValues: true,
-    });
   }
 
   async getPharmaIdsByCategory(categoryId: string) {

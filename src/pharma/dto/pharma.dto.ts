@@ -34,9 +34,6 @@ export class PharmaDto {
   description: string;
 
   @Expose()
-  is_active: boolean;
-
-  @Expose()
   is_featured: boolean;
 
   @Expose()

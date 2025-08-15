@@ -80,7 +80,7 @@ export class PharmaUserStatusService {
       credit_used: 0,
     });
 
-    return this.pharmaUserStatusRepository.save(queueAudio);
+    await this.pharmaUserStatusRepository.save(queueAudio);
   }
 
   async dequeue(id: string, user: User) {
@@ -110,9 +110,9 @@ export class PharmaUserStatusService {
       company.app_configs,
     );
 
-    // Get rental period from config (default to 24 hours if not set)
-    const rentalPeriodInHours = parseInt(
-      appConfigs['pharma_rental_period_in_hours'] || '24',
+    // Get rental period from config (default to 1 day if not set)
+    const rentalPeriodInDays = parseInt(
+      appConfigs['pharma_rental_period_in_days'] || '1',
       10,
     );
 
@@ -145,7 +145,7 @@ export class PharmaUserStatusService {
 
       pharmaUser.status = 'rented';
       pharmaUser.current_rental_expire_at = new Date(
-        Date.now() + rentalPeriodInHours * 60 * 60 * 1000,
+        Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );
       pharmaUser.next_rental_expire_at = null;
       pharmaUser.updated_at = new Date();
@@ -158,7 +158,7 @@ export class PharmaUserStatusService {
         status: 'rented',
         rental_start_at: new Date(),
         current_rental_expire_at: new Date(
-          Date.now() + rentalPeriodInHours * 60 * 60 * 1000,
+          Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
         ),
         next_rental_expire_at: null,
       });
@@ -183,8 +183,8 @@ export class PharmaUserStatusService {
     );
 
     // Get rental period from config
-    const rentalPeriodInHours = parseInt(
-      appConfigs['pharma_rental_period_in_hours'] || '24',
+    const rentalPeriodInDays = parseInt(
+      appConfigs['pharma_rental_period_in_days'] || '1',
       10,
     );
 
@@ -202,14 +202,10 @@ export class PharmaUserStatusService {
       throw new BadRequestException(`Pharma is not currently rented`);
     }
 
-    // Check if current rental is still active
-    const now = new Date();
-    if (
-      pharmaUser.current_rental_expire_at &&
-      pharmaUser.current_rental_expire_at > now
-    ) {
+    // Check if next rental is already set (user has already renewed)
+    if (pharmaUser.next_rental_expire_at) {
       throw new BadRequestException(
-        `Cannot renew pharma while current rental is still active`,
+        `Cannot renew pharma. You have already extended your rental.`,
       );
     }
 
@@ -217,12 +213,13 @@ export class PharmaUserStatusService {
     if (pharmaUser.current_rental_expire_at) {
       pharmaUser.next_rental_expire_at = new Date(
         pharmaUser.current_rental_expire_at.getTime() +
-          rentalPeriodInHours * 60 * 60 * 1000,
+          rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );
     } else {
       // Fallback: if no current rental expire time, extend from now
+      const now = new Date();
       pharmaUser.next_rental_expire_at = new Date(
-        now.getTime() + rentalPeriodInHours * 60 * 60 * 1000,
+        now.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );
     }
 
@@ -255,19 +252,26 @@ export class PharmaUserStatusService {
       );
     }
 
-    // Check if current rental has expired
-    const now = new Date();
-    if (
-      pharmaUser.current_rental_expire_at &&
-      pharmaUser.current_rental_expire_at > now
-    ) {
+    // Check if user has an advanced rental to return
+    if (!pharmaUser.next_rental_expire_at) {
       throw new BadRequestException(
-        `Cannot return pharma while current rental is still active`,
+        `No advanced rental found to return. You can only return advanced rentals.`,
       );
     }
 
-    // Set next rental expire time to null
-    pharmaUser.next_rental_expire_at = null;
+    // Check if current rental is still active (user is in current rent span)
+    const now = new Date();
+    if (
+      pharmaUser.current_rental_expire_at &&
+      pharmaUser.current_rental_expire_at >= now
+    ) {
+      // User is in current rent span, just cancel the advanced rental
+      pharmaUser.next_rental_expire_at = null;
+    } else {
+      throw new BadRequestException(
+        `Cannot return pharma. Current rental has expired.`,
+      );
+    }
     pharmaUser.updated_at = new Date();
 
     // Get pharma entity for activity log

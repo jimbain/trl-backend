@@ -28,8 +28,7 @@ export class PharmaController {
 
   @Get('pharmas/:id')
   show(@Param('id') id: string, @Request() req) {
-    // Show individual pharma by ID
-    return this.pharmaService.findById(id);
+    return this.pharmaService.findOne(id, req.user);
   }
 
   @Get('pharma-categories')
