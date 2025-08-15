@@ -13,7 +13,7 @@ import { plainToInstance } from 'class-transformer';
 import { PaginationMeta } from 'src/common/interfaces';
 import { Readable } from 'stream';
 import { paginate } from 'src/common/helpers/pagination.helper';
-import { PharmaService } from 'src/pharma/pharma.service';
+import { PharmaService } from 'src/pharma/services/pharma.service';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { MEDIA } from 'src/constants';
 import {

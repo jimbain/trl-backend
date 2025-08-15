@@ -21,7 +21,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { CacheService } from 'src/common/services/cache.service';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
-import { PharmaService } from 'src/pharma/pharma.service';
+import { PharmaService } from 'src/pharma/services/pharma.service';
 
 @Injectable()
 export class CategoryService {

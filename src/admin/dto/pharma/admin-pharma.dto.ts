@@ -31,6 +31,9 @@ export class AdminPharmaDto {
   description: string;
 
   @Expose()
+  categories: string[];
+
+  @Expose()
   is_active: boolean;
 
   @Expose()

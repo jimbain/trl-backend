@@ -7,7 +7,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { UserAudioService } from './user_audio.service';
+import { UserAudioService } from './user-audio.service';
 import { UserAudioActionParamsDto } from './dto/user-audio-action-params.dto';
 
 @UseGuards(JwtAuthGuard)

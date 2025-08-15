@@ -27,4 +27,20 @@ export class QueryPharmaDto {
   @IsBoolean()
   @Transform(({ value }) => value === '1')
   is_featured?: boolean;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: 'queued' | 'rented';
+
+  @IsOptional()
+  @IsString()
+  sort_by?: 'title' | 'created_at' | 'updated_at';
+
+  @IsOptional()
+  @IsString()
+  sort_order?: 'asc' | 'desc';
 }

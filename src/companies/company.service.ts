@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -336,5 +337,21 @@ export class CompanyService {
     ]);
 
     return company.app_configs;
+  }
+
+  async decreaseAvailableCredit(id: string, credit: number) {
+    const company = await this.findById(id);
+
+    if (company.available_credits >= credit) {
+      await this.companyRepository.decrement(
+        { id },
+        'available_credits',
+        credit,
+      );
+    } else {
+      throw new BadRequestException(
+        `Insufficient credits. Available credits: ${company.available_credits}`,
+      );
+    }
   }
 }

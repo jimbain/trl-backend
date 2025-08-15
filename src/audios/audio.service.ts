@@ -24,7 +24,7 @@ import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { MEDIA, USER_ACTIVITY, USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
-import { UserActivityLogService } from 'src/users/user_activity_log.service';
+import { UserActivityLogService } from 'src/users/user-activity-log.service';
 import { CompanyService } from 'src/companies/company.service';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { CategoryService } from 'src/categories/category.service';
