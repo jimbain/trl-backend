@@ -12,7 +12,7 @@ import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/storage')
-export class StorageController {
+export class AdminStorageController {
   constructor(private readonly storageService: StorageService) {}
 
   @Post('signed-url')

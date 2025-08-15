@@ -47,6 +47,7 @@ import { AdminPharmaService } from './services/admin-pharma.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { StorageModule } from 'src/storage/storage.module';
 import { PharmaModule } from 'src/pharma/pharma.module';
+import { AdminStorageController } from './controllers/admin-storage.controller';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { PharmaModule } from 'src/pharma/pharma.module';
     AdminNotificationController,
     AdminUserController,
     AdminAppErrorLogController,
+    AdminStorageController,
   ],
   providers: [
     AdminAuthService,
