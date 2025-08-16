@@ -17,6 +17,7 @@ import { Response } from 'express';
 import { AdminCreatePharmaDto } from '../dto/pharma/admin-create-pharma.dto';
 import { AdminUpdatePharmaDto } from '../dto/pharma/admin-update-pharma.dto';
 import { QueryAdminPharmaDto } from '../dto/pharma/query-admin-pharma.dto';
+import { AdminBulkUpdatePharmaDto } from '../dto/pharma/admin-bulk-update-pharma.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/pharmas')
@@ -53,6 +54,11 @@ export class AdminPharmaController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() payload: AdminUpdatePharmaDto) {
     return this.adminPharmaService.update(id, payload);
+  }
+
+  @Patch('bulk-update')
+  bulkUpdate(@Body() payload: AdminBulkUpdatePharmaDto) {
+    return this.adminPharmaService.bulkUpdate(payload);
   }
 
   @Delete(':id')

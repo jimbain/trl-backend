@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { StorageService } from 'src/storage/storage.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { AdminCreatePharmaDto } from '../dto/pharma/admin-create-pharma.dto';
@@ -20,6 +20,7 @@ import {
   QueryAdminPharmaDto,
   SearchFor,
 } from '../dto/pharma/query-admin-pharma.dto';
+import { AdminBulkUpdatePharmaDto } from '../dto/pharma/admin-bulk-update-pharma.dto';
 
 @Injectable()
 export class AdminPharmaService {
@@ -292,6 +293,18 @@ export class AdminPharmaService {
   ): Promise<AdminPharmaDto> {
     const pharma = await this.pharmaService.findById(id);
 
+    if (updatePharmaDto.sku && updatePharmaDto.sku !== pharma.sku) {
+      const existingPharma = await this.pharmaRepository.findOne({
+        where: { sku: updatePharmaDto.sku },
+      });
+
+      if (existingPharma && existingPharma.id !== id) {
+        throw new NotFoundException(
+          `SKU '${updatePharmaDto.sku}' already exists. Please use a different SKU.`,
+        );
+      }
+    }
+
     // If categories are being updated, validate them
     if (updatePharmaDto.categories && updatePharmaDto.categories.length > 0) {
       const pharmaCatalog = await this.catalogService.findDefaultByType(
@@ -326,6 +339,39 @@ export class AdminPharmaService {
     return plainToInstance(AdminPharmaDto, transformedPharma, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async bulkUpdate(payload: AdminBulkUpdatePharmaDto) {
+    const updates = payload.updates;
+
+    const ids = updates.map((u) => u.id);
+    const pharmaEntities = await this.pharmaRepository.findBy({ id: In(ids) });
+
+    // Ensure all provided IDs exist
+    if (pharmaEntities.length !== updates.length) {
+      const foundIds = new Set(pharmaEntities.map((a) => a.id));
+      const missingIds = ids.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Pharma IDs not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // Map updates by ID for quick access
+    const updatesMap = new Map(updates.map((u) => [u.id, u]));
+
+    // Apply updates in memory
+    const updatedPharmas = pharmaEntities.map((pharma) => {
+      const update = updatesMap.get(pharma.id);
+      if (update.is_active !== undefined) {
+        pharma.is_active = update.is_active;
+      }
+      if (update.is_featured !== undefined) {
+        pharma.is_featured = update.is_featured;
+      }
+      return pharma;
+    });
+
+    await this.pharmaRepository.save(updatedPharmas);
   }
 
   async remove(id: string): Promise<void> {
