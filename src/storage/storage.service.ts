@@ -83,7 +83,45 @@ export class StorageService {
    *  output: /folder/file.png
    */
   stripBucketUrl(url: string): string {
-    const prefix = `${this.bucketBaseUrl}/`;
-    return url?.startsWith(prefix) ? url.slice(prefix.length) : url;
+    if (!url) return url;
+
+    try {
+      // Remove the bucket base URL prefix
+      const prefix = `${this.bucketBaseUrl}/`;
+      let cleanUrl = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+
+      // Remove all query parameters (everything after ?)
+      const questionMarkIndex = cleanUrl.indexOf('?');
+      if (questionMarkIndex !== -1) {
+        cleanUrl = cleanUrl.substring(0, questionMarkIndex);
+      }
+
+      // Decode any URL-encoded characters
+      try {
+        cleanUrl = decodeURIComponent(cleanUrl);
+      } catch (e) {
+        // If decodeURIComponent fails, try multiple times for deeply encoded URLs
+        let decoded = cleanUrl;
+        let previousDecoded = '';
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        while (attempts < maxAttempts && decoded !== previousDecoded) {
+          previousDecoded = decoded;
+          try {
+            decoded = decodeURIComponent(decoded);
+            attempts++;
+          } catch (e) {
+            break;
+          }
+        }
+        cleanUrl = decoded;
+      }
+
+      return cleanUrl;
+    } catch (error) {
+      // If anything goes wrong, return the original URL
+      return url;
+    }
   }
 }
