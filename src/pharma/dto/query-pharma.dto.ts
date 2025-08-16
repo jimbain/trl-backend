@@ -19,6 +19,15 @@ export class QueryPharmaDto {
   per_page?: number;
 
   @IsOptional()
+  @IsString()
+  category_id?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === '1')
+  is_included_in_category?: boolean;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   category_ids?: string[];

@@ -50,6 +50,8 @@ export class PharmaService {
     const {
       page,
       per_page,
+      category_id,
+      is_included_in_category,
       category_ids,
       is_featured,
       search,
@@ -116,6 +118,20 @@ export class PharmaService {
     } else {
       // If no allowed categories, force empty result
       queryBuilder.andWhere('1=0');
+    }
+
+    if (category_id) {
+      if (is_included_in_category === true) {
+        // Filter pharmas that ARE included in the specified category
+        queryBuilder.andWhere('pharma.categories @> :singleCategoryId', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      } else if (is_included_in_category === false) {
+        // Filter pharmas that are NOT included in the specified category
+        queryBuilder.andWhere('NOT (pharma.categories @> :singleCategoryId)', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      }
     }
 
     // Add search functionality
