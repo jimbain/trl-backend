@@ -1,13 +1,5 @@
 import { Expose } from 'class-transformer';
 
-export class CategoryDto {
-  @Expose()
-  id: string;
-
-  @Expose()
-  name: string;
-}
-
 export class AdminPharmaListDto {
   @Expose()
   id: string;
@@ -19,16 +11,13 @@ export class AdminPharmaListDto {
   title: string;
 
   @Expose()
+  category?: string;
+
+  @Expose()
   is_active: boolean;
 
   @Expose()
   is_featured: boolean;
-
-  @Expose()
-  categories: CategoryDto[];
-
-  @Expose()
-  is_included_in_category?: boolean;
 }
 
 export class AdminPharmaDto {
@@ -45,7 +34,10 @@ export class AdminPharmaDto {
   description: string;
 
   @Expose()
-  categories: CategoryDto[];
+  categories: string[];
+
+  @Expose()
+  default_category?: string;
 
   @Expose()
   is_active: boolean;

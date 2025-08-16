@@ -97,6 +97,11 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             onUpdate: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
+          {
+            name: 'deleted_at',
+            type: 'timestamp',
+            isNullable: true,
+          },
         ],
       }),
     );

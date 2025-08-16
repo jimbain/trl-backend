@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   BeforeInsert,
+  DeleteDateColumn,
 } from 'typeorm';
 import { PharmaReview } from './pharma-review.entity';
 import { PharmaUserStatus } from './pharma-user-status.entity';
@@ -51,6 +52,9 @@ export class Pharma {
 
   @UpdateDateColumn({ type: 'timestamp' })
   updated_at: Date;
+
+  @DeleteDateColumn()
+  deleted_at: Date;
 
   @BeforeInsert()
   generateUlid() {
