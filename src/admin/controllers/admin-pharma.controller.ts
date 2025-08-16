@@ -51,14 +51,14 @@ export class AdminPharmaController {
     return this.adminPharmaService.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() payload: AdminUpdatePharmaDto) {
-    return this.adminPharmaService.update(id, payload);
-  }
-
   @Patch('bulk-update')
   bulkUpdate(@Body() payload: AdminBulkUpdatePharmaDto) {
     return this.adminPharmaService.bulkUpdate(payload);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() payload: AdminUpdatePharmaDto) {
+    return this.adminPharmaService.update(id, payload);
   }
 
   @Delete(':id')
