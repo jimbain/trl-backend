@@ -17,6 +17,16 @@ import { QueryPharmaDto } from '../dto/query-pharma.dto';
 export class PharmaController {
   constructor(private readonly pharmaService: PharmaService) {}
 
+  @Get('pharma-categories')
+  findCategories(@Request() req) {
+    return this.pharmaService.findAllCategoryForCompany(req.user.company.id);
+  }
+
+  @Get('pharma-categories/:id')
+  findCategory(@Param('id') id: string, @Request() req) {
+    return this.pharmaService.findCategoryForCompany(id, req.user.company.id);
+  }
+
   @Get('pharmas')
   findAll(@Request() req, @Query() query: QueryPharmaDto) {
     // This method handles all pharma listing with filtering
@@ -29,13 +39,6 @@ export class PharmaController {
   @Get('pharmas/:id')
   show(@Param('id') id: string, @Request() req) {
     return this.pharmaService.findOne(id, req.user);
-  }
-
-  @Get('pharma-categories')
-  findCategories(@Request() req) {
-    return this.pharmaService.findAllPharmaCategoryForCompany(
-      req.user.company.id,
-    );
   }
 
   @Get('pharma/home')

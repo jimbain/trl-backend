@@ -3,12 +3,13 @@ import {
   NotFoundException,
   Inject,
   forwardRef,
+  NotAcceptableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pharma } from '../entities/pharma.entity';
 import { StorageService } from 'src/storage/storage.service';
-import { PharmaDto, PharmaListDto } from '../dto/pharma.dto';
+import { PharmaListDto } from '../dto/pharma.dto';
 import { PaginationMeta } from 'src/common/interfaces';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
@@ -34,7 +35,7 @@ export class PharmaService {
     private readonly storageService: StorageService,
   ) {}
 
-  async findAllPharmaCategoryIdOfCompany(companyId: string): Promise<string[]> {
+  async findAllCategoryIdOfCompany(companyId: string): Promise<string[]> {
     const company = await this.companyService.findByIdWithCache(companyId);
     return company.category_ids.pharma || [];
   }
@@ -245,8 +246,8 @@ export class PharmaService {
     return pharmas.map((pharma) => pharma.id);
   }
 
-  async findAllPharmaCategoryForCompany(companyId: string) {
-    const categoryIds = await this.findAllPharmaCategoryIdOfCompany(companyId);
+  async findAllCategoryForCompany(companyId: string) {
+    const categoryIds = await this.findAllCategoryIdOfCompany(companyId);
 
     if (!categoryIds.length) {
       return [];
@@ -258,6 +259,18 @@ export class PharmaService {
     return plainToInstance(PharmaCategoryDto, categories, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async findCategoryForCompany(id: string, companyId: string) {
+    const categoryIds = await this.findAllCategoryIdOfCompany(companyId);
+
+    if (!categoryIds.includes(id)) {
+      throw new NotAcceptableException(
+        `Category with id "${id}" is not allowed for company "${companyId}"`,
+      );
+    }
+
+    return this.categoryService.findOne(id);
   }
 
   async getHomeList(user: User) {
