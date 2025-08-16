@@ -273,6 +273,10 @@ export class CategoryService {
       );
     }
 
+    if (catalog.media_type === MEDIA.PHARMA) {
+      await this.pharmaService.assignCategory(category, mediaIds);
+    }
+
     await this.cacheService.delete(id);
     await this.findByIdWithCache(id);
   }
@@ -288,6 +292,10 @@ export class CategoryService {
           this.audioElasticsearchSyncService.syncAudioById(id),
         ),
       );
+    }
+
+    if (catalog.media_type === MEDIA.PHARMA) {
+      await this.pharmaService.deassignCategory(category, mediaIds);
     }
 
     await this.cacheService.delete(id);

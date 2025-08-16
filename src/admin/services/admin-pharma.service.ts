@@ -43,6 +43,8 @@ export class AdminPharmaService {
     const {
       page,
       per_page,
+      category_id,
+      is_included_in_category,
       category_ids,
       is_active,
       is_featured,
@@ -62,6 +64,7 @@ export class AdminPharmaService {
         'pharma.title AS title',
         'pharma.is_active AS is_active',
         'pharma.is_featured AS is_featured',
+        'pharma.categories AS categories',
       ]);
 
     // Apply filters
@@ -93,6 +96,21 @@ export class AdminPharmaService {
         `(${categoryConditions.join(' OR ')})`,
         categoryParams,
       );
+    }
+
+    // Single category filtering with inclusion/exclusion logic
+    if (category_id) {
+      if (is_included_in_category === true) {
+        // Filter pharmas that ARE included in the specified category
+        queryBuilder.andWhere('pharma.categories @> :singleCategoryId', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      } else if (is_included_in_category === false) {
+        // Filter pharmas that are NOT included in the specified category
+        queryBuilder.andWhere('NOT (pharma.categories @> :singleCategoryId)', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      }
     }
 
     // Search functionality
@@ -179,7 +197,57 @@ export class AdminPharmaService {
       return new StreamableFile(stream);
     }
 
-    return paginate(queryBuilder, page, per_page, AdminPharmaListDto);
+    const paginatedData = await paginate(
+      queryBuilder,
+      page,
+      per_page,
+      AdminPharmaListDto,
+    );
+
+    // Fetch category details for all pharmas
+    const allCategoryIds = new Set<string>();
+    paginatedData.data.forEach((item) => {
+      if (item.categories && Array.isArray(item.categories)) {
+        item.categories.forEach((catId) => allCategoryIds.add(catId));
+      }
+    });
+
+    // Get category details from the database
+    let categoryMap = new Map();
+    if (allCategoryIds.size > 0) {
+      const categories = await this.pharmaRepository.manager
+        .createQueryBuilder()
+        .select(['id', 'name'])
+        .from('categories', 'category')
+        .where('category.id IN (:...categoryIds)', {
+          categoryIds: Array.from(allCategoryIds),
+        })
+        .getRawMany();
+
+      categoryMap = new Map(categories.map((cat) => [cat.id, cat]));
+    }
+
+    // Calculate is_included_in_category if category_id is provided
+    if (category_id) {
+      paginatedData.data = paginatedData.data.map((item) => ({
+        ...item,
+        is_included_in_category: item.categories.some(
+          (catId) => catId === category_id,
+        ),
+      }));
+    }
+
+    // Transform the categories to include category details
+    paginatedData.data = paginatedData.data.map((item) => ({
+      ...item,
+      categories:
+        item.categories?.map((catId) => ({
+          id: catId,
+          name: categoryMap.get(catId)?.name || 'Unknown Category',
+        })) || [],
+    }));
+
+    return paginatedData;
   }
 
   async export(queryBuilder: SelectQueryBuilder<any>): Promise<Readable> {
@@ -189,7 +257,8 @@ export class AdminPharmaService {
     });
 
     // Write CSV Header
-    stream.push('SKU,Title,Active,Featured\n');
+    const header = 'SKU,Title,Active,Featured,Categories\n';
+    stream.push(header);
 
     const batchSize = 1000;
     let lastId: string | null = null;
@@ -213,13 +282,24 @@ export class AdminPharmaService {
 
         // Stream CSV rows
         items.forEach((item) => {
-          const row =
-            [
-              `"${item.sku ? item.sku.replace(/"/g, '""') : ''}"`,
-              `"${item.title ? item.title.replace(/"/g, '""') : ''}"`,
-              item.is_active ? 'Yes' : 'No',
-              item.is_featured ? 'Yes' : 'No',
-            ].join(',') + '\n';
+          // Extract category names from category_details
+          let categoryNames = '';
+          if (item.category_details && Array.isArray(item.category_details)) {
+            categoryNames = item.category_details
+              .map((cat) => cat.name)
+              .filter((name) => name && name !== 'Unknown Category')
+              .join(', ');
+          }
+
+          const baseRow = [
+            `"${item.sku ? item.sku.replace(/"/g, '""') : ''}"`,
+            `"${item.title ? item.title.replace(/"/g, '""') : ''}"`,
+            item.is_active ? 'Yes' : 'No',
+            item.is_featured ? 'Yes' : 'No',
+            `"${categoryNames.replace(/"/g, '""')}"`,
+          ];
+
+          const row = baseRow.join(',') + '\n';
 
           // Check for backpressure
           if (!stream.push(row)) {
@@ -279,10 +359,57 @@ export class AdminPharmaService {
   }
 
   async findOne(id: string): Promise<AdminPharmaDto> {
-    const pharma = await this.pharmaService.findById(id);
-    const transformedPharma = await this.pharmaService.getTransformed(pharma);
+    const pharma = await this.pharmaRepository
+      .createQueryBuilder('pharma')
+      .select([
+        'pharma.id AS id',
+        'pharma.sku AS sku',
+        'pharma.title AS title',
+        'pharma.description AS description',
+        'pharma.is_active AS is_active',
+        'pharma.is_featured AS is_featured',
+        'pharma.image_url AS image_url',
+        'pharma.video_url AS video_url',
+        'pharma.runtime AS runtime',
+        'pharma.categories AS categories',
+      ])
+      .where('pharma.id = :id', { id })
+      .getRawOne();
 
-    return plainToInstance(AdminPharmaDto, transformedPharma, {
+    if (!pharma) {
+      throw new NotFoundException(`Pharma with ID ${id} not found`);
+    }
+
+    // Fetch category details for this pharma
+    let categoryMap = new Map();
+    if (
+      pharma.categories &&
+      Array.isArray(pharma.categories) &&
+      pharma.categories.length > 0
+    ) {
+      const categories = await this.pharmaRepository.manager
+        .createQueryBuilder()
+        .select(['id', 'name'])
+        .from('categories', 'category')
+        .where('category.id IN (:...categoryIds)', {
+          categoryIds: pharma.categories,
+        })
+        .getRawMany();
+
+      categoryMap = new Map(categories.map((cat) => [cat.id, cat]));
+    }
+
+    // Transform the categories to include category details
+    const enhancedPharma = {
+      ...pharma,
+      categories:
+        pharma.categories?.map((catId) => ({
+          id: catId,
+          name: categoryMap.get(catId)?.name || 'Unknown Category',
+        })) || [],
+    };
+
+    return plainToInstance(AdminPharmaDto, enhancedPharma, {
       excludeExtraneousValues: true,
     });
   }

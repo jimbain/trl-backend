@@ -19,6 +19,7 @@ import { User } from 'src/users/entities/user.entity';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { PharmaUserStatus } from '../entities/pharma-user-status.entity';
 import { QueryPharmaDto } from '../dto/query-pharma.dto';
+import { Category } from 'src/categories/entities/category.entity';
 
 @Injectable()
 export class PharmaService {
@@ -294,5 +295,46 @@ export class PharmaService {
         pharmas: popularPharmas?.data,
       },
     ];
+  }
+
+  async assignCategory(category: Category, ids: string[]) {
+    if (!ids.length) return;
+
+    await this.pharmaRepository
+      .createQueryBuilder()
+      .update(Pharma)
+      .set({
+        categories: () => `
+            (
+              SELECT jsonb_agg(DISTINCT elem)
+              FROM (
+                SELECT jsonb_array_elements(categories) AS elem
+                UNION ALL
+                SELECT '"${category.id}"'::jsonb
+              ) AS combined
+            )
+          `,
+      })
+      .where('id IN (:...ids)', { ids })
+      .execute();
+  }
+
+  async deassignCategory(category: Category, ids: string[]) {
+    if (!ids.length) return;
+
+    await this.pharmaRepository
+      .createQueryBuilder()
+      .update(Pharma)
+      .set({
+        categories: () => `
+            (
+              SELECT jsonb_agg(elem)
+              FROM jsonb_array_elements(categories) AS elem
+              WHERE elem != '"${category.id}"'
+            )
+          `,
+      })
+      .where('id IN (:...ids)', { ids })
+      .execute();
   }
 }
