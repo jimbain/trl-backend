@@ -13,7 +13,15 @@ export class GenerateSignedUrlDto {
     message:
       'File name must only contain letters, numbers, underscores, dots, or hyphens',
   })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => {
+    if (!value) return value;
+
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_') // replace spaces with underscores
+      .replace(/[^a-z0-9_.-]/gi, ''); // remove disallowed characters
+  })
   file_name: string;
 
   @IsString()
