@@ -37,9 +37,6 @@ export class AdminPharmaDto {
   categories: string[];
 
   @Expose()
-  default_category?: string;
-
-  @Expose()
   is_active: boolean;
 
   @Expose()
@@ -53,7 +50,4 @@ export class AdminPharmaDto {
 
   @Expose()
   runtime?: string;
-
-  @Expose()
-  is_included_in_category?: boolean;
 }

@@ -207,22 +207,7 @@ export class AdminPharmaService {
       return new StreamableFile(stream);
     }
 
-    const paginatedData = await paginate(
-      queryBuilder,
-      page,
-      per_page,
-      AdminPharmaListDto,
-    );
-
-    // Calculate is_included_in_category if category_id is provided
-    if (category_id) {
-      paginatedData.data = paginatedData.data.map((item) => ({
-        ...item,
-        is_included_in_category: item.categories.includes(category_id),
-      }));
-    }
-
-    return paginatedData;
+    return paginate(queryBuilder, page, per_page, AdminPharmaListDto);
   }
 
   async export(queryBuilder: SelectQueryBuilder<any>): Promise<Readable> {
@@ -443,6 +428,6 @@ export class AdminPharmaService {
 
   async remove(id: string): Promise<void> {
     const pharma = await this.findOne(id);
-    // await this.pharmaRepository.remove(pharma);
+    await this.pharmaRepository.softDelete(id);
   }
 }
