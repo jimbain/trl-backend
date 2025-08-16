@@ -37,4 +37,9 @@ export class PharmaController {
       req.user.company.id,
     );
   }
+
+  @Get('pharma/home')
+  async getPharmaHomeList(@Request() req) {
+    return this.pharmaService.getHomeList(req.user);
+  }
 }

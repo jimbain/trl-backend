@@ -43,4 +43,9 @@ export class QueryPharmaDto {
   @IsOptional()
   @IsString()
   sort_order?: 'asc' | 'desc';
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === '1')
+  popular?: boolean;
 }

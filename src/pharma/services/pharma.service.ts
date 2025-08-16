@@ -54,6 +54,7 @@ export class PharmaService {
       status,
       sort_by,
       sort_order,
+      popular,
     } = query;
 
     const company = await this.companyService.findByIdWithCache(
@@ -83,8 +84,11 @@ export class PharmaService {
       .andWhere('pharma.is_active = :isActive', { isActive: true })
       .select([
         'pharma.id AS id',
+        'pharma.sku AS sku',
         'pharma.title AS title',
         'pharma.image_url AS image_url',
+        'pharma.avg_rating AS avg_rating',
+        'pharma.is_featured AS is_featured',
         'pharmaUserStatus.status AS status',
         'pharmaUserStatus.current_rental_expire_at AS current_rental_expire_at',
         'pharmaUserStatus.next_rental_expire_at AS next_rental_expire_at',
@@ -94,6 +98,11 @@ export class PharmaService {
       queryBuilder.andWhere('pharma.is_featured = :isFeatured', {
         isFeatured: is_featured,
       });
+    }
+
+    // Add popular filter
+    if (popular) {
+      queryBuilder.andWhere('pharma.avg_rating > 0');
     }
 
     // Always restrict by the company's allowed pharma categories (effectiveCategoryIds)
@@ -129,6 +138,9 @@ export class PharmaService {
         : 'created_at';
       const sortDirection = sort_order === 'desc' ? 'DESC' : 'ASC';
       queryBuilder.orderBy(`pharma.${sortField}`, sortDirection);
+    } else if (popular) {
+      // Popular sorting by rating
+      queryBuilder.orderBy('pharma.avg_rating', 'DESC');
     } else {
       // Default sorting
       queryBuilder.orderBy('pharma.created_at', 'DESC');
@@ -245,5 +257,42 @@ export class PharmaService {
     return plainToInstance(PharmaCategoryDto, categories, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async getHomeList(user: User) {
+    const [
+      featuredPharmas,
+      queuedPharmas,
+      continueWatchingPharmas,
+      popularPharmas,
+    ] = await Promise.all([
+      this.findAll({ is_featured: true, per_page: 10 }, user),
+      this.findAll({ status: 'queued', per_page: 10 }, user),
+      this.findAll({ status: 'rented', per_page: 10 }, user),
+      this.findAll({ popular: true, per_page: 10 }, user),
+    ]);
+
+    return [
+      {
+        label: 'Featured Titles',
+        slug: 'featured',
+        pharmas: featuredPharmas?.data,
+      },
+      {
+        label: 'Queued Titles',
+        slug: 'queued',
+        pharmas: queuedPharmas?.data,
+      },
+      {
+        label: 'Continue Watching',
+        slug: 'continue_watching',
+        pharmas: continueWatchingPharmas?.data,
+      },
+      {
+        label: 'Popular Pharma Titles',
+        slug: 'popular',
+        pharmas: popularPharmas?.data,
+      },
+    ];
   }
 }
