@@ -57,6 +57,23 @@ export class PharmaService {
     return company.category_ids.pharma || [];
   }
 
+  private calculateRentalValidity(item: {
+    current_rental_expire_at?: string | Date | null;
+    next_rental_expire_at?: string | Date | null;
+  }): boolean {
+    const now = new Date();
+    const currentRental = item.current_rental_expire_at
+      ? new Date(item.current_rental_expire_at)
+      : null;
+    const nextRental = item.next_rental_expire_at
+      ? new Date(item.next_rental_expire_at)
+      : null;
+
+    return (
+      (currentRental && currentRental > now) || (nextRental && nextRental > now)
+    );
+  }
+
   async findAll(
     query: QueryPharmaDto,
     user: User,
@@ -190,6 +207,7 @@ export class PharmaService {
           ? await this.storageService.generateSignedViewUrl(item.image_url)
           : null,
         rental_credit_cost: appConfigs.pharma_rental_credit_cost,
+        is_rental_valid: this.calculateRentalValidity(item),
       })),
     );
 
@@ -296,6 +314,7 @@ export class PharmaService {
     );
 
     pharma.play_position = playPosition?.play_position ?? null;
+    pharma.is_rental_valid = this.calculateRentalValidity(pharma);
 
     return pharma;
   }
