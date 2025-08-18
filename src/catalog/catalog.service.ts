@@ -179,6 +179,8 @@ export class CatalogService {
         },
       });
     } else if (catalog.media_type === 'video') {
+      return 0;
+    } else if (catalog.media_type === 'pharma') {
       return this.pharmaRepository.count({
         where: {
           categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
@@ -186,9 +188,8 @@ export class CatalogService {
           }),
         },
       });
-    } else if (catalog.media_type === 'pharma') {
-      return 0;
     }
+
     return 0;
   }
 }
