@@ -4,10 +4,11 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CategoryModule } from 'src/categories/category.module';
 import { CatalogService } from './catalog.service';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { Pharma } from 'src/pharma/entities/pharma.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Catalog, Audio]),
+    TypeOrmModule.forFeature([Catalog, Audio, Pharma]),
     forwardRef(() => CategoryModule),
   ],
   controllers: [],

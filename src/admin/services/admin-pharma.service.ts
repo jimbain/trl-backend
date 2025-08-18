@@ -144,38 +144,49 @@ export class AdminPharmaService {
           });
         } else {
           const isWholeWord = is_searching_whole_word;
+
           if (search_for === SearchFor.ALL_WORDS) {
-            // Match all words
+            // Match ALL words
             const conditions = words.map((word, index) => {
-              const paramName = `pattern${index}`;
-              const pattern = isWholeWord ? `\\m${word}\\M` : `${word}%`;
+              const paramName = `word${index}`;
               const fieldConditions = searchFields.map(
                 (field) =>
-                  `${field} ${isWholeWord ? '~*' : 'ILIKE'} :${paramName}`,
+                  isWholeWord
+                    ? `${field} ~* :${paramName}` // regex whole word
+                    : `${field} ILIKE :${paramName}`, // substring
               );
               return `(${fieldConditions.join(' OR ')})`;
             });
+
             queryBuilder.andWhere(
-              `(${conditions.join(' AND ')})`,
+              conditions.join(' AND '),
               words.reduce(
                 (params, word, index) => ({
                   ...params,
-                  [`pattern${index}`]: isWholeWord
-                    ? `\\m${word}\\M`
-                    : `${word}%`,
+                  [`word${index}`]: isWholeWord
+                    ? `\\m${word}\\M` // regex word boundary
+                    : `%${word}%`, // contains anywhere
                 }),
                 {},
               ),
             );
           } else if (search_for === SearchFor.ANY_WORD) {
-            // Match any word
-            const pattern = isWholeWord
-              ? words.map((word) => `\\m${word}\\M`).join('|')
-              : words.map((word) => `${word}%`).join('|');
-            const conditions = searchFields.map(
-              (field) => `${field} ${isWholeWord ? '~*' : 'ILIKE'} :pattern`,
-            );
-            queryBuilder.andWhere(`(${conditions.join(' OR ')})`, { pattern });
+            // Match ANY word
+            const conditions: string[] = [];
+            const params: Record<string, any> = {};
+
+            words.forEach((word, i) => {
+              const param = `word${i}`;
+              const fieldConditions = searchFields.map((field) =>
+                isWholeWord
+                  ? `${field} ~* :${param}`
+                  : `${field} ILIKE :${param}`,
+              );
+              conditions.push(`(${fieldConditions.join(' OR ')})`);
+              params[param] = isWholeWord ? `\\m${word}\\M` : `%${word}%`;
+            });
+
+            queryBuilder.andWhere(conditions.join(' OR '), params);
           }
         }
       }
@@ -217,7 +228,7 @@ export class AdminPharmaService {
     });
 
     // Write CSV Header
-    const header = 'SKU,Title,Active,Featured,Default Category\n';
+    const header = 'SKU,Title,Category,Active,Featured\n';
     stream.push(header);
 
     const batchSize = 1000;
@@ -245,9 +256,9 @@ export class AdminPharmaService {
           const baseRow = [
             `"${item.sku ? item.sku.replace(/"/g, '""') : ''}"`,
             `"${item.title ? item.title.replace(/"/g, '""') : ''}"`,
+            `"${item.category ? item.category.replace(/"/g, '""') : ''}"`,
             item.is_active ? 'Yes' : 'No',
             item.is_featured ? 'Yes' : 'No',
-            `"${item.default_category_name ? item.default_category_name.replace(/"/g, '""') : ''}"`,
           ];
 
           const row = baseRow.join(',') + '\n';

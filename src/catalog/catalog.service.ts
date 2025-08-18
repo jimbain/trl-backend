@@ -8,6 +8,7 @@ import { CATALOG_CATEGORY_TYPE } from 'src/constants';
 import { Category } from 'src/categories/entities/category.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';
+import { Pharma } from 'src/pharma/entities/pharma.entity';
 
 @Injectable()
 export class CatalogService {
@@ -17,6 +18,9 @@ export class CatalogService {
 
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
+
+    @InjectRepository(Pharma)
+    private readonly pharmaRepository: Repository<Pharma>,
   ) {}
 
   async findAll(): Promise<Catalog[]> {
@@ -175,7 +179,13 @@ export class CatalogService {
         },
       });
     } else if (catalog.media_type === 'video') {
-      return 0;
+      return this.pharmaRepository.count({
+        where: {
+          categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
+            categories: catalog.categories,
+          }),
+        },
+      });
     } else if (catalog.media_type === 'pharma') {
       return 0;
     }
