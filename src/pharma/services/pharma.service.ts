@@ -58,9 +58,13 @@ export class PharmaService {
   }
 
   private calculateRentalValidity(item: {
+    status?: 'rented' | 'queued';
     current_rental_expire_at?: string | Date | null;
     next_rental_expire_at?: string | Date | null;
   }): boolean {
+    if (!item.status || item.status !== 'rented') {
+      return false;
+    }
     const now = new Date();
     const currentRental = item.current_rental_expire_at
       ? new Date(item.current_rental_expire_at)
@@ -431,14 +435,16 @@ export class PharmaService {
     const pharma = await this.findByIdWithCache(id);
     const now = new Date();
 
-    const userPharmaStatus = await this.pharmaUserStatusRepository.findOne({
-      where: {
-        pharma_id: id,
-        user_id: user.id,
-        status: 'rented',
-        current_rental_expire_at: MoreThan(now),
-      },
-    });
+    const userPharmaStatus = await this.pharmaUserStatusRepository
+      .createQueryBuilder('status')
+      .where('status.pharma_id = :pharmaId', { pharmaId: id })
+      .andWhere('status.user_id = :userId', { userId: user.id })
+      .andWhere('status.status = :status', { status: 'rented' })
+      .andWhere(
+        '(status.current_rental_expire_at > :now OR status.next_rental_expire_at > :now)',
+        { now },
+      )
+      .getOne();
 
     if (!userPharmaStatus) {
       throw new NotAcceptableException(
