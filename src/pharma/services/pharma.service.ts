@@ -439,8 +439,8 @@ export class PharmaService {
         existingPharmaUserVideoPosition
           ? {
               ...existingPharmaUserVideoPosition,
-              playPosition: payload.play_position,
-              updatedAt: new Date(),
+              play_position: payload.play_position,
+              updated_at: new Date(),
             }
           : this.pharmaUserVideoplayerPositionRepository.create({
               user_id: user.id,
