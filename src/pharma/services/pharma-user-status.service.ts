@@ -205,24 +205,39 @@ export class PharmaUserStatusService {
     const now = new Date();
 
     if (
-      pharmaUser.current_rental_expire_at &&
-      pharmaUser.current_rental_expire_at < now
+      (!pharmaUser.current_rental_expire_at ||
+        pharmaUser.current_rental_expire_at <= now) &&
+      pharmaUser.next_rental_expire_at &&
+      pharmaUser.next_rental_expire_at > now
     ) {
-      // Current rental is still active → extend current_rental_expire_at
-      pharmaUser.current_rental_expire_at = new Date(
+      // Current rental expired, next rental is valid
+      pharmaUser.current_rental_expire_at = pharmaUser.next_rental_expire_at;
+      pharmaUser.next_rental_expire_at = new Date(
+        pharmaUser.next_rental_expire_at.getTime() +
+          rentalPeriodInDays * 24 * 60 * 60 * 1000,
+      );
+    } else if (
+      pharmaUser.current_rental_expire_at &&
+      pharmaUser.current_rental_expire_at > now &&
+      !pharmaUser.next_rental_expire_at
+    ) {
+      // Current rental is valid, next rental not set
+      pharmaUser.next_rental_expire_at = new Date(
         pharmaUser.current_rental_expire_at.getTime() +
           rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );
-    } else {
-      // Current rental expired → set next_rental_expire_at
-      if (pharmaUser.next_rental_expire_at) {
-        throw new BadRequestException(
-          `Cannot renew pharma. You have already extended your rental.`,
-        );
-      }
-
-      pharmaUser.next_rental_expire_at = new Date(
+    } else if (
+      pharmaUser.current_rental_expire_at &&
+      pharmaUser.current_rental_expire_at <= now &&
+      !pharmaUser.next_rental_expire_at
+    ) {
+      // Both expired and no next rental → start fresh
+      pharmaUser.current_rental_expire_at = new Date(
         now.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
+      );
+    } else {
+      throw new BadRequestException(
+        `Cannot renew pharma. You have already extended your rental.`,
       );
     }
 

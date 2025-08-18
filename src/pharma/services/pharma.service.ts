@@ -78,6 +78,40 @@ export class PharmaService {
     );
   }
 
+  private canRenewRent(item: {
+    status?: 'rented' | 'queued';
+    current_rental_expire_at?: string | Date | null;
+    next_rental_expire_at?: string | Date | null;
+  }): boolean {
+    if (!item.status || item.status !== 'rented') {
+      return false;
+    }
+
+    const now = new Date();
+    const currentRental = item.current_rental_expire_at
+      ? new Date(item.current_rental_expire_at)
+      : null;
+    const nextRental = item.next_rental_expire_at
+      ? new Date(item.next_rental_expire_at)
+      : null;
+
+    // Case 1: current rental is valid and no next rental yet
+    if (currentRental && currentRental > now && !nextRental) {
+      return true;
+    }
+
+    // Case 2: current rental expired but next rental exists and is in the future
+    if (
+      (!currentRental || currentRental <= now) &&
+      nextRental &&
+      nextRental > now
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   private canReturnRenewalRent(item: {
     status?: 'rented' | 'queued';
     current_rental_expire_at?: string | Date | null;
@@ -238,6 +272,7 @@ export class PharmaService {
           : null,
         rental_credit_cost: appConfigs.pharma_rental_credit_cost,
         is_rental_valid: this.calculateRentalValidity(item),
+        can_renew: this.canRenewRent(item),
         can_return: this.canReturnRenewalRent(item),
       })),
     );
@@ -346,6 +381,7 @@ export class PharmaService {
 
     pharma.play_position = playPosition?.play_position ?? null;
     pharma.is_rental_valid = this.calculateRentalValidity(pharma);
+    pharma.can_renew = this.canRenewRent(pharma);
     pharma.can_return = this.canReturnRenewalRent(pharma);
 
     return pharma;
