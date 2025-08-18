@@ -20,6 +20,20 @@ class AudioDto {
   trl_cost: number;
 }
 
+class PharmaDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  sku: string;
+
+  @Expose()
+  runtime: number;
+}
+
 class CompanyDto {
   @Expose()
   id: number;
@@ -91,6 +105,20 @@ export class AdminReportUserActivityLogDto {
       : null,
   )
   audio: AudioDto | null;
+
+  @Expose()
+  @Type(() => PharmaDto)
+  @Transform(({ obj }) =>
+    obj.item_type === 'pharma'
+      ? {
+          id: obj.pharma_id,
+          title: obj.pharma_title,
+          sku: obj.pharma_sku,
+          runtime: obj.pharma_runtime,
+        }
+      : null,
+  )
+  pharma: PharmaDto | null;
 
   @Expose()
   @Type(() => CompanyDto)

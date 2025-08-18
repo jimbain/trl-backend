@@ -6,7 +6,7 @@ import {
   NotAcceptableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Raw, Repository } from 'typeorm';
 import { Pharma } from '../entities/pharma.entity';
 import { StorageService } from 'src/storage/storage.service';
 import { PharmaListDto } from '../dto/pharma.dto';
@@ -21,6 +21,12 @@ import { AppConfigService } from 'src/app-config/app-config.service';
 import { PharmaUserStatus } from '../entities/pharma-user-status.entity';
 import { QueryPharmaDto } from '../dto/query-pharma.dto';
 import { Category } from 'src/categories/entities/category.entity';
+import { TriggerPharmaVideoPlayerEventDto } from '../dto/trigger-pharma-video-player-event.dto';
+import { CacheService } from 'src/common/services/cache.service';
+import { PharmaUserVideoplayerPosition } from '../entities/pharma-user-videoplayer-position.entity';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { MEDIA, USER_ACTIVITY } from 'src/constants';
+import { UserActivityLogService } from 'src/users/user-activity-log.service';
 
 @Injectable()
 export class PharmaService {
@@ -28,11 +34,22 @@ export class PharmaService {
     @InjectRepository(Pharma)
     private readonly pharmaRepository: Repository<Pharma>,
 
+    @InjectRepository(PharmaUserStatus)
+    private readonly pharmaUserStatusRepository: Repository<PharmaUserStatus>,
+
+    @InjectRepository(PharmaUserVideoplayerPosition)
+    private readonly pharmaUserVideoplayerPositionRepository: Repository<PharmaUserVideoplayerPosition>,
+
+    @InjectRepository(UserActivityLog)
+    private readonly userActivityLogRepository: Repository<UserActivityLog>,
+
     private readonly appConfigService: AppConfigService,
+    private readonly cacheService: CacheService,
     private readonly companyService: CompanyService,
     @Inject(forwardRef(() => CategoryService))
     private readonly categoryService: CategoryService,
     private readonly storageService: StorageService,
+    private readonly userActivityLogService: UserActivityLogService,
   ) {}
 
   async findAllCategoryIdOfCompany(companyId: string): Promise<string[]> {
@@ -106,7 +123,7 @@ export class PharmaService {
 
     // Add popular filter
     if (popular) {
-      queryBuilder.andWhere('pharma.avg_rating > 0');
+      queryBuilder.andWhere('pharma.total_played > 0');
     }
 
     // Always restrict by the company's allowed pharma categories (effectiveCategoryIds)
@@ -158,7 +175,7 @@ export class PharmaService {
       queryBuilder.orderBy(`pharma.${sortField}`, sortDirection);
     } else if (popular) {
       // Popular sorting by rating
-      queryBuilder.orderBy('pharma.avg_rating', 'DESC');
+      queryBuilder.orderBy('pharma.total_played', 'DESC');
     } else {
       // Default sorting
       queryBuilder.orderBy('pharma.created_at', 'DESC');
@@ -185,6 +202,48 @@ export class PharmaService {
       throw new NotFoundException(`Pharma with id "${id}" not found`);
     }
     return pharma;
+  }
+
+  async findByIdWithCache(id: string) {
+    const cachedAudio = await this.cacheService.get(id);
+    if (cachedAudio) return cachedAudio;
+
+    const audio = await this.findById(id);
+
+    await this.cacheService.set(id, audio);
+    return audio;
+  }
+
+  async findPharmaUserVideoPlayerPosition(
+    pharmaId: string,
+    userId: string,
+  ): Promise<PharmaUserVideoplayerPosition | null> {
+    const now = new Date();
+
+    const userPharmaStatus = await this.pharmaUserStatusRepository.findOne({
+      where: {
+        pharma_id: pharmaId,
+        user_id: userId,
+        status: 'rented',
+        current_rental_expire_at: MoreThan(now),
+      },
+    });
+
+    if (!userPharmaStatus) {
+      return null;
+    }
+
+    const position = await this.pharmaUserVideoplayerPositionRepository.findOne(
+      {
+        where: { pharma_id: pharmaId, user_id: userId },
+      },
+    );
+
+    if (!position) {
+      return null;
+    }
+
+    return position;
   }
 
   async findOne(id: string, user: User): Promise<any> {
@@ -230,6 +289,13 @@ export class PharmaService {
         pharma.video_url,
       );
     }
+
+    const playPosition = await this.findPharmaUserVideoPlayerPosition(
+      pharma.id,
+      user.id,
+    );
+
+    pharma.play_position = playPosition?.play_position ?? null;
 
     return pharma;
   }
@@ -324,6 +390,163 @@ export class PharmaService {
         pharmas: popularPharmas?.data,
       },
     ];
+  }
+
+  async incrementTotalPlayedOfPharma(id: string) {
+    if (!id) return;
+
+    await this.pharmaRepository
+      .createQueryBuilder()
+      .update(Pharma)
+      .set({ total_played: () => 'total_played + 1' })
+      .where('id = :id', { id })
+      .execute();
+  }
+
+  async triggerVideoPlayerEvent(
+    id: string,
+    eventType: 'play' | 'pause',
+    payload: TriggerPharmaVideoPlayerEventDto,
+    user: User,
+  ) {
+    const pharma = await this.findByIdWithCache(id);
+    const now = new Date();
+
+    const userPharmaStatus = await this.pharmaUserStatusRepository.findOne({
+      where: {
+        pharma_id: id,
+        user_id: user.id,
+        status: 'rented',
+        current_rental_expire_at: MoreThan(now),
+      },
+    });
+
+    if (!userPharmaStatus) {
+      throw new NotAcceptableException(
+        `Need to rent the pharma for triggering video player events.`,
+      );
+    }
+
+    // ─────────────── Handle pause event ───────────────
+    if (eventType === 'pause') {
+      // Save or update user's video position
+      const existingPharmaUserVideoPosition =
+        await this.pharmaUserVideoplayerPositionRepository.findOne({
+          where: { pharma_id: pharma.id, user_id: user.id },
+        });
+
+      const updatedPharmaUserVideoplayerPosition =
+        existingPharmaUserVideoPosition
+          ? {
+              ...existingPharmaUserVideoPosition,
+              playPosition: payload.play_position,
+              updatedAt: new Date(),
+            }
+          : this.pharmaUserVideoplayerPositionRepository.create({
+              user_id: user.id,
+              pharma_id: id,
+              play_position: payload.play_position,
+              updated_at: new Date(),
+            });
+
+      await this.pharmaUserVideoplayerPositionRepository.save(
+        updatedPharmaUserVideoplayerPosition,
+      );
+
+      // Update user activity log (pause → update last PLAY record)
+      const latestPlayActivity = await this.userActivityLogRepository.findOne({
+        where: {
+          user_id: user.id,
+          item_type: MEDIA.PHARMA,
+          item_id: id,
+          action: USER_ACTIVITY.PLAY,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      if (latestPlayActivity) {
+        const meta = latestPlayActivity.meta || {};
+
+        const end_position = Math.max(
+          meta.end_position ?? 0,
+          payload.play_position,
+        );
+
+        const totalTimePlayed =
+          (end_position ?? 0) - (meta.start_position ?? 0);
+
+        latestPlayActivity.meta = {
+          start_position: meta.start_position,
+          end_position,
+          total_time_played: totalTimePlayed > 0 ? totalTimePlayed : 0,
+        };
+
+        latestPlayActivity.updated_at = new Date();
+
+        await this.userActivityLogRepository.save(latestPlayActivity);
+      }
+    }
+
+    // ─────────────── Handle play event ───────────────
+    if (eventType === 'play') {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+      const existingPlayActivity = await this.userActivityLogRepository.findOne(
+        {
+          where: {
+            user_id: user.id,
+            item_type: MEDIA.PHARMA,
+            item_id: id,
+            action: USER_ACTIVITY.PLAY,
+            created_at: Raw((alias) => `DATE(${alias}) = :date`, {
+              date: today,
+            }),
+          },
+        },
+      );
+
+      if (existingPlayActivity) {
+        const meta = existingPlayActivity.meta || {};
+
+        const start_position = Math.min(
+          meta.start_position ?? payload.play_position,
+          payload.play_position,
+        );
+
+        const totalTimePlayed =
+          (meta.end_position ?? 0) - (start_position ?? 0);
+
+        existingPlayActivity.meta = {
+          start_position,
+          end_position: meta.end_position,
+          total_time_played: totalTimePlayed > 0 ? totalTimePlayed : 0,
+        };
+
+        existingPlayActivity.updated_at = new Date();
+
+        await Promise.all([
+          this.incrementTotalPlayedOfPharma(id),
+          this.userActivityLogRepository.save(existingPlayActivity),
+        ]);
+      } else {
+        // Create a fresh play activity log
+        const meta = {
+          start_position: payload.play_position,
+          total_time_played: 0,
+        };
+
+        await Promise.all([
+          this.incrementTotalPlayedOfPharma(id),
+          this.userActivityLogService.create({
+            user_id: user.id,
+            item_type: MEDIA.PHARMA,
+            item_id: id,
+            action: USER_ACTIVITY.PLAY,
+            meta,
+          }),
+        ]);
+      }
+    }
   }
 
   async assignCategory(category: Category, ids: string[]) {

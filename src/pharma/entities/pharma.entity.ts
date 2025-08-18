@@ -11,6 +11,7 @@ import {
 import { PharmaReview } from './pharma-review.entity';
 import { PharmaUserStatus } from './pharma-user-status.entity';
 import { ulid } from 'ulidx';
+import { PharmaUserVideoplayerPosition } from './pharma-user-videoplayer-position.entity';
 
 @Entity('pharmas')
 export class Pharma {
@@ -44,6 +45,9 @@ export class Pharma {
   @Column({ type: 'varchar', nullable: true })
   runtime?: string;
 
+  @Column({ type: 'bigint', default: 0 })
+  total_played: number;
+
   @Column({ type: 'float', default: 0 })
   avg_rating: number;
 
@@ -66,4 +70,7 @@ export class Pharma {
 
   @OneToMany(() => PharmaUserStatus, (status) => status.pharma)
   userStatuses: PharmaUserStatus[];
+
+  @OneToMany(() => PharmaUserVideoplayerPosition, (position) => position.pharma)
+  videoplayerPositions: PharmaUserVideoplayerPosition[];
 }

@@ -12,7 +12,6 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 import { AudioMetadata } from './audio_metadata.entity';
-import { Category } from 'src/categories/entities/category.entity';
 
 @Entity({ name: 'audios' })
 export class Audio extends BaseEntity {

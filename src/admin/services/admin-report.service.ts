@@ -14,6 +14,7 @@ import { AdminReportUserActivityLogDto } from '../dto/report/admin-report-user-a
 import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-user-activity-log-query.dto';
 import { Readable } from 'stream';
 import { plainToInstance } from 'class-transformer';
+import { Pharma } from 'src/pharma/entities/pharma.entity';
 
 export interface OverviewInterface {
   company_count: number;
@@ -78,6 +79,14 @@ export class AdminReportService {
           audioType: 'audio',
         },
       )
+      .leftJoin(
+        Pharma,
+        'pharma',
+        'pharma.id = log.item_id AND log.item_type = :type',
+        {
+          type: 'pharma',
+        },
+      )
       .leftJoin('audio.metadata', 'metadata')
       .select([
         'log.id AS id',
@@ -97,6 +106,10 @@ export class AdminReportService {
         'audio.display_title AS audio_display_title',
         'audio.sku AS audio_sku',
         'audio.bookshelf_credit_cost AS audio_bookshelf_credit_cost',
+        'pharma.id AS pharma_id',
+        'pharma.sku AS pharma_sku',
+        'pharma.title AS pharma_title',
+        'pharma.runtime AS pharma_runtime',
         `(
           SELECT COALESCE(SUM((sub_log.meta->>'total_time_played')::bigint), 0) AS total_time_played_sum_ms
           FROM user_activity_logs sub_log

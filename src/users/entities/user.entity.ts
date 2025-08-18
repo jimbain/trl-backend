@@ -18,6 +18,7 @@ import { PasswordResetToken } from 'src/auth/entities/password_reset_token.entit
 import { Company } from 'src/companies/entities/company.entity';
 import { PharmaReview } from 'src/pharma/entities/pharma-review.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
+import { PharmaUserVideoplayerPosition } from 'src/pharma/entities/pharma-user-videoplayer-position.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -85,4 +86,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => PharmaUserStatus, (status) => status.user)
   pharmaUserStatuses: PharmaUserStatus[];
+
+  @OneToMany(() => PharmaUserVideoplayerPosition, (position) => position.user)
+  videoplayerPositions: PharmaUserVideoplayerPosition[];
 }

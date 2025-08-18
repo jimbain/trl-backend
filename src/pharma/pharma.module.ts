@@ -14,11 +14,21 @@ import { PharmaReviewController } from './controllers/pharma-review.controller';
 import { PharmaUserStatusService } from './services/pharma-user-status.service';
 import { PharmaUserStatusController } from './controllers/pharma-user-status.controller';
 import { UserModule } from 'src/users/user.module';
+import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { PharmaUserVideoplayerPosition } from './entities/pharma-user-videoplayer-position.entity';
+import { CommonModule } from 'src/common/common.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Pharma, PharmaUserStatus, PharmaReview]),
+    TypeOrmModule.forFeature([
+      Pharma,
+      PharmaUserStatus,
+      PharmaReview,
+      PharmaUserVideoplayerPosition,
+      UserActivityLog,
+    ]),
     forwardRef(() => AppConfigModule),
+    forwardRef(() => CommonModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CategoryModule),
     forwardRef(() => StorageModule),

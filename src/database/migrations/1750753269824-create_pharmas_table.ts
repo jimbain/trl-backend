@@ -70,6 +70,11 @@ export class CreatePharmasTable1750753269824 implements MigrationInterface {
             isNullable: true,
           },
           {
+            name: 'total_played',
+            type: 'bigint',
+            default: 0,
+          },
+          {
             name: 'is_active',
             type: 'boolean',
             default: true,

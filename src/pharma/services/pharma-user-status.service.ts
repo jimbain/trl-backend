@@ -110,9 +110,9 @@ export class PharmaUserStatusService {
       company.app_configs,
     );
 
-    // Get rental period from config (default to 1 day if not set)
+    // Get rental period from config (default to 14 day if not set)
     const rentalPeriodInDays = parseInt(
-      appConfigs['pharma_rental_period_in_days'] || '1',
+      appConfigs['pharma_rental_period_in_days'] || '14',
       10,
     );
 
@@ -184,7 +184,7 @@ export class PharmaUserStatusService {
 
     // Get rental period from config
     const rentalPeriodInDays = parseInt(
-      appConfigs['pharma_rental_period_in_days'] || '1',
+      appConfigs['pharma_rental_period_in_days'] || '14',
       10,
     );
 
@@ -202,22 +202,25 @@ export class PharmaUserStatusService {
       throw new BadRequestException(`Pharma is not currently rented`);
     }
 
-    // Check if next rental is already set (user has already renewed)
-    if (pharmaUser.next_rental_expire_at) {
-      throw new BadRequestException(
-        `Cannot renew pharma. You have already extended your rental.`,
-      );
-    }
+    const now = new Date();
 
-    // Set next rental expire time from current rental expire time
-    if (pharmaUser.current_rental_expire_at) {
-      pharmaUser.next_rental_expire_at = new Date(
+    if (
+      pharmaUser.current_rental_expire_at &&
+      pharmaUser.current_rental_expire_at < now
+    ) {
+      // Current rental is still active → extend current_rental_expire_at
+      pharmaUser.current_rental_expire_at = new Date(
         pharmaUser.current_rental_expire_at.getTime() +
           rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );
     } else {
-      // Fallback: if no current rental expire time, extend from now
-      const now = new Date();
+      // Current rental expired → set next_rental_expire_at
+      if (pharmaUser.next_rental_expire_at) {
+        throw new BadRequestException(
+          `Cannot renew pharma. You have already extended your rental.`,
+        );
+      }
+
       pharmaUser.next_rental_expire_at = new Date(
         now.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
       );

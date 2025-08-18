@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Query,
@@ -11,6 +12,7 @@ import {
 import { PharmaService } from '../services/pharma.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { QueryPharmaDto } from '../dto/query-pharma.dto';
+import { TriggerPharmaVideoPlayerEventDto } from '../dto/trigger-pharma-video-player-event.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -44,5 +46,21 @@ export class PharmaController {
   @Get('pharma/home')
   async getPharmaHomeList(@Request() req) {
     return this.pharmaService.getHomeList(req.user);
+  }
+
+  @Post('pharmas/:id/trigger-event/:eventType?')
+  @HttpCode(200)
+  triggerVideoPlayerEvent(
+    @Request() req,
+    @Body() payload: TriggerPharmaVideoPlayerEventDto,
+    @Param('id') id: string,
+    @Param('eventType') eventType?: 'play' | 'pause',
+  ) {
+    return this.pharmaService.triggerVideoPlayerEvent(
+      id,
+      eventType,
+      payload,
+      req.user,
+    );
   }
 }
