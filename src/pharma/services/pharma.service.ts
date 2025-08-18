@@ -78,6 +78,32 @@ export class PharmaService {
     );
   }
 
+  private canReturnRenewalRent(item: {
+    status?: 'rented' | 'queued';
+    current_rental_expire_at?: string | Date | null;
+    next_rental_expire_at?: string | Date | null;
+  }): boolean {
+    if (!item.status || item.status !== 'rented') {
+      return false;
+    }
+
+    const now = new Date();
+    const currentRental = item.current_rental_expire_at
+      ? new Date(item.current_rental_expire_at)
+      : null;
+    const nextRental = item.next_rental_expire_at
+      ? new Date(item.next_rental_expire_at)
+      : null;
+
+    // AND next rental exists in the future
+    return !!(
+      currentRental &&
+      currentRental > now &&
+      nextRental &&
+      nextRental > currentRental
+    );
+  }
+
   async findAll(
     query: QueryPharmaDto,
     user: User,
@@ -212,6 +238,7 @@ export class PharmaService {
           : null,
         rental_credit_cost: appConfigs.pharma_rental_credit_cost,
         is_rental_valid: this.calculateRentalValidity(item),
+        can_return: this.canReturnRenewalRent(item),
       })),
     );
 
@@ -319,6 +346,7 @@ export class PharmaService {
 
     pharma.play_position = playPosition?.play_position ?? null;
     pharma.is_rental_valid = this.calculateRentalValidity(pharma);
+    pharma.can_return = this.canReturnRenewalRent(pharma);
 
     return pharma;
   }
