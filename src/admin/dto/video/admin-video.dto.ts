@@ -14,6 +14,9 @@ export class AdminVideoListDto {
   title: string;
 
   @Expose()
+  category?: string;
+
+  @Expose()
   is_active: boolean;
 
   @Expose()
