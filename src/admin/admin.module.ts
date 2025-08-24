@@ -45,8 +45,11 @@ import { AdminAudioElasticsearchService } from './services/admin-audio-elasticse
 import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
 import { AdminPharmaService } from './services/admin-pharma.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { AdminVideoService } from './services/admin-video.service';
+import { Video } from 'src/video/entities/video.entity';
 import { StorageModule } from 'src/storage/storage.module';
 import { PharmaModule } from 'src/pharma/pharma.module';
+import { VideoModule } from 'src/video/video.module';
 import { AdminStorageController } from './controllers/admin-storage.controller';
 
 @Module({
@@ -71,6 +74,7 @@ import { AdminStorageController } from './controllers/admin-storage.controller';
       AdminUser,
       Audio,
       Pharma,
+      Video,
       Company,
       User,
       UserAudioStatus,
@@ -81,6 +85,7 @@ import { AdminStorageController } from './controllers/admin-storage.controller';
     forwardRef(() => AppErrorLogModule),
     forwardRef(() => AudioModule),
     forwardRef(() => PharmaModule),
+    forwardRef(() => VideoModule),
     forwardRef(() => CompanyModule),
     forwardRef(() => CatalogModule),
     forwardRef(() => CategoryModule),
@@ -118,6 +123,7 @@ import { AdminStorageController } from './controllers/admin-storage.controller';
     AdminCompanyCatalogService,
     AdminAudioElasticsearchService,
     AdminPharmaService,
+    AdminVideoService,
   ],
   exports: [],
 })

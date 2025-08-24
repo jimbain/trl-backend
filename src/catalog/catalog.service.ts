@@ -9,6 +9,7 @@ import { Category } from 'src/categories/entities/category.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { Video } from 'src/video/entities/video.entity';
 
 @Injectable()
 export class CatalogService {
@@ -21,6 +22,9 @@ export class CatalogService {
 
     @InjectRepository(Pharma)
     private readonly pharmaRepository: Repository<Pharma>,
+
+    @InjectRepository(Video)
+    private readonly videoRepository: Repository<Video>,
   ) {}
 
   async findAll(): Promise<Catalog[]> {
@@ -178,10 +182,16 @@ export class CatalogService {
           }),
         },
       });
-    } else if (catalog.media_type === 'video') {
-      return 0;
     } else if (catalog.media_type === 'pharma') {
       return this.pharmaRepository.count({
+        where: {
+          categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
+            categories: catalog.categories,
+          }),
+        },
+      });
+    } else if (catalog.media_type === 'video') {
+      return this.videoRepository.count({
         where: {
           categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
             categories: catalog.categories,

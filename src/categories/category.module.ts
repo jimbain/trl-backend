@@ -9,10 +9,11 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { CommonModule } from 'src/common/common.module';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaModule } from 'src/pharma/pharma.module';
+import { Video } from 'src/video/entities/video.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Category, Audio, Pharma]),
+    TypeOrmModule.forFeature([Category, Audio, Pharma, Video]),
     forwardRef(() => CatalogModule),
     forwardRef(() => AudioModule),
     forwardRef(() => PharmaModule),

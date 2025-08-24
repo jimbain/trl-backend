@@ -24,4 +24,6 @@ export interface UserActivityMeta {
   end_chapter_number?: number;
   end_position?: number;
   total_time_played?: number;
+  event?: string;
+  play_position?: number;
 }

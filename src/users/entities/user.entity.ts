@@ -19,6 +19,8 @@ import { Company } from 'src/companies/entities/company.entity';
 import { PharmaReview } from 'src/pharma/entities/pharma-review.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 import { PharmaUserVideoplayerPosition } from 'src/pharma/entities/pharma-user-videoplayer-position.entity';
+import { VideoReview } from 'src/video/entities/video-review.entity';
+import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -89,4 +91,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => PharmaUserVideoplayerPosition, (position) => position.user)
   videoplayerPositions: PharmaUserVideoplayerPosition[];
+
+  @OneToMany(() => VideoReview, (review) => review.user)
+  videoReviews: VideoReview[];
+
+  @OneToMany(() => VideoUserStatus, (status) => status.user)
+  videoUserStatuses: VideoUserStatus[];
 }

@@ -5,10 +5,11 @@ import { CategoryModule } from 'src/categories/category.module';
 import { CatalogService } from './catalog.service';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { Video } from 'src/video/entities/video.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Catalog, Audio, Pharma]),
+    TypeOrmModule.forFeature([Catalog, Audio, Pharma, Video]),
     forwardRef(() => CategoryModule),
   ],
   controllers: [],

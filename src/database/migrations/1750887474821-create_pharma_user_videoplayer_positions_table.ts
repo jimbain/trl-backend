@@ -6,7 +6,7 @@ import {
   TableUnique,
 } from 'typeorm';
 
-export class CreatePharmaUserVideoplayerPositionsTable1768687474821
+export class CreatePharmaUserVideoplayerPositionsTable1750887474821
   implements MigrationInterface
 {
   private tableName = 'pharma_user_videoplayer_positions';

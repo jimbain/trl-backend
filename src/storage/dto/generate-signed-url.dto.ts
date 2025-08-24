@@ -3,8 +3,9 @@ import { Transform } from 'class-transformer';
 
 export class GenerateSignedUrlDto {
   @IsString()
-  @IsIn(['pharma/thumbnails', 'pharma/videos'], {
-    message: 'Folder must be either "pharma/thumbnails" or "pharma/videos"',
+  @IsIn(['pharma/thumbnails', 'pharma/videos', 'video/thumbnails'], {
+    message:
+      'Folder must be either "pharma/thumbnails" or "pharma/videos" or "video/thumbnails"',
   })
   folder: string;
 

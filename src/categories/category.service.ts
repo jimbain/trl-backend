@@ -22,6 +22,7 @@ import { CacheService } from 'src/common/services/cache.service';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaService } from 'src/pharma/services/pharma.service';
+import { Video } from 'src/video/entities/video.entity';
 
 @Injectable()
 export class CategoryService {
@@ -32,6 +33,8 @@ export class CategoryService {
     private readonly audioRepository: Repository<Audio>,
     @InjectRepository(Pharma)
     private readonly pharmaRepository: Repository<Pharma>,
+    @InjectRepository(Video)
+    private readonly videoRepository: Repository<Video>,
 
     @Inject(forwardRef(() => AudioService))
     private audioService: AudioService,
@@ -329,8 +332,6 @@ export class CategoryService {
         `,
         [categoryIds],
       );
-    } else if (mediaType === 'video') {
-      // TODO: implement for video
     } else if (mediaType === 'pharma') {
       result = await this.pharmaRepository.query(
         `
@@ -340,6 +341,19 @@ export class CategoryService {
             COUNT(*) FILTER (WHERE p.is_active = false) AS inactive_count
         FROM pharmas p
         WHERE p.categories ?| $1
+        GROUP BY category_id
+        `,
+        [categoryIds],
+      );
+    } else if (mediaType === 'video') {
+      result = await this.videoRepository.query(
+        `
+        SELECT 
+            jsonb_array_elements_text(v.categories) AS category_id, 
+            COUNT(*) FILTER (WHERE v.is_active = true) AS active_count,
+            COUNT(*) FILTER (WHERE v.is_active = false) AS inactive_count
+        FROM videos v
+        WHERE v.categories ?| $1
         GROUP BY category_id
         `,
         [categoryIds],

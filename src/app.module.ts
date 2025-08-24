@@ -17,6 +17,7 @@ import { AdminModule } from './admin/admin.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { AppErrorLogModule } from './app-error-log/app-error-log.module';
 import { PharmaModule } from './pharma/pharma.module';
+import { VideoModule } from './video/video.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -40,6 +41,7 @@ import { StorageModule } from './storage/storage.module';
     CatalogModule,
     AppErrorLogModule,
     PharmaModule,
+    VideoModule,
     StorageModule,
   ],
   controllers: [AppController],
