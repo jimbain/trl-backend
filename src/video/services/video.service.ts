@@ -399,12 +399,6 @@ export class VideoService {
       user,
     );
 
-    // Get recently added videos
-    const recentVideos = await this.findAll(
-      { sort_by: 'created_at', sort_order: 'desc', per_page: 10 },
-      user,
-    );
-
     // Get user's queued videos
     const queuedVideos = await this.findAll(
       { status: 'queued', per_page: 10 },
@@ -417,13 +411,28 @@ export class VideoService {
       user,
     );
 
-    return {
-      featured: featuredVideos.data,
-      popular: popularVideos.data,
-      recent: recentVideos.data,
-      queued: queuedVideos.data,
-      rented: rentedVideos.data,
-    };
+    return [
+      {
+        label: 'Featured Titles',
+        slug: 'featured',
+        pharmas: featuredVideos?.data,
+      },
+      {
+        label: 'Queued Titles',
+        slug: 'queued',
+        pharmas: queuedVideos?.data,
+      },
+      {
+        label: 'Continue Watching',
+        slug: 'continue_watching',
+        pharmas: rentedVideos?.data,
+      },
+      {
+        label: 'Popular Pharma Titles',
+        slug: 'popular',
+        pharmas: popularVideos?.data,
+      },
+    ];
   }
 
   async triggerVideoPlayerEvent(
