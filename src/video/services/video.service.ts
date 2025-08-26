@@ -415,22 +415,22 @@ export class VideoService {
       {
         label: 'Featured Titles',
         slug: 'featured',
-        pharmas: featuredVideos?.data,
+        videos: featuredVideos?.data,
       },
       {
         label: 'Queued Titles',
         slug: 'queued',
-        pharmas: queuedVideos?.data,
+        videos: queuedVideos?.data,
       },
       {
         label: 'Continue Watching',
         slug: 'continue_watching',
-        pharmas: rentedVideos?.data,
+        videos: rentedVideos?.data,
       },
       {
         label: 'Popular Pharma Titles',
         slug: 'popular',
-        pharmas: popularVideos?.data,
+        videos: popularVideos?.data,
       },
     ];
   }
