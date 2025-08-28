@@ -44,6 +44,29 @@ export class VideoController {
     return this.videoService.getHomeList(req.user);
   }
 
+  /**
+   * Get a single video with details and related videos from the same group
+   * @param id Video ID
+   * @param req Request object containing user information
+   * @returns Object containing data (main video) and playlist (group videos)
+   *
+   * Response structure:
+   * {
+   *   data: {
+   *     id, title, description, image_url, categories, runtime, avg_rating,
+   *     is_featured, group, avilar_course_id, sku, status, current_rental_expire_at,
+   *     next_rental_expire_at, rental_start_at, is_rental_valid, can_renew,
+   *     can_return, avilar_lms_url (only if user is registered for the course)
+   *   },
+   *   playlist: [
+   *     {
+   *       id, sku, title, is_featured, image_url, avg_rating, status,
+   *       current_rental_expire_at, next_rental_expire_at, is_rental_valid,
+   *       can_renew, can_return
+   *     }
+   *   ]
+   * }
+   */
   @Get('videos/:id')
   show(@Param('id') id: string, @Request() req) {
     return this.videoService.findOne(id, req.user);

@@ -4,6 +4,7 @@ import {
   Inject,
   forwardRef,
   NotAcceptableException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Raw, Repository } from 'typeorm';
@@ -28,9 +29,12 @@ import { CreateVideoDto } from '../dto/create-video.dto';
 import { UpdateVideoDto } from '../dto/update-video.dto';
 import { TriggerVideoPlayerEventDto } from '../dto/trigger-video-player-event.dto';
 import { VideoCategoryDto } from '../dto/video-category.dto';
+import { AvilarIntegrationService } from './avilar-integration.service';
 
 @Injectable()
 export class VideoService {
+  private readonly logger = new Logger(VideoService.name);
+
   constructor(
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
@@ -48,6 +52,7 @@ export class VideoService {
     private readonly categoryService: CategoryService,
     private readonly storageService: StorageService,
     private readonly userActivityLogService: UserActivityLogService,
+    private readonly avilarIntegrationService: AvilarIntegrationService,
   ) {}
 
   private calculateRentalValidity(item: {
@@ -176,6 +181,20 @@ export class VideoService {
       );
     }
 
+    if (category_id) {
+      if (is_included_in_category === true) {
+        // Filter videos that ARE included in the specified category
+        queryBuilder.andWhere('video.categories @> :singleCategoryId', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      } else if (is_included_in_category === false) {
+        // Filter videos that are NOT included in the specified category
+        queryBuilder.andWhere('NOT (video.categories @> :singleCategoryId)', {
+          singleCategoryId: JSON.stringify([category_id]),
+        });
+      }
+    }
+
     if (avilar_course_id) {
       queryBuilder.andWhere('video.avilar_course_id = :avilar_course_id', {
         avilar_course_id,
@@ -254,6 +273,7 @@ export class VideoService {
   }
 
   async findOne(id: string, user: User): Promise<any> {
+    // Get the main video with user status
     const video = await this.videoRepository
       .createQueryBuilder('video')
       .leftJoinAndMapOne(
@@ -273,6 +293,9 @@ export class VideoService {
         'video.runtime AS runtime',
         'video.avg_rating AS avg_rating',
         'video.is_featured AS is_featured',
+        'video.group AS group',
+        'video.avilar_course_id AS avilar_course_id',
+        'video.sku AS sku',
         'videoUserStatus.status AS status',
         'videoUserStatus.current_rental_expire_at AS current_rental_expire_at',
         'videoUserStatus.next_rental_expire_at AS next_rental_expire_at',
@@ -284,22 +307,67 @@ export class VideoService {
       throw new NotFoundException(`Video with id "${id}" not found`);
     }
 
-    // Transform image URLs
+    // Transform image URLs for main video
     if (video.image_url) {
       video.image_url = await this.storageService.generateSignedViewUrl(
         video.image_url,
       );
     }
 
-    // TODO: Add video player position logic when implemented
-    // const playPosition = await this.findVideoUserPlayerPosition(video.id, user.id);
-    // video.play_position = playPosition?.play_position ?? null;
-
+    // Calculate rental validity for main video
     video.is_rental_valid = this.calculateRentalValidity(video);
     video.can_renew = this.canRenewRent(video);
     video.can_return = this.canReturnRenewalRent(video);
 
-    return video;
+    // Generate Avilar LMS URL for the main video if it has an avilar_course_id
+    if (video.avilar_course_id) {
+      try {
+        // Generate student ID from user email using the same logic as AvilarIntegrationService
+        const studentId = this.avilarIntegrationService.generateStudentId(
+          user.email,
+        );
+
+        // Check if user is registered for this course
+        const registrationStatus =
+          await this.avilarIntegrationService.isStudentRegistered(
+            studentId,
+            video.avilar_course_id,
+          );
+
+        // Only generate LMS URL if user is registered
+        if (registrationStatus.success) {
+          video.avilar_lms_url = `http://www.avilar.com/webmentor/template/trl_lms_launch.cfm?empid=${studentId}&courseid=${video.avilar_course_id}`;
+        } else {
+          video.avilar_lms_url = null; // User not registered
+        }
+      } catch (error) {
+        // If there's an error checking registration, don't show the URL
+        this.logger.warn(
+          `Failed to check Avilar registration status for user ${user.email} and course ${video.avilar_course_id}: ${error.message}`,
+        );
+        video.avilar_lms_url = null;
+      }
+    }
+
+    // Get all videos from the same group using the existing findAll method
+    let playlist = [];
+    if (video.group) {
+      const groupQuery: QueryVideoDto = {
+        group: video.group,
+        per_page: 50, // Get a reasonable number of videos
+      };
+
+      const groupVideosResult = await this.findAll(groupQuery, user);
+      // Filter out the main video from the playlist
+      // playlist = groupVideosResult.data.filter(groupVideo => groupVideo.id !== id);
+      playlist = groupVideosResult.data ?? [];
+    }
+
+    // Return structured response with data (main video) and playlist (group videos)
+    return {
+      data: video,
+      playlist: playlist,
+    };
   }
 
   async findById(id: string): Promise<Video> {
@@ -309,6 +377,16 @@ export class VideoService {
 
     if (!video) {
       throw new NotFoundException('Video not found');
+    }
+
+    return video;
+  }
+
+  async getTransformed(video: Video): Promise<Video> {
+    if (video.image_url) {
+      video.image_url = await this.storageService.generateSignedViewUrl(
+        video.image_url,
+      );
     }
 
     return video;

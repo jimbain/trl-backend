@@ -14,9 +14,13 @@ import { VideoUserStatus } from '../entities/video-user-status.entity';
 import { Video } from '../entities/video.entity';
 import { UserActivityLogService } from 'src/users/user-activity-log.service';
 import { VideoService } from './video.service';
+import { AvilarIntegrationService } from './avilar-integration.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class VideoUserStatusService {
+  private readonly logger = new Logger(VideoUserStatusService.name);
+
   constructor(
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
@@ -28,6 +32,7 @@ export class VideoUserStatusService {
     private readonly appConfigService: AppConfigService,
     private readonly userActivityLogService: UserActivityLogService,
     private readonly companyService: CompanyService,
+    private readonly avilarIntegrationService: AvilarIntegrationService,
   ) {}
 
   async storeUserActivityLog(
@@ -73,7 +78,7 @@ export class VideoUserStatusService {
       company.app_configs,
     );
     const rentalDurationDays = parseInt(
-      appConfigs.video_rental_duration_days || '7',
+      appConfigs.video_rental_period_in_days || '14',
       10,
     );
 
@@ -104,10 +109,6 @@ export class VideoUserStatusService {
         return { message: 'Video removed from queue successfully' };
 
       case 'rent':
-        if (!userStatus || userStatus.status !== 'queued') {
-          throw new BadRequestException('Video must be queued before renting');
-        }
-
         // Check if user has enough credits
         const rentalCost = parseInt(
           appConfigs.video_rental_credit_cost || '1',
@@ -118,13 +119,100 @@ export class VideoUserStatusService {
           throw new BadRequestException('Insufficient credits to rent video');
         }
 
+        // Ensure user exists in Avilar system before renting
+        try {
+          // Check if video has Avilar integration enabled
+          if (!this.avilarIntegrationService.isVideoAvilarEnabled(video)) {
+            throw new BadRequestException(
+              'This video requires Avilar learning management system integration, but it is not properly configured. Please contact support.',
+            );
+          }
+
+          // Get full company details for Avilar integration
+          const fullCompany = await this.companyService.findById(
+            user.company_id,
+          );
+
+          this.logger.log(
+            `Ensuring user exists and is registered in Avilar system: ${user.email} -> Course: ${video.avilar_course_id}`,
+          );
+          const avilarResult =
+            await this.avilarIntegrationService.ensureStudentExists(
+              {
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                address: {
+                  address: `${fullCompany.address1 || ''} ${
+                    fullCompany.address2 || ''
+                  }`.trim(),
+                  city: fullCompany.city,
+                  country: fullCompany.country,
+                  phone: fullCompany.phone,
+                  state: fullCompany.state,
+                  zipCode: fullCompany.zip,
+                },
+              },
+              video.avilar_course_id,
+            );
+
+          this.logger.log(`Avilar integration result:`, {
+            success: avilarResult.success,
+            message: avilarResult.message,
+            studentId: avilarResult.data?.studentId,
+            courseId: avilarResult.data?.courseId,
+            isRegistered: avilarResult.data?.isRegistered,
+          });
+
+          if (!avilarResult.success) {
+            throw new Error(
+              `Avilar integration failed: ${avilarResult.message}`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Avilar integration error: ${error.message}`,
+            error.stack,
+          );
+          throw new BadRequestException(
+            `Failed to verify user in Avilar system: ${error.message}`,
+          );
+        }
+
         const rentalExpireAt = new Date(
           now.getTime() + rentalDurationDays * 24 * 60 * 60 * 1000,
         );
 
-        userStatus.status = 'rented';
-        userStatus.rental_start_at = now;
-        userStatus.current_rental_expire_at = rentalExpireAt;
+        // Create userStatus if it doesn't exist
+        if (!userStatus) {
+          userStatus = this.videoUserStatusRepository.create({
+            video_id: video.id,
+            user_id: user.id,
+            status: 'rented',
+            rental_start_at: now,
+            current_rental_expire_at: rentalExpireAt,
+          });
+        } else {
+          // Update existing userStatus
+          userStatus.status = 'rented';
+          userStatus.rental_start_at = now;
+          userStatus.current_rental_expire_at = rentalExpireAt;
+        }
+
+        // Validate userStatus was created/updated properly
+        if (!userStatus) {
+          throw new Error(
+            'Failed to create or update user status for video rental',
+          );
+        }
+
+        this.logger.log(`Saving user status for rental:`, {
+          videoId: video.id,
+          userId: user.id,
+          status: userStatus.status,
+          rentalStartAt: userStatus.rental_start_at,
+          rentalExpireAt: userStatus.current_rental_expire_at,
+        });
 
         await this.videoUserStatusRepository.save(userStatus);
         await this.storeUserActivityLog(user, video, 'rent', {

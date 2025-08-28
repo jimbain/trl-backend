@@ -163,6 +163,13 @@ export class CompanyService {
       available_medias: company.available_medias,
       sso_config: company.sso_config,
       available_credits: company.available_credits,
+      phone: company.phone,
+      address1: company.address1,
+      address2: company.address2,
+      city: company.city,
+      country: company.country,
+      zip: company.zip,
+      state: company.state,
       category_ids: {
         audio: [],
         video: [],

@@ -245,69 +245,92 @@ export class AdminVideoService {
       throw new NotFoundException('Video not found');
     }
 
-    return plainToInstance(AdminVideoDto, video, {
+    const transformedVideo = await this.videoService.getTransformed(video);
+
+    return plainToInstance(AdminVideoDto, transformedVideo, {
       excludeExtraneousValues: true,
     });
   }
 
   async create(payload: AdminCreateVideoDto): Promise<AdminVideoDto> {
-    const video = this.videoRepository.create(payload);
-    const savedVideo = await this.videoRepository.save(video);
-
-    // Add to catalog - using findDefaultByType like in pharma service
+    // Get default video catalog to validate categories
     const videoCatalog = await this.catalogService.findDefaultByType(
       MEDIA.VIDEO,
     );
 
-    if (videoCatalog && savedVideo.categories) {
-      const validCategories = videoCatalog.categories || [];
-      const invalidCategories = savedVideo.categories.filter(
-        (categoryId) => !validCategories.includes(categoryId),
-      );
+    // Validate that all provided categories exist in the default pharma catalog
+    const validCategories = videoCatalog.categories || [];
+    const invalidCategories = payload.categories.filter(
+      (categoryId) => !validCategories.includes(categoryId),
+    );
 
-      if (invalidCategories.length > 0) {
-        throw new BadRequestException(
-          `Invalid categories: ${invalidCategories.join(', ')}`,
-        );
-      }
+    if (invalidCategories.length > 0) {
+      throw new NotFoundException(
+        `Invalid category IDs: ${invalidCategories.join(', ')}. Only default pharma categories are allowed.`,
+      );
     }
 
-    return plainToInstance(AdminVideoDto, savedVideo, {
+    // Strip bucket URL to store only the path in database
+    if (payload.image_url) {
+      payload.image_url = this.storageService.stripBucketUrl(payload.image_url);
+    }
+
+    const video = this.videoRepository.create(payload);
+    await this.videoRepository.save(video);
+
+    const transformedVideo = await this.videoService.getTransformed(video);
+
+    return plainToInstance(AdminVideoDto, transformedVideo, {
       excludeExtraneousValues: true,
     });
   }
 
   async update(
     id: string,
-    payload: AdminUpdateVideoDto,
+    updateVideoDto: AdminUpdateVideoDto,
   ): Promise<AdminVideoDto> {
-    const video = await this.videoRepository.findOne({ where: { id } });
+    const video = await this.videoService.findById(id);
 
-    if (!video) {
-      throw new NotFoundException('Video not found');
-    }
+    if (updateVideoDto.sku && updateVideoDto.sku !== video.sku) {
+      const existingVideo = await this.videoRepository.findOne({
+        where: { sku: updateVideoDto.sku },
+      });
 
-    Object.assign(video, payload);
-    const updatedVideo = await this.videoRepository.save(video);
-
-    // Validate categories if being updated
-    if (payload.categories && payload.categories.length > 0) {
-      const videoCatalog = await this.catalogService.findDefaultByType(
-        MEDIA.VIDEO,
-      );
-      const validCategories = videoCatalog.categories || [];
-      const invalidCategories = payload.categories.filter(
-        (categoryId) => !validCategories.includes(categoryId),
-      );
-
-      if (invalidCategories.length > 0) {
-        throw new BadRequestException(
-          `Invalid categories: ${invalidCategories.join(', ')}`,
+      if (existingVideo && existingVideo.id !== id) {
+        throw new NotFoundException(
+          `SKU '${updateVideoDto.sku}' already exists. Please use a different SKU.`,
         );
       }
     }
 
-    return plainToInstance(AdminVideoDto, updatedVideo, {
+    // If categories are being updated, validate them
+    if (updateVideoDto.categories && updateVideoDto.categories.length > 0) {
+      const videoCatalog = await this.catalogService.findDefaultByType(
+        MEDIA.VIDEO,
+      );
+      const validCategories = videoCatalog.categories || [];
+      const invalidCategories = updateVideoDto.categories.filter(
+        (categoryId) => !validCategories.includes(categoryId),
+      );
+
+      if (invalidCategories.length > 0) {
+        throw new NotFoundException(
+          `Invalid category IDs: ${invalidCategories.join(', ')}. Only default pharma categories are allowed.`,
+        );
+      }
+    }
+
+    const updated = this.videoRepository.merge(video, updateVideoDto);
+
+    // Strip bucket URL to store only the path in database
+    if (updated.image_url) {
+      updated.image_url = this.storageService.stripBucketUrl(updated.image_url);
+    }
+
+    await this.videoRepository.save(updated);
+    const transformedVideo = await this.videoService.getTransformed(updated);
+
+    return plainToInstance(AdminVideoDto, transformedVideo, {
       excludeExtraneousValues: true,
     });
   }
