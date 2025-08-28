@@ -38,7 +38,7 @@ export class VideoUserStatusService {
   async storeUserActivityLog(
     user: User,
     video: Video,
-    action: 'queue' | 'rent' | 'keep' | 'renew',
+    action: 'queue' | 'rent' | 'keep' | 'renew' | 'return',
     meta: any = {},
   ) {
     const credit = Number(meta?.credit_used ?? 0);
@@ -226,22 +226,6 @@ export class VideoUserStatusService {
           throw new BadRequestException('Video is not currently rented');
         }
 
-        // Check if renewal is allowed (e.g., within certain timeframe)
-        const renewalWindowHours = parseInt(
-          appConfigs.video_renewal_window_hours || '24',
-          10,
-        );
-        const renewalCutoff = new Date(
-          userStatus.current_rental_expire_at.getTime() -
-            renewalWindowHours * 60 * 60 * 1000,
-        );
-
-        if (now < renewalCutoff) {
-          throw new BadRequestException(
-            `Video can only be renewed within ${renewalWindowHours} hours of expiration`,
-          );
-        }
-
         // Check credits for renewal
         const renewalCost = parseInt(
           appConfigs.video_rental_credit_cost || '1',
@@ -251,15 +235,54 @@ export class VideoUserStatusService {
           throw new BadRequestException('Insufficient credits to renew video');
         }
 
-        const newExpireAt = new Date(
-          userStatus.current_rental_expire_at.getTime() +
-            rentalDurationDays * 24 * 60 * 60 * 1000,
-        );
-        userStatus.next_rental_expire_at = newExpireAt;
+        const renewNow = new Date();
+
+        // Handle different renewal scenarios like pharma service
+        if (
+          (!userStatus.current_rental_expire_at ||
+            userStatus.current_rental_expire_at <= renewNow) &&
+          userStatus.next_rental_expire_at &&
+          userStatus.next_rental_expire_at > renewNow
+        ) {
+          // Current rental expired, next rental is valid
+          userStatus.current_rental_expire_at =
+            userStatus.next_rental_expire_at;
+          userStatus.next_rental_expire_at = new Date(
+            userStatus.next_rental_expire_at.getTime() +
+              rentalDurationDays * 24 * 60 * 60 * 1000,
+          );
+        } else if (
+          userStatus.current_rental_expire_at &&
+          userStatus.current_rental_expire_at > renewNow &&
+          !userStatus.next_rental_expire_at
+        ) {
+          // Current rental is valid, next rental not set
+          userStatus.next_rental_expire_at = new Date(
+            userStatus.current_rental_expire_at.getTime() +
+              rentalDurationDays * 24 * 60 * 60 * 1000,
+          );
+        } else if (
+          userStatus.current_rental_expire_at &&
+          userStatus.current_rental_expire_at <= renewNow &&
+          !userStatus.next_rental_expire_at
+        ) {
+          // Both expired and no next rental → start fresh
+          userStatus.current_rental_expire_at = new Date(
+            renewNow.getTime() + rentalDurationDays * 24 * 60 * 60 * 1000,
+          );
+        } else {
+          throw new BadRequestException(
+            `Cannot renew video. You have already extended your rental.`,
+          );
+        }
+
+        userStatus.updated_at = new Date();
 
         await this.videoUserStatusRepository.save(userStatus);
         await this.storeUserActivityLog(user, video, 'renew', {
           credit_used: renewalCost,
+          start_time: userStatus.current_rental_expire_at,
+          end_time: userStatus.next_rental_expire_at,
         });
 
         return { message: 'Video rental renewed successfully' };
@@ -269,7 +292,34 @@ export class VideoUserStatusService {
           throw new BadRequestException('Video is not currently rented');
         }
 
-        await this.videoUserStatusRepository.remove(userStatus);
+        // Check if user has an advanced rental to return
+        if (!userStatus.next_rental_expire_at) {
+          throw new BadRequestException(
+            `No advanced rental found to return. You can only return advanced rentals.`,
+          );
+        }
+
+        // Check if current rental is still active (user is in current rent span)
+        const returnNow = new Date();
+        if (
+          userStatus.current_rental_expire_at &&
+          userStatus.current_rental_expire_at >= returnNow
+        ) {
+          // User is in current rent span, just cancel the advanced rental
+          userStatus.next_rental_expire_at = null;
+        } else {
+          throw new BadRequestException(
+            `Cannot return video. Current rental has expired.`,
+          );
+        }
+
+        userStatus.updated_at = new Date();
+
+        await this.videoUserStatusRepository.save(userStatus);
+        await this.storeUserActivityLog(user, video, USER_ACTIVITY.RETURN, {
+          credit_used: 0,
+          return_time: new Date(),
+        });
 
         return { message: 'Video returned successfully' };
 

@@ -36,6 +36,7 @@ export const USER_ACTIVITY = {
   KEEP: 'keep',
   PLAY: 'play',
   RENEW: 'renew',
+  RETURN: 'return',
   VIDEO_PLAYER_EVENT: 'video_player_event',
 } as const;
 export type UserActivity = (typeof USER_ACTIVITY)[keyof typeof USER_ACTIVITY];

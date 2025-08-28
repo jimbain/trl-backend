@@ -32,7 +32,7 @@ export class PharmaUserStatusService {
   async storeUserActivityLog(
     user: User,
     pharma: Pharma,
-    action: 'queue' | 'rent' | 'keep' | 'renew',
+    action: 'queue' | 'rent' | 'keep' | 'renew' | 'return',
     meta: any = {},
   ) {
     const credit = Number(meta?.credit_used ?? 0);
@@ -295,7 +295,7 @@ export class PharmaUserStatusService {
     // Get pharma entity for activity log
     const pharma = await this.pharmaService.findById(pharmaId);
 
-    await this.storeUserActivityLog(user, pharma, USER_ACTIVITY.RENT, {
+    await this.storeUserActivityLog(user, pharma, USER_ACTIVITY.RETURN, {
       credit_used: 0,
       return_time: new Date(),
     });
