@@ -349,7 +349,7 @@ export class AdminAudioElasticsearchService {
   ): Promise<Readable> {
     const stream = new Readable({
       read() {}, // Manual push streaming
-      highWaterMark: 1024 * 1024, // 1MB buffer to control backpressure
+      highWaterMark: 4 * 1024 * 1024, // 4MB buffer for better throughput with large datasets
     });
 
     // Write CSV Header based on export type
@@ -361,7 +361,7 @@ export class AdminAudioElasticsearchService {
       stream.push('SKU,Title,QTO,QOH,QIC,Active\n');
     }
 
-    const batchSize = 500; // Reduced batch size for better memory management
+    const batchSize = 2000; // Optimized batch size for large dataset performance
     let scrollId: string | undefined;
     let hasMoreData = true;
     let processedCount = 0;
@@ -376,7 +376,7 @@ export class AdminAudioElasticsearchService {
           esQuery.bool?.must || esQuery.bool?.filter || esQuery.bool?.must_not
             ? esQuery
             : { match_all: {} },
-        scroll: '5m', // Increased scroll timeout to 5 minutes
+        scroll: '10m', // Extended scroll timeout to 10 minutes for large datasets
         size: batchSize,
         sort: { id: { order: 'asc' } }, // Sort by _id for consistent pagination
       };
@@ -390,7 +390,9 @@ export class AdminAudioElasticsearchService {
           ? response.hits.total
           : (response.hits.total?.value ?? 0);
 
-      console.log(`Starting export: Total records to process: ${totalHits}`);
+      console.log(
+        `Starting export: Total records to process: ${totalHits}, Batch size: ${batchSize}, Export type: ${exportType}`,
+      );
 
       while (hasMoreData) {
         batchCount++;
@@ -401,7 +403,9 @@ export class AdminAudioElasticsearchService {
           break;
         }
 
-        // Stream CSV rows based on export type
+        // Build CSV rows in batch for better memory efficiency
+        const csvRows: string[] = [];
+
         for (const item of items) {
           let row: string;
 
@@ -444,11 +448,14 @@ export class AdminAudioElasticsearchService {
               ].join(',') + '\n';
           }
 
-          // Check for backpressure
-          if (!stream.push(row)) {
-            // Pause if stream is full
-            await new Promise((resolve) => stream.once('drain', resolve));
-          }
+          csvRows.push(row);
+        }
+
+        // Stream all rows in this batch at once for better performance
+        const batchData = csvRows.join('');
+        if (!stream.push(batchData)) {
+          // Handle backpressure for the entire batch
+          await new Promise((resolve) => stream.once('drain', resolve));
         }
 
         processedCount += items.length;
@@ -458,7 +465,7 @@ export class AdminAudioElasticsearchService {
           (totalHits - processedCount) * avgTimePerRecord;
 
         console.log(
-          `Batch ${batchCount}: Processed ${processedCount}/${totalHits} records (${Math.round((processedCount / totalHits) * 100)}%). Elapsed: ${Math.round(elapsedTime / 1000)}s, Est. remaining: ${Math.round(estimatedRemaining / 1000)}s`,
+          `Batch ${batchCount}: Processed ${processedCount}/${totalHits} records (${Math.round((processedCount / totalHits) * 100)}%). Elapsed: ${Math.round(elapsedTime / 1000)}s, Est. remaining: ${Math.round(estimatedRemaining / 1000)}s, Batch size: ${items.length}`,
         );
 
         scrollId = response._scroll_id;
@@ -475,25 +482,38 @@ export class AdminAudioElasticsearchService {
           response = await Promise.race([
             this.appElasticsearchService.scroll({
               scroll_id: scrollId,
-              scroll: '5m',
+              scroll: '10m', // Extended timeout for consistency
             }),
             new Promise<never>(
               (_, reject) =>
-                setTimeout(() => reject(new Error('Scroll timeout')), 30000), // 30 second timeout
+                setTimeout(() => reject(new Error('Scroll timeout')), 60000), // 60 second timeout for large batches
             ),
           ]);
         } catch (scrollError) {
-          console.error(`Scroll error in batch ${batchCount}:`, scrollError);
+          console.error(`Scroll error in batch ${batchCount}:`, {
+            error: scrollError.message,
+            processed: processedCount,
+            total: totalHits,
+            scrollId: scrollId?.substring(0, 20) + '...',
+          });
+          // Try to continue with partial data if we've processed some records
+          if (processedCount > 0) {
+            console.log(
+              `Continuing export with ${processedCount} processed records despite scroll error`,
+            );
+          }
           hasMoreData = false;
           break;
         }
 
-        // Add small delay to prevent overwhelming the system
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Removed delay for better performance with large datasets
+        // The scroll API and backpressure handling provide sufficient flow control
       }
 
+      const finalTime = Math.round((Date.now() - startTime) / 1000);
+      const recordsPerSecond = Math.round(processedCount / (finalTime || 1));
       console.log(
-        `Export completed: Processed ${processedCount} records in ${Math.round((Date.now() - startTime) / 1000)}s`,
+        `Export completed: Processed ${processedCount} records in ${finalTime}s (${recordsPerSecond} records/sec)`,
       );
 
       // End the stream
@@ -504,7 +524,14 @@ export class AdminAudioElasticsearchService {
         await this.appElasticsearchService.clearScroll({ scroll_id: scrollId });
       }
     } catch (error) {
-      console.error('Export error:', error);
+      const errorDetails = {
+        message: error.message,
+        processed: processedCount,
+        batches: batchCount,
+        elapsed: Math.round((Date.now() - startTime) / 1000),
+        exportType,
+      };
+      console.error('Export error:', errorDetails);
       stream.emit('error', error);
       stream.push(null);
 
