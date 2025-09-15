@@ -55,20 +55,8 @@ export class CreateCompanyDto {
   @IsNotEmpty()
   @MaxLength(255)
   @IsUnique(Company, 'domain')
-  domain?: string;
+  domain: string;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => (value === '' ? null : value))
-  description?: string;
-
-  @IsEnum(COMPANY_LOGIN_TYPE)
-  login_type: CompanyLoginEnumType;
-
-  @IsOptional()
-  sso_config?: object;
-
-  @IsOptional()
   @IsArray()
   @ArrayMinSize(1, {
     message: 'Available medias must contain at least one item',
@@ -83,13 +71,25 @@ export class CreateCompanyDto {
     },
     { toClassOnly: true },
   )
-  available_medias?: Media[];
+  available_medias: Media[];
 
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(COMPANY_LOGIN_TYPE)
+  login_type?: CompanyLoginEnumType;
+
+  @IsOptional()
+  sso_config?: object;
+
+  @IsOptional()
   @IsNumber()
   @Min(1)
-  @IsNotEmpty()
   @Transform(({ value }) => parseInt(value, 10) ?? 0, { toClassOnly: true })
-  available_credits: number;
+  available_credits?: number;
 
   @IsOptional()
   @IsArray()
@@ -104,7 +104,7 @@ export class CreateCompanyDto {
         const parsedValue = JSON.parse(value);
 
         if (Array.isArray(parsedValue)) {
-          return plainToInstance(CompanyContactDto, parsedValue); // ✅ Ensure correct DTO instance
+          return plainToInstance(CompanyContactDto, parsedValue);
         }
       }
       return plainToInstance(CompanyContactDto, value);
@@ -113,7 +113,7 @@ export class CreateCompanyDto {
       return [];
     }
   })
-  contacts: CompanyContactDto[];
+  contacts?: CompanyContactDto[];
 
   @IsOptional()
   @IsString()

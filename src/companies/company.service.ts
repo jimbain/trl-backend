@@ -118,7 +118,7 @@ export class CompanyService {
       company.logo_url = logoPath;
     }
 
-    if (payload.available_medias.length) {
+    if (payload.available_medias && payload.available_medias.length) {
       const catalogs = await this.catalogService.findByMedia(
         payload.available_medias,
       );
@@ -127,7 +127,7 @@ export class CompanyService {
 
     await this.companyRepository.save(company);
 
-    if (payload.available_credits > 0) {
+    if (payload.available_credits && payload.available_credits > 0) {
       await this.createCreditLog({
         company_id: company.id,
         purchased_credit: payload.available_credits,
@@ -263,9 +263,11 @@ export class CompanyService {
     await this.validateBeforeUpdate(id, updateCompanyDto);
     const company = await this.findById(id);
 
-    const newAvailableCredit = updateCompanyDto.available_credits
-      ? updateCompanyDto.available_credits + company.available_credits
-      : company.available_credits;
+    const newAvailableCredit =
+      updateCompanyDto.available_credits &&
+      updateCompanyDto.available_credits > 0
+        ? updateCompanyDto.available_credits + company.available_credits
+        : company.available_credits;
 
     Object.assign(company, updateCompanyDto);
 
@@ -277,6 +279,16 @@ export class CompanyService {
       company.logo_url = logoPath;
     }
 
+    if (
+      updateCompanyDto.available_medias &&
+      updateCompanyDto.available_medias.length
+    ) {
+      const catalogs = await this.catalogService.findByMedia(
+        updateCompanyDto.available_medias,
+      );
+      company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
+    }
+
     company.available_credits = newAvailableCredit;
 
     await Promise.all([
@@ -284,7 +296,10 @@ export class CompanyService {
       this.cacheService.delete(id),
     ]);
 
-    if (updateCompanyDto.available_credits > 0) {
+    if (
+      updateCompanyDto.available_credits &&
+      updateCompanyDto.available_credits > 0
+    ) {
       await this.createCreditLog({
         company_id: id,
         purchased_credit: updateCompanyDto.available_credits,
