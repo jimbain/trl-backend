@@ -95,7 +95,6 @@ export class CreateCompanyDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CompanyContactDto)
-  @ArrayMinSize(1, { message: 'Contacts array must have at least one item' })
   @Transform(({ value }) => {
     if (!value) return [];
 
