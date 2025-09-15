@@ -20,6 +20,7 @@ export class QueryPharmaDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === 'category_0' ? null : value))
   category_id?: string;
 
   @IsOptional()

@@ -19,6 +19,7 @@ export class QueryVideoDto {
   per_page?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (value === 'category_0' ? null : value))
   @IsString()
   category_id?: string;
 
