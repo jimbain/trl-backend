@@ -387,11 +387,8 @@ export class UserService {
       });
 
       if (existingEmailsInOtherCompanies.length > 0) {
-        const conflictingEmails = existingEmailsInOtherCompanies.map(
-          (user) => user.email,
-        );
         throw new BadRequestException(
-          `Failed to import users. The following email addresses already exist in another company: ${conflictingEmails.join(', ')}. Please remove these emails from your CSV file and try again.`,
+          `${existingEmailsInOtherCompanies.length} email addresses already exist in another company.`,
         );
       }
 
