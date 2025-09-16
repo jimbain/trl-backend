@@ -45,14 +45,10 @@ export class UserDto {
   optout_push_notification: boolean;
 
   @Expose()
-  @Transform(({ obj }) =>
-    obj?.company
-      ? {
-          id: obj.company.id,
-          name: obj.company.name,
-          description: obj.company.description,
-        }
-      : null,
-  )
-  company: { id: string; name: string; description: string } | null;
+  @Transform(({ obj }) => obj?.company?.name || null)
+  company: string | null;
+
+  @Expose()
+  @Transform(({ obj }) => obj?.company?.description || null)
+  banner_text: string | null;
 }
