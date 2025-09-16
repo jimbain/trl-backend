@@ -16,7 +16,8 @@ import {
   Sort,
   SortCombinations,
 } from '@elastic/elasticsearch/lib/api/types';
-import { Readable } from 'stream';
+import { Readable, PassThrough } from 'stream';
+import { format } from '@fast-csv/format';
 
 @Injectable()
 export class AdminAudioElasticsearchService {
@@ -347,200 +348,151 @@ export class AdminAudioElasticsearchService {
     esQuery: QueryDslQueryContainer,
     exportType: ExportType,
   ): Promise<Readable> {
-    const stream = new Readable({
-      read() {}, // Manual push streaming
-      highWaterMark: 4 * 1024 * 1024, // 4MB buffer for better throughput with large datasets
+    const stream = new PassThrough({
+      highWaterMark: 16 * 1024 * 1024, // 16MB buffer for faster throughput
     });
 
-    // Write CSV Header based on export type
-    if (exportType === ExportType.CURATION) {
-      stream.push(
-        'Title,Authors,Category,Publisher,Excluded,New FA,FA Retail Price,FA Content Cost,New TRL,TRL Cost,Curated At,Featured,Active,Language,BISAC,Length,Copyright\n',
-      );
-    } else {
-      stream.push('SKU,Title,QTO,QOH,QIC,Active\n');
-    }
+    const csvStream = format({ headers: true });
+    csvStream.pipe(stream);
 
-    const batchSize = 2000; // Optimized batch size for large dataset performance
-    let scrollId: string | undefined;
-    let hasMoreData = true;
+    const batchSize = 5000; // higher batch size for speed
+    let lastSortValue: any[] | undefined = undefined;
     let processedCount = 0;
-    let batchCount = 0;
     const startTime = Date.now();
 
     try {
-      // Initial search with scroll API for large datasets
-      const searchParams: SearchRequest = {
-        index: this.index,
-        query:
-          esQuery.bool?.must || esQuery.bool?.filter || esQuery.bool?.must_not
-            ? esQuery
-            : { match_all: {} },
-        scroll: '10m', // Extended scroll timeout to 10 minutes for large datasets
-        size: batchSize,
-        sort: { id: { order: 'asc' } }, // Sort by _id for consistent pagination
-      };
+      const sourceFields =
+        exportType === ExportType.CURATION
+          ? [
+              'sku',
+              'title',
+              'authors',
+              'category',
+              'publisher',
+              'is_excluded',
+              'street_date',
+              'fa_retail_price',
+              'fa_retail_content_cost',
+              'activated_at',
+              'bookshelf_credit_cost',
+              'curated_at',
+              'is_featured',
+              'is_active',
+              'language',
+              'bisac_codes',
+              'runtime',
+              'copyright',
+            ]
+          : [
+              'sku',
+              'title',
+              'purchased_rental_license_limit',
+              'total_rented',
+              'is_active',
+            ];
 
-      let response: any =
-        await this.appElasticsearchService.search<ElasticAudio>(searchParams);
-
-      // Log initial response info
-      const totalHits =
-        typeof response.hits.total === 'number'
-          ? response.hits.total
-          : (response.hits.total?.value ?? 0);
-
-      console.log(
-        `Starting export: Total records to process: ${totalHits}, Batch size: ${batchSize}, Export type: ${exportType}`,
-      );
+      let hasMoreData = true;
+      let batchCount = 0;
 
       while (hasMoreData) {
         batchCount++;
+
+        const searchParams: SearchRequest = {
+          index: this.index,
+          query:
+            esQuery && Object.keys(esQuery).length > 0
+              ? esQuery
+              : { match_all: {} },
+          size: batchSize,
+          sort: [{ id: 'asc' }], // must be a doc-value field
+          _source: sourceFields,
+          search_after: lastSortValue,
+        };
+
+        const response: any =
+          await this.appElasticsearchService.search(searchParams);
+
         const items = response.hits.hits.map((hit) => hit._source);
+        lastSortValue = response.hits.hits.at(-1)?.sort; // prepare for next page
 
         if (items.length === 0) {
           hasMoreData = false;
           break;
         }
 
-        // Build CSV rows in batch for better memory efficiency
-        const csvRows: string[] = [];
-
+        // Write rows into csvStream
         for (const item of items) {
-          let row: string;
-
           if (exportType === ExportType.CURATION) {
-            // Curation export format
-            row =
-              [
-                `"${item.title?.replace(/"/g, '""') ?? ''}"`,
-                `"${item.authors?.join(', ').replace(/"/g, '""') ?? ''}"`,
-                `"${item.category ?? ''}"`,
-                `"${item.publisher?.replace(/"/g, '""') ?? ''}"`,
-                item.is_excluded ? '1' : '0',
-                `"${item.street_date ? dayjs.unix(item.street_date).format('MM/DD/YYYY') : ''}"`,
-                `"${item.fa_retail_price ? `$${item.fa_retail_price}` : ''}"`,
-                `"${item.fa_retail_content_cost ? `$${item.fa_retail_content_cost}` : ''}"`,
-                `"${item.activated_at ? dayjs.unix(item.activated_at).format('MM/DD/YYYY') : ''}"`,
-                `"${item.bookshelf_credit_cost ?? ''}"`,
-                `"${item.curated_at ? dayjs.unix(item.curated_at).format('MM/DD/YYYY') : ''}"`,
-                item.is_featured ? '1' : '0',
-                item.is_active ? '1' : '0',
-                `"${item.language?.replace(/"/g, '""') ?? ''}"`,
-                `"${item.bisac_codes?.join(', ').replace(/"/g, '""') ?? ''}"`,
-                `"${item.runtime ?? ''}"`,
-                `"${item.copyright?.replace(/"/g, '""') ?? ''}"`,
-              ].join(',') + '\n';
+            csvStream.write({
+              SKU: item.sku ?? '',
+              Title: item.title ?? '',
+              Authors: (item.authors ?? []).join(', '),
+              Category: item.category ?? '',
+              Publisher: item.publisher ?? '',
+              Excluded: item.is_excluded ? '1' : '0',
+              'New FA': item.street_date
+                ? dayjs.unix(item.street_date).format('MM/DD/YYYY')
+                : '',
+              'FA Retail Price': item.fa_retail_price
+                ? `$${item.fa_retail_price}`
+                : '',
+              'FA Content Cost': item.fa_retail_content_cost
+                ? `$${item.fa_retail_content_cost}`
+                : '',
+              'New TRL': item.activated_at
+                ? dayjs.unix(item.activated_at).format('MM/DD/YYYY')
+                : '',
+              'TRL Cost': item.bookshelf_credit_cost ?? '',
+              Curated: item.curated_at
+                ? dayjs.unix(item.curated_at).format('MM/DD/YYYY')
+                : '',
+              Featured: item.is_featured ? '1' : '0',
+              Active: item.is_active ? '1' : '0',
+              Language: item.language ?? '',
+              BISAC: (item.bisac_codes ?? []).join(', '),
+              Length: item.runtime ?? '',
+              Copyright: item.copyright ?? '',
+            });
           } else {
-            // Inventory export format
             const qto = item.purchased_rental_license_limit ?? 0;
             const qoh = item.total_rented ?? 0;
             const qic = qto - qoh;
 
-            row =
-              [
-                `"${item.sku ?? ''}"`,
-                `"${item.title?.replace(/"/g, '""') ?? ''}"`,
-                qto.toString(),
-                qoh.toString(),
-                qic.toString(),
-                item.is_active ? '1' : '0',
-              ].join(',') + '\n';
+            csvStream.write({
+              SKU: item.sku ?? '',
+              Title: item.title ?? '',
+              QTO: qto,
+              QOH: qoh,
+              QIC: qic,
+              Active: item.is_active ? '1' : '0',
+            });
           }
-
-          csvRows.push(row);
-        }
-
-        // Stream all rows in this batch at once for better performance
-        const batchData = csvRows.join('');
-        if (!stream.push(batchData)) {
-          // Handle backpressure for the entire batch
-          await new Promise((resolve) => stream.once('drain', resolve));
         }
 
         processedCount += items.length;
         const elapsedTime = Date.now() - startTime;
-        const avgTimePerRecord = elapsedTime / processedCount;
-        const estimatedRemaining =
-          (totalHits - processedCount) * avgTimePerRecord;
-
-        console.log(
-          `Batch ${batchCount}: Processed ${processedCount}/${totalHits} records (${Math.round((processedCount / totalHits) * 100)}%). Elapsed: ${Math.round(elapsedTime / 1000)}s, Est. remaining: ${Math.round(estimatedRemaining / 1000)}s, Batch size: ${items.length}`,
+        const recordsPerSec = Math.round(
+          processedCount / (elapsedTime / 1000 || 1),
         );
 
-        scrollId = response._scroll_id;
-        if (!scrollId || items.length < batchSize) {
-          console.log(
-            `Batch ${batchCount}: No more data or incomplete batch, ending export`,
-          );
+        console.log(
+          `Batch ${batchCount}: Processed ${processedCount} records, ${recordsPerSec} rec/s`,
+        );
+
+        if (items.length < batchSize) {
           hasMoreData = false;
           break;
         }
-
-        // Fetch next batch using scroll API with timeout
-        try {
-          response = await Promise.race([
-            this.appElasticsearchService.scroll({
-              scroll_id: scrollId,
-              scroll: '10m', // Extended timeout for consistency
-            }),
-            new Promise<never>(
-              (_, reject) =>
-                setTimeout(() => reject(new Error('Scroll timeout')), 60000), // 60 second timeout for large batches
-            ),
-          ]);
-        } catch (scrollError) {
-          console.error(`Scroll error in batch ${batchCount}:`, {
-            error: scrollError.message,
-            processed: processedCount,
-            total: totalHits,
-            scrollId: scrollId?.substring(0, 20) + '...',
-          });
-          // Try to continue with partial data if we've processed some records
-          if (processedCount > 0) {
-            console.log(
-              `Continuing export with ${processedCount} processed records despite scroll error`,
-            );
-          }
-          hasMoreData = false;
-          break;
-        }
-
-        // Removed delay for better performance with large datasets
-        // The scroll API and backpressure handling provide sufficient flow control
       }
 
-      const finalTime = Math.round((Date.now() - startTime) / 1000);
-      const recordsPerSecond = Math.round(processedCount / (finalTime || 1));
+      csvStream.end(); // finish CSV
       console.log(
-        `Export completed: Processed ${processedCount} records in ${finalTime}s (${recordsPerSecond} records/sec)`,
+        `Export completed: ${processedCount} records in ${Math.round((Date.now() - startTime) / 1000)}s`,
       );
-
-      // End the stream
-      stream.push(null);
-
-      // Clean up scroll context
-      if (scrollId) {
-        await this.appElasticsearchService.clearScroll({ scroll_id: scrollId });
-      }
     } catch (error) {
-      const errorDetails = {
-        message: error.message,
-        processed: processedCount,
-        batches: batchCount,
-        elapsed: Math.round((Date.now() - startTime) / 1000),
-        exportType,
-      };
-      console.error('Export error:', errorDetails);
+      console.error('Export error:', error);
+      csvStream.end();
       stream.emit('error', error);
-      stream.push(null);
-
-      // Clean up scroll context on error
-      if (scrollId) {
-        await this.appElasticsearchService
-          .clearScroll({ scroll_id: scrollId })
-          .catch(() => {});
-      }
     }
 
     return stream;

@@ -20,9 +20,14 @@ export class CsvService {
       );
     }
 
-    const headers = lines[0]
-      .split(',')
-      .map((h) => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    const headers = lines[0].split(',').map((h) => {
+      const normalized = h.trim().toLowerCase().replace(/\s+/g, '_');
+      // Map various email column variations to 'email'
+      if (normalized === 'email_address') {
+        return 'email';
+      }
+      return normalized;
+    });
 
     // Check if required columns exist
     const missingColumns = requiredColumns.filter(
