@@ -54,7 +54,6 @@ export class CreateCompanyDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  @IsUnique(Company, 'domain')
   domain: string;
 
   @IsArray()
