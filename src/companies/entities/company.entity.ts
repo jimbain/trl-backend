@@ -33,7 +33,7 @@ export class Company extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
-  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   domain: string;
 
   @Column({ type: 'text', nullable: true })

@@ -376,6 +376,25 @@ export class UserService {
 
     // Insert New Users
     if (usersToInsert.length) {
+      // Check if any emails exist in other companies
+      const emailsToInsert = usersToInsert.map((user) => user.email);
+      const existingEmailsInOtherCompanies = await this.userRepository.find({
+        where: {
+          email: In(emailsToInsert),
+          company_id: Not(company.id),
+        },
+        select: ['email'],
+      });
+
+      if (existingEmailsInOtherCompanies.length > 0) {
+        const conflictingEmails = existingEmailsInOtherCompanies.map(
+          (user) => user.email,
+        );
+        throw new BadRequestException(
+          `Failed to import users. The following email addresses already exist in another company: ${conflictingEmails.join(', ')}. Please remove these emails from your CSV file and try again.`,
+        );
+      }
+
       const userChunks = chunk(usersToInsert, 100);
 
       for (const userBatch of userChunks) {
