@@ -18,6 +18,7 @@ interface AudioTransformed {
   is_for_sale: boolean;
   category: string;
   category_ids: string[];
+  default_categories: { id: string; name: string }[];
   fa_retail_price: number;
   fa_retail_content_cost: number;
   bookshelf_credit_cost: number;
@@ -71,7 +72,7 @@ export class AudioElasticsearchSyncService {
         'audio.is_featured AS is_featured',
         'audio.is_active AS is_active',
         'audio.categories AS category_ids',
-        'array_agg(category.id) AS default_category_ids',
+        "array_agg(json_build_object('id', category.id, 'name', category.name)) AS default_categories",
         'MIN(category.name) AS primary_category',
         'metadata.findaway_retail_price AS fa_retail_price',
         'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
@@ -110,6 +111,7 @@ export class AudioElasticsearchSyncService {
       is_for_sale: Boolean(audio.is_for_sale),
       category: audio.primary_category,
       category_ids: audio.category_ids,
+      default_categories: audio.default_categories || [],
       fa_retail_price: parseFloat(audio.fa_retail_price) || 0,
       fa_retail_content_cost: parseFloat(audio.fa_retail_content_cost) || 0,
       bookshelf_credit_cost: parseInt(audio.bookshelf_credit_cost) || 0,
@@ -153,6 +155,16 @@ export class AudioElasticsearchSyncService {
       category: {
         type: 'text',
         fields: { keyword: { type: 'keyword' } },
+      },
+      default_categories: {
+        type: 'nested',
+        properties: {
+          id: { type: 'keyword' },
+          name: {
+            type: 'text',
+            fields: { keyword: { type: 'keyword' } },
+          },
+        },
       },
       fa_retail_price: { type: 'float' },
       fa_retail_content_cost: { type: 'float' },
