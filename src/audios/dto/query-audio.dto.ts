@@ -18,9 +18,8 @@ export class QueryAudioDto {
   @Type(() => Number)
   per_page?: number;
 
+  @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @ArrayMinSize(1, { message: 'Ids array must have at least one item' })
   @Type(() => String)
   ids?: string[];
 }
