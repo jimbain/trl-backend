@@ -171,7 +171,7 @@ export class AudioListDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    return obj?.metadata?.chapters?.length ?? 0;
+    return obj?.chapters?.length ?? 0;
   })
   total_chapters: number;
 }
