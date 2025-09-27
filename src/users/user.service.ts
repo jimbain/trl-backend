@@ -144,7 +144,15 @@ export class UserService {
       queryBuilder.andWhere('user.is_active = :status', { status: false });
     }
 
-    queryBuilder.orderBy(`user.${sort_column}`, sort_order);
+    if (sort_column === 'is_active') {
+      // Handle boolean field sorting: CASE expression to convert boolean to sortable values
+      queryBuilder.orderBy(
+        `CASE WHEN user.${sort_column} = true THEN 1 ELSE 0 END`,
+        sort_order,
+      );
+    } else {
+      queryBuilder.orderBy(`user.${sort_column}`, sort_order);
+    }
 
     return paginate(queryBuilder, page, per_page, UserListDto);
   }
