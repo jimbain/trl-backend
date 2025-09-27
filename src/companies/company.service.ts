@@ -221,33 +221,19 @@ export class CompanyService {
   }
 
   async validateBeforeUpdate(id: string, updateCompanyDto: UpdateCompanyDto) {
-    const [isNameExists, isDomainExists] = await Promise.all([
-      this.companyRepository
-        .createQueryBuilder('company')
-        .andWhere('LOWER(company.name) = LOWER(:name)', {
-          name: updateCompanyDto.name.toLowerCase(),
-        })
-        .andWhere('company.id != :id', { id })
-        .getExists(),
-      this.companyRepository
-        .createQueryBuilder('company')
-        .andWhere('LOWER(company.domain) = LOWER(:domain)', {
-          domain: updateCompanyDto.domain.toLowerCase(),
-        })
-        .andWhere('company.id != :id', { id })
-        .getExists(),
-    ]);
+    const isNameExists = await this.companyRepository
+      .createQueryBuilder('company')
+      .andWhere('LOWER(company.name) = LOWER(:name)', {
+        name: updateCompanyDto.name.toLowerCase(),
+      })
+      .andWhere('company.id != :id', { id })
+      .getExists();
 
-    if (isNameExists || isDomainExists) {
+    if (isNameExists) {
       throw new HttpException(
         {
           errors: {
-            ...(isNameExists && {
-              name: ['Name is already taken.'],
-            }),
-            ...(isDomainExists && {
-              domain: ['Domain is already taken.'],
-            }),
+            name: ['Name is already taken.'],
           },
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
