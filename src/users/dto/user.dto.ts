@@ -16,6 +16,9 @@ export class UserListDto {
 
   @Expose()
   email: string;
+
+  @Expose()
+  is_active: boolean;
 }
 
 export class UserDto {

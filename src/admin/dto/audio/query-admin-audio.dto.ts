@@ -74,9 +74,10 @@ export class QueryAdminAudioDto {
   street_date_to?: string;
 
   @IsOptional()
-  @IsInt()
+  @IsArray()
+  @IsInt({ each: true })
   @Type(() => Number)
-  bookshelf_credit_cost?: number;
+  bookshelf_credit_cost?: number[];
 
   @IsOptional()
   @IsNumber()

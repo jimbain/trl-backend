@@ -80,7 +80,7 @@ export class AdminAudioElasticsearchService {
       filter.push({ term: { is_for_sale } });
     }
     if (bookshelf_credit_cost !== undefined) {
-      filter.push({ term: { bookshelf_credit_cost } });
+      filter.push({ terms: { bookshelf_credit_cost } });
     }
     if (retail_price_min !== undefined) {
       filter.push({
