@@ -50,6 +50,12 @@ export class UpdateCompanyAppConfigDto {
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(0)
+  max_audio_purchase_per_day?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(0)
   notification_for_rent_expiring_in_d1_days?: number;
 
   @IsOptional()

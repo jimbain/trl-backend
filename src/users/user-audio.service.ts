@@ -381,15 +381,41 @@ export class UserAudioService {
   }
 
   async bookselfAudio(audioId: string, user: User) {
-    const [audio, userAudio] = await Promise.all([
-      this.audioService.findById(audioId, ['metadata']),
-      this.userAudioStatusRepository.findOne({
-        where: { audio_id: audioId, user_id: user.id },
-      }),
-    ]);
+    const company = await this.companyService.findByIdWithCache(
+      user.company.id,
+    );
+
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    const [audio, userAudio, bookshelvedAudioCount, appConfigs] =
+      await Promise.all([
+        this.audioService.findById(audioId, ['metadata']),
+        this.userAudioStatusRepository.findOne({
+          where: { audio_id: audioId, user_id: user.id },
+        }),
+        this.userAudioStatusRepository.count({
+          where: {
+            user_id: user.id,
+            status: 'bookshelved',
+            updated_at: Between(startOfDay, endOfDay),
+          },
+        }),
+        this.appConfigService.getCompanyConfig(company.app_configs),
+      ]);
 
     if (userAudio && userAudio.status === 'bookshelved') {
       throw new BadRequestException(`Status unchanged`);
+    }
+
+    const maxAudioPurchaseItemsOnHand =
+      parseInt(appConfigs['max_audio_purchase_per_day'], 10) ?? 2;
+
+    if (bookshelvedAudioCount >= maxAudioPurchaseItemsOnHand) {
+      throw new BadRequestException(
+        `You already have purchased ${maxAudioPurchaseItemsOnHand} books. Please try purchasing tomorrow.`,
+      );
     }
 
     const licenses = await this.purchaseLicenseOfAudio(

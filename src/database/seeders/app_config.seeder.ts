@@ -22,6 +22,7 @@ export class AppConfigSeeder {
       pharma_rental_credit_cost: 1,
       max_audio_rental_items_per_day: 3,
       max_audio_rental_items_on_hand: 2,
+      max_audio_purchase_per_day: 2,
       notification_for_rent_expiring_in_d1_days: 4,
       notification_for_rent_expiring_in_d2_days: 2,
       notification_for_noactivity_in_last_x_days: 30,
