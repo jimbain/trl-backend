@@ -10,6 +10,7 @@ import { CommonModule } from 'src/common/common.module';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaModule } from 'src/pharma/pharma.module';
 import { Video } from 'src/video/entities/video.entity';
+import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { Video } from 'src/video/entities/video.entity';
     forwardRef(() => AudioModule),
     forwardRef(() => PharmaModule),
     forwardRef(() => CommonModule),
+    forwardRef(() => AppElasticsearchModule),
   ],
   controllers: [CategoryController],
   providers: [CategoryService],

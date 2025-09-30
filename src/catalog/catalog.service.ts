@@ -10,6 +10,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { Video } from 'src/video/entities/video.entity';
+import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 
 @Injectable()
 export class CatalogService {
@@ -25,6 +26,8 @@ export class CatalogService {
 
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
+
+    private readonly appElasticsearchService: AppElasticsearchService,
   ) {}
 
   async findAll(): Promise<Catalog[]> {
@@ -174,14 +177,31 @@ export class CatalogService {
   }
 
   async getTotalTitleCount(catalog: Catalog): Promise<number> {
+    if (!catalog.categories || catalog.categories.length === 0) {
+      return 0;
+    }
+
     if (catalog.media_type === 'audio') {
-      return this.audioRepository.count({
-        where: {
-          categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
-            categories: catalog.categories,
-          }),
+      const { hits } = await this.appElasticsearchService.search({
+        index: 'es_audios',
+        size: 0,
+        track_total_hits: true,
+        query: {
+          bool: {
+            filter: [
+              {
+                terms: {
+                  category_ids: catalog.categories,
+                },
+              },
+            ],
+          },
         },
       });
+
+      return typeof hits.total === 'number'
+        ? hits.total
+        : (hits.total?.value ?? 0);
     } else if (catalog.media_type === 'pharma') {
       return this.pharmaRepository.count({
         where: {

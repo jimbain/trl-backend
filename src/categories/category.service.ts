@@ -23,6 +23,7 @@ import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sy
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaService } from 'src/pharma/services/pharma.service';
 import { Video } from 'src/video/entities/video.entity';
+import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 
 @Injectable()
 export class CategoryService {
@@ -43,6 +44,7 @@ export class CategoryService {
     private readonly catalogService: CatalogService,
     private readonly cacheService: CacheService,
     private readonly pharmaService: PharmaService,
+    private readonly appElasticsearchService: AppElasticsearchService,
   ) {}
 
   async findAll(): Promise<Category[]> {
@@ -320,23 +322,54 @@ export class CategoryService {
     }[] = [];
 
     if (mediaType === 'audio') {
-      result = await this.audioRepository.query(
-        `
-        SELECT 
-            jsonb_array_elements_text(a.categories) AS category_id, 
-            COUNT(*) FILTER (WHERE a.is_active = true) AS active_count,
-            COUNT(*) FILTER (WHERE a.is_active = false) AS inactive_count
-        FROM audios a
-        WHERE a.categories ?| $1
-        GROUP BY category_id
-        `,
-        [categoryIds],
-      );
+      const esResponse = await this.appElasticsearchService.search({
+        index: 'es_audios',
+        size: 0,
+        query: {
+          bool: {
+            filter: [
+              {
+                terms: {
+                  category_ids: categoryIds,
+                },
+              },
+            ],
+          },
+        },
+        aggs: {
+          by_category: {
+            terms: {
+              field: 'category_ids',
+              size: categoryIds.length,
+            },
+            aggs: {
+              active_count: {
+                filter: {
+                  term: { is_active: true },
+                },
+              },
+              inactive_count: {
+                filter: {
+                  term: { is_active: false },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const buckets =
+        (esResponse.aggregations?.by_category as any)?.buckets || [];
+      result = buckets.map((bucket: any) => ({
+        category_id: bucket.key,
+        active_count: bucket.active_count?.doc_count || 0,
+        inactive_count: bucket.inactive_count?.doc_count || 0,
+      }));
     } else if (mediaType === 'pharma') {
       result = await this.pharmaRepository.query(
         `
-        SELECT 
-            jsonb_array_elements_text(p.categories) AS category_id, 
+        SELECT
+            jsonb_array_elements_text(p.categories) AS category_id,
             COUNT(*) FILTER (WHERE p.is_active = true) AS active_count,
             COUNT(*) FILTER (WHERE p.is_active = false) AS inactive_count
         FROM pharmas p
@@ -348,8 +381,8 @@ export class CategoryService {
     } else if (mediaType === 'video') {
       result = await this.videoRepository.query(
         `
-        SELECT 
-            jsonb_array_elements_text(v.categories) AS category_id, 
+        SELECT
+            jsonb_array_elements_text(v.categories) AS category_id,
             COUNT(*) FILTER (WHERE v.is_active = true) AS active_count,
             COUNT(*) FILTER (WHERE v.is_active = false) AS inactive_count
         FROM videos v
