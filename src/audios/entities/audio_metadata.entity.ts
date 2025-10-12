@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { Audio } from './audio.entity';
 
-@Entity({ name: 'audio_metadata' })
+@Entity({ name: 'audio_metadata2' })
 export class AudioMetadata extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', nullable: false })
   sku: string;
