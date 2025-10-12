@@ -84,4 +84,21 @@ export class AppElasticsearchService {
       properties,
     });
   }
+
+  async refreshIndex(index: string): Promise<void> {
+    await this.elasticsearchService.indices.refresh({ index });
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      await this.elasticsearchService.ping();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getClusterHealth() {
+    return this.elasticsearchService.cluster.health();
+  }
 }
