@@ -606,7 +606,8 @@ export class AudioService {
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
         'userAudioStatus.audio_id AS audio_id',
-      ]);
+      ])
+      .orderBy('audio.display_title', 'ASC');
 
     const paginatedData = await paginate(queryBuilder, page, limit);
 
