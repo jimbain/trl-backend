@@ -128,7 +128,7 @@ export class CategoryService {
       ? query.sort_order.toUpperCase()
       : 'ASC';
 
-    const sortColumn = query.sort_column ? query.sort_column : 'created_at';
+    const sortColumn = query.sort_column ? query.sort_column : 'name';
 
     const qb = this.categoryRepository.createQueryBuilder('category');
 
@@ -322,7 +322,7 @@ export class CategoryService {
     }[] = [];
 
     if (mediaType === 'audio') {
-      const esResponse = await this.appElasticsearchService.search({
+      const esQuery = {
         index: 'es_audios',
         size: 0,
         query: {
@@ -340,7 +340,8 @@ export class CategoryService {
           by_category: {
             terms: {
               field: 'category_ids',
-              size: categoryIds.length,
+              size: Math.max(categoryIds.length * 3, 1000),
+              shard_size: Math.max(categoryIds.length * 5, 2000),
             },
             aggs: {
               active_count: {
@@ -356,7 +357,9 @@ export class CategoryService {
             },
           },
         },
-      });
+      };
+
+      const esResponse = await this.appElasticsearchService.search(esQuery);
 
       const buckets =
         (esResponse.aggregations?.by_category as any)?.buckets || [];
