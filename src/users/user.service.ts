@@ -433,11 +433,30 @@ export class UserService {
       throw new NotFoundException('No users found for this company.');
     }
 
+    // Helper function to escape CSV fields
+    const escapeCsvField = (field: string | null | undefined): string => {
+      if (field == null) return '""';
+
+      const value = String(field);
+
+      // If the field contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+      if (
+        value.includes(',') ||
+        value.includes('"') ||
+        value.includes('\n') ||
+        value.includes('\r')
+      ) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+
+      return value;
+    };
+
     const header = 'First Name,Last Name,Email,Status,Password\n';
     const csvData = users
       .map(
         (user) =>
-          `${user.first_name},${user.last_name},${user.email},${user.is_active ? 'Active' : 'Inactive'},''`,
+          `${escapeCsvField(user.first_name)},${escapeCsvField(user.last_name)},${escapeCsvField(user.email)},${escapeCsvField(user.is_active ? 'Active' : 'Inactive')},""`,
       )
       .join('\n');
 

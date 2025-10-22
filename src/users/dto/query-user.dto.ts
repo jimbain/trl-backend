@@ -23,7 +23,7 @@ export enum SortOrder {
   DESC = 'DESC',
 }
 
-const ALLOWED_SORT_COLUMNS = ['id', 'name', 'created_at'];
+const ALLOWED_SORT_COLUMNS = ['id', 'name', 'is_active', 'created_at'];
 
 export class QueryUserDto {
   @IsOptional()

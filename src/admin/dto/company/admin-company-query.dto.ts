@@ -24,7 +24,7 @@ export enum SortOrder {
 const ALLOWED_SORT_COLUMNS = [
   'id',
   'name',
-  'status',
+  'is_active',
   'created_at',
   'active_user_count',
 ];
