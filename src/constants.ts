@@ -18,6 +18,7 @@ export const COMPANY_CONTACT_RESPONSIBILITY = {
   INVOICE: 'Invoice',
   BOSS: 'Boss',
   REPORT: 'Report',
+  TBD: 'TBD',
 } as const;
 export type CompanyContactResponsibility =
   (typeof COMPANY_CONTACT_RESPONSIBILITY)[keyof typeof COMPANY_CONTACT_RESPONSIBILITY];
