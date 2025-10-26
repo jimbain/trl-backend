@@ -26,6 +26,7 @@ import { QueryUserDto } from './dto/query-user.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import pLimit from 'p-limit';
 import { format } from '@fast-csv/format';
+import { ulid } from 'ulidx';
 
 @Injectable()
 export class UserService {
@@ -431,18 +432,23 @@ export class UserService {
         );
       }
 
-      // Hash passwords in parallel with concurrency limit
+      // Hash passwords and generate IDs in parallel with concurrency limit
       const hashedUsers = await Promise.all(
         usersToInsert.map((userData: any) =>
           limit(async () => {
+            const userWithId = {
+              ...userData,
+              id: 'user_' + ulid(), // Generate ULID manually since @BeforeInsert hooks don't run with query builder
+            };
+
             // Only hash if password exists
             if (userData.password) {
               return {
-                ...userData,
+                ...userWithId,
                 password: await bcrypt.hash(userData.password, salt),
               };
             }
-            return userData;
+            return userWithId;
           }),
         ),
       );
