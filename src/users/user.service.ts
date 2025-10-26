@@ -416,6 +416,27 @@ export class UserService {
 
     // Insert New Users
     if (usersToInsert.length) {
+      // Validate that all new users have passwords
+      const usersWithoutPasswords = usersToInsert.filter(
+        (user) => !user.password || user.password.trim() === '',
+      );
+
+      if (usersWithoutPasswords.length > 0) {
+        const missingPasswordEmails = usersWithoutPasswords
+          .map((user) => user.email)
+          .slice(0, 5) // Show first 5 emails
+          .join(', ');
+
+        const additionalCount =
+          usersWithoutPasswords.length > 5
+            ? ` and ${usersWithoutPasswords.length - 5} more`
+            : '';
+
+        throw new BadRequestException(
+          `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
+        );
+      }
+
       // Check if any emails exist in other companies
       const emailsToInsert = usersToInsert.map((user) => user.email);
       const existingEmailsInOtherCompanies = await this.userRepository.find({
