@@ -4,7 +4,20 @@ import { parse } from 'csv-parse/sync';
 @Injectable()
 export class CsvService {
   parse(file: Express.Multer.File, requiredColumns: string[]) {
-    if (!file.mimetype.includes('csv')) {
+    // Validate file extension and MIME type (Windows may send different MIME types)
+    const validMimeTypes = [
+      'text/csv',
+      'application/csv',
+      'text/x-csv',
+      'application/vnd.ms-excel',
+      'text/plain',
+    ];
+    const isValidExtension = file.originalname.toLowerCase().endsWith('.csv');
+    const isValidMimeType = validMimeTypes.some((type) =>
+      file.mimetype.includes(type),
+    );
+
+    if (!isValidExtension || !isValidMimeType) {
       throw new BadRequestException(
         'Invalid file format. Only CSV file is allowed.',
       );
