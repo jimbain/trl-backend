@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { parse } from 'csv-parse/sync';
 
 @Injectable()
 export class CsvService {
@@ -9,25 +10,41 @@ export class CsvService {
       );
     }
 
-    const fileContent = file.buffer.toString('utf-8'); // Convert buffer to string
-    const lines = fileContent
-      .split(/\r?\n/)
-      .filter((line) => line.trim() !== ''); // Split into lines & remove empty lines
+    let records: any[];
 
-    if (lines.length < 2) {
+    try {
+      // Use csv-parse for proper CSV parsing (handles quotes, commas in values, etc.)
+      records = parse(file.buffer, {
+        columns: (header) => {
+          // Normalize headers
+          return header.map((h: string) => {
+            const normalized = h.trim().toLowerCase().replace(/\s+/g, '_');
+            // Map various email column variations to 'email'
+            if (normalized === 'email_address') {
+              return 'email';
+            }
+            return normalized;
+          });
+        },
+        skip_empty_lines: true,
+        trim: true,
+        relax_quotes: true, // Allow quotes in unquoted fields
+        relax_column_count: true, // Don't fail if row has different number of columns
+      });
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to parse CSV file: ${error.message}`,
+      );
+    }
+
+    if (!records || records.length === 0) {
       throw new BadRequestException(
         'CSV file must contain at least one data row.',
       );
     }
 
-    const headers = lines[0].split(',').map((h) => {
-      const normalized = h.trim().toLowerCase().replace(/\s+/g, '_');
-      // Map various email column variations to 'email'
-      if (normalized === 'email_address') {
-        return 'email';
-      }
-      return normalized;
-    });
+    // Get headers from first record
+    const headers = Object.keys(records[0]);
 
     // Check if required columns exist
     const missingColumns = requiredColumns.filter(
@@ -36,21 +53,17 @@ export class CsvService {
 
     if (missingColumns.length > 0) {
       throw new BadRequestException(
-        `Missing columns: ${missingColumns.join(', ')}`,
+        `Missing required columns: ${missingColumns.join(', ')}`,
       );
     }
 
-    const data = lines.slice(1).map((line) => {
-      const values = line.split(',').map((v) => v.trim());
-      return headers.reduce(
-        (acc, header, index) => {
-          acc[header] = values[index] || null; // Assign value or null if missing
-          return acc;
-        },
-        {} as Record<string, string | null>,
-      );
+    // Normalize data (convert empty strings to null)
+    return records.map((record) => {
+      const normalized: Record<string, string | null> = {};
+      for (const key in record) {
+        normalized[key] = record[key]?.trim() || null;
+      }
+      return normalized;
     });
-
-    return data;
   }
 }

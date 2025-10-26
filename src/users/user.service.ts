@@ -22,9 +22,10 @@ import { chunk } from 'lodash';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
 import { UserRegistrationLog } from './entities/user_registration_log.entity';
-import { Readable } from 'stream';
 import { QueryUserDto } from './dto/query-user.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import pLimit from 'p-limit';
+import { format } from '@fast-csv/format';
 
 @Injectable()
 export class UserService {
@@ -298,7 +299,7 @@ export class UserService {
       this.getTotalActiveUsersByStatusOfCompany(companyId),
     ]);
 
-    const requiredColumns = ['first_name', 'last_name', 'email', 'password'];
+    const requiredColumns = ['first_name', 'last_name', 'email'];
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
@@ -306,8 +307,8 @@ export class UserService {
     }
 
     const emails = parsedData
-      .map((user) => user.email)
-      .filter((email) => email);
+      .map((user: any) => user.email)
+      .filter((email: any) => email);
 
     // Mark all users as inactive in a single query
     await this.userRepository.update(
@@ -340,6 +341,7 @@ export class UserService {
           is_active: true,
         };
 
+        // Only include password if it's provided and not null/empty
         if (user.password) {
           userUpdateObject.password = user.password;
         }
@@ -350,34 +352,49 @@ export class UserService {
           first_name: user.first_name ?? null,
           last_name: user.last_name ?? null,
           email: user.email ?? null,
-          password: user.password,
+          password: user.password || null,
           company_id: company.id,
         });
       }
     }
 
+    // Parallel bcrypt hashing with concurrency limit (use CPU core count)
+    const limit = pLimit(8); // Limit to 8 concurrent bcrypt operations
+    const salt = await bcrypt.genSalt(10); // Generate salt once
+
     // Update Existing Users
     if (usersToUpdate.length) {
-      const userToUpdateChunks = chunk(usersToUpdate, 100);
-
-      for (const userUpdateBatch of userToUpdateChunks) {
-        await Promise.all(
-          userUpdateBatch.map(async (userData: any) => {
+      // Hash passwords in parallel with concurrency limit
+      const hashedUpdates = await Promise.all(
+        usersToUpdate.map((userData: any) =>
+          limit(async () => {
             const updateFields: any = {
               first_name: userData.first_name,
               last_name: userData.last_name,
               is_active: true,
             };
 
+            // Only hash password if provided
             if (userData.password) {
               updateFields.password = await bcrypt.hash(
                 userData.password,
-                await bcrypt.genSalt(10),
+                salt,
               );
             }
 
-            return this.userRepository.update(userData.id, updateFields);
+            return { id: userData.id, updateFields };
           }),
+        ),
+      );
+
+      // Bulk update in chunks using query builder for better performance
+      const updateChunks = chunk(hashedUpdates, 500);
+
+      for (const updateBatch of updateChunks) {
+        await Promise.all(
+          updateBatch.map(({ id, updateFields }) =>
+            this.userRepository.update(id, updateFields),
+          ),
         );
       }
     }
@@ -400,71 +417,98 @@ export class UserService {
         );
       }
 
-      const userChunks = chunk(usersToInsert, 100);
-
-      for (const userBatch of userChunks) {
-        await Promise.all(
-          userBatch.map(async (userData: any) => {
-            const user = this.userRepository.create(userData);
-            await this.userRepository.save(user);
+      // Hash passwords in parallel with concurrency limit
+      const hashedUsers = await Promise.all(
+        usersToInsert.map((userData: any) =>
+          limit(async () => {
+            // Only hash if password exists
+            if (userData.password) {
+              return {
+                ...userData,
+                password: await bcrypt.hash(userData.password, salt),
+              };
+            }
+            return userData;
           }),
-        );
+        ),
+      );
+
+      // Bulk insert in chunks of 500 for better performance
+      const insertChunks = chunk(hashedUsers, 500);
+
+      for (const userBatch of insertChunks) {
+        await this.userRepository
+          .createQueryBuilder()
+          .insert()
+          .into(User)
+          .values(userBatch)
+          .execute();
       }
     }
 
+    const totalActiveUsersAfterUpload =
+      await this.getTotalActiveUsersByStatusOfCompany(companyId);
+
     return this.createUserRegistrationLog({
       company_id: company.id,
-      csv_content: parsedData,
+      csv_content: [], // Store empty array instead of full CSV content to save database space
       meta: {
         total_active_users_before_upload: totalActiveUsersBeforeUpload,
-        total_active_users_after_upload:
-          await this.getTotalActiveUsersByStatusOfCompany(companyId),
+        total_active_users_after_upload: totalActiveUsersAfterUpload,
+        total_users_processed: parsedData.length,
+        total_users_updated: usersToUpdate.length,
+        total_users_inserted: usersToInsert.length,
+        import_timestamp: new Date().toISOString(),
       },
     });
   }
 
   async exportUsers(companyId: string): Promise<StreamableFile> {
-    const users = await this.userRepository.find({
-      where: { company_id: companyId },
-      select: ['first_name', 'last_name', 'email', 'is_active'],
-    });
+    // Stream users from database to avoid loading all into memory
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.first_name',
+        'user.last_name',
+        'user.email',
+        'user.is_active',
+      ])
+      .where('user.company_id = :companyId', { companyId });
 
-    if (users.length === 0) {
+    // Check if any users exist
+    const count = await queryBuilder.getCount();
+    if (count === 0) {
       throw new NotFoundException('No users found for this company.');
     }
 
-    // Helper function to escape CSV fields
-    const escapeCsvField = (field: string | null | undefined): string => {
-      if (field == null) return '""';
+    // Create CSV formatter stream
+    const csvStream = format({
+      headers: ['First Name', 'Last Name', 'Email', 'Status', 'Password'],
+      writeHeaders: true,
+    });
 
-      const value = String(field);
+    // Stream database results directly to CSV
+    const userStream = await queryBuilder.stream();
 
-      // If the field contains comma, quote, or newline, wrap it in quotes and escape internal quotes
-      if (
-        value.includes(',') ||
-        value.includes('"') ||
-        value.includes('\n') ||
-        value.includes('\r')
-      ) {
-        return `"${value.replace(/"/g, '""')}"`;
-      }
+    userStream.on('data', (user: any) => {
+      csvStream.write({
+        'First Name': user.user_first_name || '',
+        'Last Name': user.user_last_name || '',
+        Email: user.user_email || '',
+        Status: user.user_is_active ? 'Active' : 'Inactive',
+        Password: '', // Empty password field for export
+      });
+    });
 
-      return value;
-    };
+    userStream.on('end', () => {
+      csvStream.end();
+    });
 
-    const header = 'First Name,Last Name,Email,Status,Password\n';
-    const csvData = users
-      .map(
-        (user) =>
-          `${escapeCsvField(user.first_name)},${escapeCsvField(user.last_name)},${escapeCsvField(user.email)},${escapeCsvField(user.is_active ? 'Active' : 'Inactive')},""`,
-      )
-      .join('\n');
+    userStream.on('error', (error) => {
+      csvStream.destroy(error);
+    });
 
-    const stream = new Readable();
-    stream.push(header + csvData);
-    stream.push(null); // End of stream
-
-    return new StreamableFile(stream, {
+    return new StreamableFile(csvStream, {
       type: 'text/csv',
       disposition: `attachment; filename="company_${companyId}_users.csv"`,
     });
