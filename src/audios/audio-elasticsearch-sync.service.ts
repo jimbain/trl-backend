@@ -206,12 +206,13 @@ export class AudioElasticsearchSyncService {
   ): Promise<Map<string, CategoryResult>> {
     if (audioIds.length === 0) return new Map<string, CategoryResult>();
 
+    const audioTableName = this.audioRepo.metadata.tableName;
     const query = `
       SELECT
         audio.id as audio_id,
         array_agg(DISTINCT jsonb_build_object('id', category.id, 'name', category.name)) as default_categories,
         MIN(category.name) as primary_category
-      FROM audios audio
+      FROM ${audioTableName} audio
       JOIN categories category ON category.id = ANY(
         SELECT jsonb_array_elements_text(audio.categories)
       )
