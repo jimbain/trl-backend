@@ -29,8 +29,8 @@ export class CompanyContactDto {
   @IsNotEmpty()
   name: string;
 
+  @IsOptional()
   @IsEmail()
-  @IsNotEmpty()
   email: string;
 
   @IsOptional()
