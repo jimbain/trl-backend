@@ -367,6 +367,7 @@ export class UserService {
           email: user.email ?? null,
           password: user.password || null,
           company_id: company.id,
+          is_active: true,
         });
       }
     }
