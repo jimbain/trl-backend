@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsInt, IsNumber, IsString, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateAppConfigDto {
   @Transform(({ value }) => parseInt(value, 10))
@@ -56,4 +56,8 @@ export class UpdateAppConfigDto {
   @IsInt()
   @Min(0)
   notification_for_new_audio_expiring_in_d_days: number;
+
+  @IsString()
+  @IsOptional()
+  new_user_default_password: string;
 }

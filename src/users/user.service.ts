@@ -309,9 +309,15 @@ export class UserService {
 
     // Fetch company and config in parallel
     const [company, totalActiveUsersBeforeUpload] = await Promise.all([
-      this.companyService.findById(companyId),
+      this.companyService.findByIdWithCache(companyId),
       this.getTotalActiveUsersByStatusOfCompany(companyId),
     ]);
+
+    // Get company-specific config with default password
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
+    const defaultPassword = appConfigs.new_user_default_password || null;
 
     const requiredColumns = ['first_name', 'last_name', 'email'];
     const parsedData: any = this.csvService.parse(file, requiredColumns);
@@ -366,7 +372,7 @@ export class UserService {
           first_name: user.first_name ?? null,
           last_name: user.last_name ?? null,
           email: user.email ?? null,
-          password: user.password || null,
+          password: user.password || defaultPassword || null,
           company_id: company.id,
           is_active: true,
         });
@@ -433,7 +439,7 @@ export class UserService {
             : '';
 
         throw new BadRequestException(
-          `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
+          `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
         );
       }
 
