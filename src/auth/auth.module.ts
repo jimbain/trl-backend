@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -12,6 +12,7 @@ import { CommonModule } from 'src/common/common.module';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { HttpModule } from '@nestjs/axios';
 import { OktaStrategy } from './okta.strategy';
+import { CompanyModule } from 'src/companies/company.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { OktaStrategy } from './okta.strategy';
     UserModule,
     CommonModule,
     HttpModule,
+    forwardRef(() => CompanyModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       global: true,

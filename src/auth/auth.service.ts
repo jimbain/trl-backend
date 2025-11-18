@@ -22,6 +22,7 @@ import { MailgunService } from 'src/common/services/mailgun.service';
 import { COMPANY_LOGIN_TYPE, NOTIFICATION_CHANNEL } from 'src/constants';
 import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { HttpService } from '@nestjs/axios';
+import { CompanyService } from 'src/companies/company.service';
 
 @Injectable()
 export class AuthService {
@@ -37,10 +38,37 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly mailgunService: MailgunService,
     private readonly httpService: HttpService,
+    private readonly companyService: CompanyService,
   ) {}
 
-  async signup(registerPayload: any) {
-    return this.userService.create(registerPayload);
+  async signup(registerPayload: RegisterDto) {
+    // Find company by name
+    const company = await this.companyService.findByName(
+      registerPayload.company,
+    );
+
+    // Create user payload with company_id and is_active
+    const createUserPayload = {
+      first_name: registerPayload.first_name,
+      last_name: registerPayload.last_name,
+      email: registerPayload.email,
+      password: registerPayload.password,
+      phone: registerPayload.phone,
+      company_id: company.id,
+      is_active: true,
+      optout_push_notification: false,
+    };
+
+    // Create the user
+    await this.userService.create(createUserPayload);
+
+    // Fetch the created user with company relation
+    const user = await this.userService.findByEmail(registerPayload.email, [
+      'company',
+    ]);
+
+    // Return login response with tokens
+    return this.login(user);
   }
 
   async validateUser(loginPayload: LoginDto): Promise<any> {

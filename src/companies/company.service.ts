@@ -145,6 +145,18 @@ export class CompanyService {
     return company;
   }
 
+  async findByName(name: string): Promise<Company | undefined> {
+    const company = await this.companyRepository.findOne({
+      where: { name },
+    });
+
+    if (!company) {
+      throw new NotFoundException(`Company with name "${name}" not found`);
+    }
+
+    return company;
+  }
+
   async findByIdWithCache(id: string) {
     const cachedCompany = await this.cacheService.get(id);
 
