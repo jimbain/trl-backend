@@ -38,7 +38,9 @@ export class RegisterDto {
   @IsString()
   @IsEmail()
   @IsNotEmpty()
-  @IsUnique(User, 'email', { message: 'The email has already been taken.' })
+  @IsUnique(User, 'email', undefined, {
+    message: 'The email has already been taken.',
+  })
   @Transform(({ value }) => value.toLowerCase())
   email: string;
 
