@@ -173,7 +173,7 @@ export class CompanyService {
       description: company.description,
       login_type: company.login_type,
       available_medias: company.available_medias,
-      sso_config: company.sso_config,
+      sso_config: company.sso_config as any,
       available_credits: company.available_credits,
       phone: company.phone,
       address1: company.address1,

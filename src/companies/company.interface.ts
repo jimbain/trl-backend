@@ -7,6 +7,14 @@ export interface CompanyContact {
   responsibility: string[];
 }
 
+export interface SsoConfig {
+  saml_entry_point: string;
+  saml_issuer: string;
+  saml_callback_url: string;
+  saml_audience_url: string;
+  saml_certificate: string;
+}
+
 export interface CachedCompany {
   id: string;
   name: string;
@@ -15,7 +23,7 @@ export interface CachedCompany {
   description: string | null;
   login_type: CompanyLoginEnumType;
   available_medias: Media[];
-  sso_config: Record<string, any> | null;
+  sso_config: SsoConfig | null;
   available_credits: number;
   phone: string | null;
   address1: string | null;

@@ -8,6 +8,7 @@ import {
   HttpCode,
   Res,
   Query,
+  Param,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -52,51 +53,69 @@ export class AuthController {
     return this.authService.login(user);
   }
 
-  @Get('okta')
+  @Get('sso/:companyId')
   @UseGuards(AuthGuard('saml'))
-  oktaLogin() {
-    // Redirects to Okta SAML login page
+  ssoLogin(@Param('companyId') companyId: string) {
+    // Redirects to company-specific Okta SAML login page
   }
 
-  @Post('okta/callback')
+  @Post('sso/callback/:companyId')
   @UseGuards(AuthGuard('saml'))
-  async oktaCallback(@Request() req, @Res() res) {
-    const user = await this.userService.findByEmail(req.user.id, ['company']);
+  async ssoCallback(
+    @Param('companyId') companyId: string,
+    @Request() req,
+    @Res() res,
+  ) {
+    const user = await this.userService.findByEmail(req.user.email, [
+      'company',
+    ]);
 
     if (!user) {
-      res.redirect(
-        '/api/v1/auth/okta/callback/error?message=User does not exist',
+      return res.redirect(
+        `/api/v1/auth/sso/callback/${companyId}/error?message=User does not exist`,
+      );
+    }
+
+    // Validate user belongs to the company
+    if (user.company_id !== companyId) {
+      return res.redirect(
+        `/api/v1/auth/sso/callback/${companyId}/error?message=User does not belong to this company`,
       );
     }
 
     if (user.company.login_type !== COMPANY_LOGIN_TYPE.SSO) {
-      res.redirect(
-        "/api/v1/auth/okta/callback/error?message=User's company does not have sso login",
+      return res.redirect(
+        `/api/v1/auth/sso/callback/${companyId}/error?message=Company does not have SSO login enabled`,
       );
     }
 
     const tokens = await this.authService.login(user);
     res.redirect(
-      `/api/v1/auth/okta/callback/success?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`,
+      `/api/v1/auth/sso/callback/${companyId}/success?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`,
     );
   }
 
-  @Get('okta/callback/success')
-  async oktaCallbackSuccess(
+  @Get('sso/callback/:companyId/success')
+  async ssoCallbackSuccess(
+    @Param('companyId') companyId: string,
     @Query('access_token') accessToken: string,
     @Query('refresh_token') refreshToken: string,
     @Res() res,
   ) {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
     res.redirect(
-      `${frontendUrl}/okta-signin?access_token=${accessToken}&refresh_token=${refreshToken}`,
+      `${frontendUrl}/sso-signin?access_token=${accessToken}&refresh_token=${refreshToken}`,
     );
   }
 
-  @Get('okta/callback/error')
-  async oktaCallbackError(@Query('message') message: string, @Res() res) {
+  @Get('sso/callback/:companyId/error')
+  async ssoCallbackError(
+    @Param('companyId') companyId: string,
+    @Query('message') message: string,
+    @Res() res,
+  ) {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
-    res.redirect(`${frontendUrl}/okta-signin?message=${message}`);
+    res.redirect(`${frontendUrl}/sso-signin?message=${message}`);
   }
 
   @UseGuards(JwtAuthGuard)
