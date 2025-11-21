@@ -133,8 +133,9 @@ export class AuthService {
   }
 
   async checkUser(email: string): Promise<any> {
+    console.log('Checking user for email:', email);
     const user = await this.userService.findByEmail(email, ['company']);
-
+    console.log('Found user:', user);
     if (!user) {
       throw new HttpException(
         {
