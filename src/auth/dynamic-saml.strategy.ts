@@ -90,6 +90,7 @@ export class DynamicSamlStrategy extends PassportStrategy(
             issuer: ssoConfig.saml_audience_url,
             callbackUrl: ssoConfig.saml_callback_url,
             cert: ssoConfig.saml_certificate,
+            idpCert: ssoConfig.saml_certificate, // Required by @node-saml/passport-saml
             audience: ssoConfig.saml_audience_url,
           });
         } catch (error) {
