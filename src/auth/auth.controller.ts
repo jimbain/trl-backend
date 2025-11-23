@@ -23,6 +23,7 @@ import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from 'src/users/user.service';
+import { CompanyService } from 'src/companies/company.service';
 import { COMPANY_LOGIN_TYPE } from 'src/constants';
 
 @Controller('auth')
@@ -31,6 +32,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly config: ConfigService,
     private readonly userService: UserService,
+    private readonly companyService: CompanyService,
   ) {}
 
   @Post('signup')
@@ -102,7 +104,18 @@ export class AuthController {
     @Query('refresh_token') refreshToken: string,
     @Res() res,
   ) {
-    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+    // Get company to retrieve the frontend domain
+    const company = await this.companyService.findById(companyId);
+
+    // Use company's domain if available, otherwise fall back to first FRONTEND_APP_URL
+    let frontendUrl: string;
+    if (company?.domain) {
+      frontendUrl = company.domain;
+    } else {
+      const frontendUrls = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+      frontendUrl = frontendUrls.split(',')[0].trim();
+    }
+
     res.redirect(
       `${frontendUrl}/sso-signin?access_token=${accessToken}&refresh_token=${refreshToken}`,
     );
@@ -114,7 +127,18 @@ export class AuthController {
     @Query('message') message: string,
     @Res() res,
   ) {
-    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+    // Get company to retrieve the frontend domain
+    const company = await this.companyService.findById(companyId);
+
+    // Use company's domain if available, otherwise fall back to first FRONTEND_APP_URL
+    let frontendUrl: string;
+    if (company?.domain) {
+      frontendUrl = company.domain;
+    } else {
+      const frontendUrls = this.config.getOrThrow<string>('FRONTEND_APP_URL');
+      frontendUrl = frontendUrls.split(',')[0].trim();
+    }
+
     res.redirect(`${frontendUrl}/sso-signin?message=${message}`);
   }
 
