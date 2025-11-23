@@ -153,7 +153,7 @@ export class AuthService {
       is_sso_login: isSsoLogin,
       ...(isSsoLogin && {
         company_id: user.company.id,
-        sso_entry_url: `/api/v1/auth/sso/${user.company.id}`,
+        sso_entry_url: `/auth/sso/${user.company.id}`,
       }),
     };
   }
