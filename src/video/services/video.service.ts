@@ -447,7 +447,12 @@ export class VideoService {
     const categories =
       await this.categoryService.findEntitiesByIds(categoryIds);
 
-    return plainToInstance(VideoCategoryDto, categories, {
+    // Sort categories alphabetically by name (ascending)
+    const sortedCategories = categories.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+
+    return plainToInstance(VideoCategoryDto, sortedCategories, {
       excludeExtraneousValues: true,
     });
   }
