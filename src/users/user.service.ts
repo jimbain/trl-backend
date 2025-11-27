@@ -55,10 +55,17 @@ export class UserService {
     email: string,
     relations: string[] = [],
   ): Promise<User | undefined> {
-    return this.userRepository.findOne({
-      where: { email },
-      relations: relations.length ? relations : undefined,
+    const queryBuilder = this.userRepository.createQueryBuilder('user');
+
+    // Load relations if provided
+    relations.forEach((relation) => {
+      queryBuilder.leftJoinAndSelect(`user.${relation}`, relation);
     });
+
+    // Case-insensitive email comparison using LOWER()
+    queryBuilder.where('LOWER(user.email) = LOWER(:email)', { email });
+
+    return queryBuilder.getOne();
   }
 
   async findById(

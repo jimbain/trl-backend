@@ -425,7 +425,12 @@ export class PharmaService {
     const categories =
       await this.categoryService.findEntitiesByIds(categoryIds);
 
-    return plainToInstance(PharmaCategoryDto, categories, {
+    // Sort categories alphabetically by name (ascending)
+    const sortedCategories = categories.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+
+    return plainToInstance(PharmaCategoryDto, sortedCategories, {
       excludeExtraneousValues: true,
     });
   }

@@ -125,6 +125,11 @@ export class CompanyService {
       company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
     }
 
+    // Handle created_at if provided (expects Y-m-d format)
+    if (payload.created_at) {
+      company.created_at = new Date(payload.created_at);
+    }
+
     await this.companyRepository.save(company);
 
     if (payload.available_credits && payload.available_credits > 0) {
@@ -173,7 +178,7 @@ export class CompanyService {
       description: company.description,
       login_type: company.login_type,
       available_medias: company.available_medias,
-      sso_config: company.sso_config,
+      sso_config: company.sso_config as any,
       available_credits: company.available_credits,
       phone: company.phone,
       address1: company.address1,
@@ -293,6 +298,11 @@ export class CompanyService {
         updateCompanyDto.available_medias,
       );
       company.catalogs = catalogs.map((catalog) => catalog.id) ?? [];
+    }
+
+    // Handle created_at if provided (expects Y-m-d format)
+    if (updateCompanyDto.created_at) {
+      company.created_at = new Date(updateCompanyDto.created_at);
     }
 
     company.available_credits = newAvailableCredit;

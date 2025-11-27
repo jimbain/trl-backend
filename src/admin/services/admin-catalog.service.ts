@@ -15,10 +15,12 @@ export class AdminCatalogService {
     const catalog = await this.catalogService.findDefaultByType(type);
 
     if (is_basic === '1') {
-      return this.categoryService.findEntitiesByIds(catalog.categories, [
-        'id',
-        'name',
-      ]);
+      const categories = await this.categoryService.findEntitiesByIds(
+        catalog.categories,
+        ['id', 'name'],
+      );
+      // Sort categories alphabetically by name (ascending)
+      return categories.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     if (!catalog.categories || catalog.categories.length === 0) {

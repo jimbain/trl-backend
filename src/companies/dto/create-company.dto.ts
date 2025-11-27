@@ -156,4 +156,9 @@ export class CreateCompanyDto {
     { toClassOnly: true },
   )
   is_active?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value === '' ? null : value))
+  created_at?: string;
 }

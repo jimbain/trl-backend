@@ -133,8 +133,9 @@ export class AuthService {
   }
 
   async checkUser(email: string): Promise<any> {
+    console.log('Checking user for email:', email);
     const user = await this.userService.findByEmail(email, ['company']);
-
+    console.log('Found user:', user);
     if (!user) {
       throw new HttpException(
         {
@@ -146,7 +147,15 @@ export class AuthService {
       );
     }
 
-    return { is_sso_login: user.company.login_type === COMPANY_LOGIN_TYPE.SSO };
+    const isSsoLogin = user.company.login_type === COMPANY_LOGIN_TYPE.SSO;
+
+    return {
+      is_sso_login: isSsoLogin,
+      ...(isSsoLogin && {
+        company_id: user.company.id,
+        sso_entry_url: `/auth/sso/${user.company.id}`,
+      }),
+    };
   }
 
   async storeLoginInfo(user: User, data: LoginDto): Promise<any> {
