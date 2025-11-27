@@ -123,4 +123,7 @@ export class CompanyDto {
   @Expose()
   @Transform(({ obj }) => obj?.userCount ?? 0)
   active_user_count?: number;
+
+  @Expose()
+  created_at: string;
 }

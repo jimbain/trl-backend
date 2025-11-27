@@ -225,9 +225,17 @@ export class CompanyService {
 
     const catalogs = await this.catalogService.findByIds(company.catalogs);
 
+    const createdAt = company.created_at
+      ? new Date(company.created_at).toLocaleDateString('en-US', {
+          month: '2-digit',
+          day: '2-digit',
+          year: 'numeric',
+        })
+      : null;
+
     return plainToInstance(
       CompanyDto,
-      { ...company, catalogs },
+      { ...company, catalogs, created_at: createdAt },
       { excludeExtraneousValues: true },
     );
   }
