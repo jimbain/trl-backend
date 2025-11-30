@@ -564,7 +564,7 @@ export class AudioService {
 
     let category: any;
 
-    if (categoryId !== 'category_0' && categoryIds.includes(categoryId)) {
+    if (categoryId && categoryIds.includes(categoryId)) {
       categoryIds = [categoryId];
       category = await this.categoryService.findOne(categoryId);
     }
@@ -622,7 +622,7 @@ export class AudioService {
     return {
       category: {
         id: categoryId,
-        title: categoryId !== 'category_0' ? category?.name : 'All categories',
+        title: categoryId ? category?.name : 'All categories',
       },
       ...paginatedData,
     };

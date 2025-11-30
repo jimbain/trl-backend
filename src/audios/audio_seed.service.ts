@@ -253,7 +253,6 @@ export class AudioSeedService {
     audio.total_rented = totalRented;
     audio.purchased_rental_license_limit = metadata.purchased_rental_licenses;
     audio.categories = [
-      'category_0',
       this.audioCategories[_.random(this.audioCategories.length - 1)].id,
     ];
     return audio;

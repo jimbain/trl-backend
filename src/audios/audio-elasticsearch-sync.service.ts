@@ -220,14 +220,12 @@ export class AudioElasticsearchSyncService {
         AND audio.categories IS NOT NULL
         AND jsonb_array_length(audio.categories) > 0
         AND category.type = $2
-        AND category.id::text <> $3
       GROUP BY audio.id
     `;
 
     const result: CategoryQueryResult[] = await this.audioRepo.query(query, [
       audioIds,
       'default',
-      'category_0',
     ]);
 
     const categoriesMap = new Map<string, CategoryResult>();

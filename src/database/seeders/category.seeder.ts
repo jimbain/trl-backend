@@ -15,13 +15,6 @@ export class CategorySeeder {
       '###########################  CATEGORY SEEDING START  ###########################',
     );
 
-    // push All Category
-    const allCategory = this.categoryRepository.create({
-      id: 'category_0',
-      name: 'All Category',
-    });
-    await this.categoryRepository.save(allCategory);
-
     const categories = [
       'Best of TRL',
       'Appearance',
