@@ -564,15 +564,17 @@ export class AudioService {
 
     let category: any;
 
-    if (categoryId && categoryIds.includes(categoryId)) {
-      categoryIds = [categoryId];
-      category = await this.categoryService.findOne(categoryId);
-    }
+    if (categoryId !== 'category_0') {
+      if (categoryId && categoryIds.includes(categoryId)) {
+        categoryIds = [categoryId];
+        category = await this.categoryService.findOne(categoryId);
+      }
 
-    if (!categoryIds.length) {
-      throw new NotFoundException(
-        `Category with ID ${categoryId} not found for your company`,
-      );
+      if (!categoryIds.length) {
+        throw new NotFoundException(
+          `Category with ID ${categoryId} not found for your company`,
+        );
+      }
     }
 
     const queryBuilder = this.audioRepository
