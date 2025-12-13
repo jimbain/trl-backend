@@ -337,15 +337,35 @@ export class UserService {
       .map((user: any) => user.email)
       .filter((email: any) => email);
 
+    // VALIDATION: Check for duplicates within CSV file itself
+    const emailCounts = new Map<string, number>();
+    for (const email of emails) {
+      emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+    }
+
+    const csvDuplicates = Array.from(emailCounts.entries())
+      .filter(([_, count]) => count > 1)
+      .map(([email, count]) => ({ email, occurrences: count }));
+
+    if (csvDuplicates.length > 0) {
+      throw new BadRequestException({
+        error: 'Duplicate entries found in CSV file',
+        duplicate_count: csvDuplicates.length,
+        duplicates: csvDuplicates,
+        message: `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
+      });
+    }
+
     // Mark all users as inactive in a single query
     await this.userRepository.update(
       { company_id: company.id },
       { is_active: false },
     );
 
-    // Fetch existing users in one query
+    // Fetch existing users in this company in one query
     const existingUsers = await this.userRepository.find({
       where: { company_id: company.id, email: In(emails) },
+      select: ['id', 'email', 'first_name', 'last_name'],
     });
 
     const existingUserMap = new Map(
@@ -363,6 +383,7 @@ export class UserService {
       if (existingUser) {
         const userUpdateObject: any = {
           id: existingUser.id,
+          email: user.email,
           first_name: user.first_name,
           last_name: user.last_name,
           is_active: true,
@@ -461,9 +482,15 @@ export class UserService {
       });
 
       if (existingEmailsInOtherCompanies.length > 0) {
-        throw new BadRequestException(
-          `${existingEmailsInOtherCompanies.length} email addresses already exist in another company.`,
+        const duplicateEmails = existingEmailsInOtherCompanies.map(
+          (user) => user.email,
         );
+        throw new BadRequestException({
+          error: 'Duplicate emails in other companies',
+          duplicate_count: duplicateEmails.length,
+          duplicates: duplicateEmails,
+          message: `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
+        });
       }
 
       // Hash passwords and generate IDs in parallel with concurrency limit
@@ -503,7 +530,13 @@ export class UserService {
     const totalActiveUsersAfterUpload =
       await this.getTotalActiveUsersByStatusOfCompany(companyId);
 
-    return this.createUserRegistrationLog({
+    // Prepare detailed info about updated entries
+    const updatedEntries = usersToUpdate.map((user) => ({
+      email: user.email || 'unknown',
+      name: `${user.first_name} ${user.last_name}`.trim(),
+    }));
+
+    const registrationLog = await this.createUserRegistrationLog({
       company_id: company.id,
       csv_content: [], // Store empty array instead of full CSV content to save database space
       meta: {
@@ -515,6 +548,16 @@ export class UserService {
         import_timestamp: new Date().toISOString(),
       },
     });
+
+    return {
+      ...registrationLog,
+      summary: {
+        total_processed: parsedData.length,
+        total_updated: usersToUpdate.length,
+        total_inserted: usersToInsert.length,
+        updated_entries: updatedEntries,
+      },
+    };
   }
 
   async exportUsers(companyId: string): Promise<StreamableFile> {

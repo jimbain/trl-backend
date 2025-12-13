@@ -42,8 +42,17 @@ export class CompanyService {
   ) {}
 
   async findAll(query: AdminCompanySearchQueryDto) {
-    const { page, per_page, name, status, sort_order, sort_column, is_basic } =
-      query;
+    const {
+      page,
+      per_page,
+      name,
+      status,
+      sort_order,
+      sort_column,
+      is_basic,
+      user_name,
+      user_email,
+    } = query;
 
     let selections = [
       'company.id AS id',
@@ -71,7 +80,7 @@ export class CompanyService {
           'company.available_credits AS available_credits',
           'company.is_active AS is_active',
           "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
-          'COALESCE(COUNT(user.id), 0) AS active_user_count',
+          'COALESCE(COUNT(DISTINCT user.id), 0) AS active_user_count',
         ],
       ]),
     ];
@@ -94,7 +103,19 @@ export class CompanyService {
 
     if (name) {
       queryBuilder.andWhere('company.name ILIKE :name', {
-        name: `%${query.name}%`,
+        name: `%${name}%`,
+      });
+    }
+
+    if (user_name) {
+      queryBuilder.andWhere('user.name ILIKE :user_name', {
+        user_name: `%${user_name}%`,
+      });
+    }
+
+    if (user_email) {
+      queryBuilder.andWhere('user.email ILIKE :user_email', {
+        user_email: `%${user_email}%`,
       });
     }
 

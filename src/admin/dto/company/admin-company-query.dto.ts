@@ -76,4 +76,14 @@ export class AdminCompanySearchQueryDto {
   @IsBoolean()
   @Type(() => Boolean)
   is_basic?: boolean = false;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value?.toLowerCase?.())
+  user_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value?.toLowerCase?.())
+  user_email?: string;
 }
