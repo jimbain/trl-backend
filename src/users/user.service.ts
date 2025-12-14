@@ -309,8 +309,13 @@ export class UserService {
     );
 
     if (!isValidExtension || !isValidMimeType) {
-      throw new BadRequestException(
-        'Invalid file format. Only CSV file is allowed.',
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          error: 'Invalid file format',
+          message: 'Invalid file format. Only CSV file is allowed.',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
@@ -330,7 +335,15 @@ export class UserService {
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
-      throw new BadRequestException('CSV file is empty or has invalid data.');
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          error: 'Empty or invalid CSV',
+          message:
+            'CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
 
     const emails = parsedData
@@ -348,12 +361,16 @@ export class UserService {
       .map(([email, count]) => ({ email, occurrences: count }));
 
     if (csvDuplicates.length > 0) {
-      throw new BadRequestException({
-        error: 'Duplicate entries found in CSV file',
-        duplicate_count: csvDuplicates.length,
-        duplicates: csvDuplicates,
-        message: `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
-      });
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          error: 'Duplicate entries found in CSV file',
+          duplicate_count: csvDuplicates.length,
+          duplicates: csvDuplicates,
+          message: `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
 
     // Mark all users as inactive in a single query
@@ -466,8 +483,17 @@ export class UserService {
             ? ` and ${usersWithoutPasswords.length - 5} more`
             : '';
 
-        throw new BadRequestException(
-          `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+            error: 'Missing passwords for new users',
+            missing_password_count: usersWithoutPasswords.length,
+            missing_password_emails: usersWithoutPasswords.map(
+              (user) => user.email,
+            ),
+            message: `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
         );
       }
 
@@ -485,12 +511,16 @@ export class UserService {
         const duplicateEmails = existingEmailsInOtherCompanies.map(
           (user) => user.email,
         );
-        throw new BadRequestException({
-          error: 'Duplicate emails in other companies',
-          duplicate_count: duplicateEmails.length,
-          duplicates: duplicateEmails,
-          message: `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
-        });
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+            error: 'Duplicate emails in other companies',
+            duplicate_count: duplicateEmails.length,
+            duplicates: duplicateEmails,
+            message: `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
       }
 
       // Hash passwords and generate IDs in parallel with concurrency limit

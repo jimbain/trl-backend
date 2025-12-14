@@ -96,35 +96,31 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 2: CSV Contains Duplicate Emails
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** The same email address appears multiple times within the CSV file itself.
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "3 email(s) appear multiple times in your CSV file. Please remove duplicates and try again.",
-  "error": "Bad Request",
-  "response": {
-    "error": "Duplicate entries found in CSV file",
-    "duplicate_count": 3,
-    "duplicates": [
-      {
-        "email": "john@example.com",
-        "occurrences": 2
-      },
-      {
-        "email": "jane@example.com",
-        "occurrences": 3
-      },
-      {
-        "email": "admin@example.com",
-        "occurrences": 2
-      }
-    ],
-    "message": "3 email(s) appear multiple times in your CSV file. Please remove duplicates and try again."
-  }
+  "statusCode": 422,
+  "error": "Duplicate entries found in CSV file",
+  "duplicate_count": 3,
+  "duplicates": [
+    {
+      "email": "john@example.com",
+      "occurrences": 2
+    },
+    {
+      "email": "jane@example.com",
+      "occurrences": 3
+    },
+    {
+      "email": "admin@example.com",
+      "occurrences": 2
+    }
+  ],
+  "message": "3 email(s) appear multiple times in your CSV file. Please remove duplicates and try again."
 }
 ```
 
@@ -137,26 +133,22 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 3: Emails Already Exist in Other Companies
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** Email addresses in the CSV are already registered in different companies. System prevents creating duplicate global emails.
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "3 email address(es) already exist in another company. Please use different email addresses or contact support.",
-  "error": "Bad Request",
-  "response": {
-    "error": "Duplicate emails in other companies",
-    "duplicate_count": 3,
-    "duplicates": [
-      "alfasigma@example.com",
-      "user2@example.com",
-      "user3@example.com"
-    ],
-    "message": "3 email address(es) already exist in another company. Please use different email addresses or contact support."
-  }
+  "statusCode": 422,
+  "error": "Duplicate emails in other companies",
+  "duplicate_count": 3,
+  "duplicates": [
+    "alfasigma@example.com",
+    "user2@example.com",
+    "user3@example.com"
+  ],
+  "message": "3 email address(es) already exist in another company. Please use different email addresses or contact support."
 }
 ```
 
@@ -169,16 +161,22 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 4: New Users Missing Passwords
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** New user entries don't have passwords in CSV and company doesn't have a default password configured.
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "5 new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: john@example.com, jane@example.com, admin@example.com and 2 more",
-  "error": "Bad Request"
+  "statusCode": 422,
+  "error": "Missing passwords for new users",
+  "missing_password_count": 5,
+  "missing_password_emails": [
+    "john@example.com",
+    "jane@example.com",
+    "admin@example.com"
+  ],
+  "message": "5 new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: john@example.com, jane@example.com, admin@example.com and 2 more"
 }
 ```
 
@@ -198,16 +196,16 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 5: Invalid File Format
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** Uploaded file is not a valid CSV file.
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "Invalid file format. Only CSV file is allowed.",
-  "error": "Bad Request"
+  "statusCode": 422,
+  "error": "Invalid file format",
+  "message": "Invalid file format. Only CSV file is allowed."
 }
 ```
 
@@ -220,16 +218,16 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 6: Empty CSV File
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** CSV file is empty or has missing required columns.
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "CSV file is empty or has invalid data.",
-  "error": "Bad Request"
+  "statusCode": 422,
+  "error": "Empty or invalid CSV",
+  "message": "CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email"
 }
 ```
 
@@ -242,16 +240,16 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 7: Missing Required CSV Columns
 
-**Status:** `400 Bad Request`
+**Status:** `422 Unprocessable Entity`
 
 **Description:** CSV file is missing required columns (`first_name`, `last_name`, `email`).
 
 **Response:**
 ```json
 {
-  "statusCode": 400,
-  "message": "CSV file is empty or has invalid data.",
-  "error": "Bad Request"
+  "statusCode": 422,
+  "error": "Empty or invalid CSV",
+  "message": "CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email"
 }
 ```
 
@@ -393,11 +391,11 @@ All successful imports return:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| 3+ emails already exist | Duplicate emails in system | Use different emails or remove from CSV |
-| Email appears multiple times in CSV | Data entry error | Remove duplicates from CSV, keep one instance |
-| New users missing passwords | No password in CSV + no company default | Add passwords to CSV or configure company default |
-| File format invalid | Wrong extension/MIME type | Use `.csv` file with proper CSV formatting |
-| 400 Bad Request (generic) | Malformed CSV or missing columns | Check headers: `first_name`, `last_name`, `email` |
+| 422 - 3+ emails already exist | Duplicate emails in system | Use different emails or remove from CSV |
+| 422 - Email appears multiple times in CSV | Data entry error | Remove duplicates from CSV, keep one instance |
+| 422 - New users missing passwords | No password in CSV + no company default | Add passwords to CSV or configure company default |
+| 422 - Invalid file format | Wrong extension/MIME type | Use `.csv` file with proper CSV formatting |
+| 422 - Empty or invalid CSV | Malformed CSV or missing columns | Check headers: `first_name`, `last_name`, `email` |
 | 404 Not Found | Invalid company ID | Verify company ID is correct |
 | 500 Internal Server Error | Server issue | Contact support, check server logs |
 
@@ -427,11 +425,11 @@ All successful imports return:
 | Code | Meaning | Action |
 |------|---------|--------|
 | `201` | Created | Success - users imported |
-| `400` | Bad Request | Check error details, fix and retry |
+| `400` | Bad Request | File upload/authentication error |
 | `401` | Unauthorized | Verify authentication token |
 | `403` | Forbidden | Insufficient permissions |
 | `404` | Not Found | Company doesn't exist |
-| `422` | Unprocessable Entity | Validation error |
+| `422` | Unprocessable Entity | CSV validation error - check `error` and `duplicates` fields |
 | `500` | Server Error | Contact support |
 
 ---
@@ -455,26 +453,51 @@ async importUsers(companyId: string, file: File) {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.json();
+    const data = await response.json();
 
-      // Handle specific errors
-      if (error.response?.duplicates) {
-        console.error('Duplicate emails:', error.response.duplicates);
-        // Show user which emails are duplicates
+    if (!response.ok) {
+      // Handle validation errors (422)
+      if (response.status === 422) {
+        const error = data as {
+          statusCode: number;
+          error: string;
+          duplicates?: string[] | Array<{ email: string; occurrences: number }>;
+          duplicate_count?: number;
+          missing_password_emails?: string[];
+          message: string;
+        };
+
+        console.error(`Validation Error (${error.error}):`, error.message);
+
+        if (error.duplicates) {
+          console.error('Problematic entries:', error.duplicates);
+          // Show user which emails/entries are problematic
+        }
+
+        throw new Error(error.message);
       }
 
-      throw new Error(error.message);
+      throw new Error(data.message || 'Import failed');
     }
 
-    const result = await response.json();
+    // Success response (201)
+    const result = data as {
+      summary: {
+        total_processed: number;
+        total_updated: number;
+        total_inserted: number;
+        updated_entries: Array<{ email: string; name: string }>;
+      };
+    };
+
     console.log(`Import successful!`);
     console.log(`Updated: ${result.summary.total_updated} users`);
     console.log(`Inserted: ${result.summary.total_inserted} users`);
+    console.log(`Updated entries:`, result.summary.updated_entries);
 
     return result;
   } catch (error) {
-    console.error('Import failed:', error.message);
+    console.error('Import failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -486,6 +509,7 @@ async importUsers(companyId: string, file: File) {
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2024-12-14 | Updated to use 422 status code for validation errors; improved response structure with detailed error fields |
 | 1.0 | 2024-12-14 | Initial release with detailed error reporting |
 
 ---
