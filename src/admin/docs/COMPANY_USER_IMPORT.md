@@ -96,31 +96,14 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 2: CSV Contains Duplicate Emails
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** The same email address appears multiple times within the CSV file itself.
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Duplicate entries found in CSV file",
-  "duplicate_count": 3,
-  "duplicates": [
-    {
-      "email": "john@example.com",
-      "occurrences": 2
-    },
-    {
-      "email": "jane@example.com",
-      "occurrences": 3
-    },
-    {
-      "email": "admin@example.com",
-      "occurrences": 2
-    }
-  ],
-  "message": "3 email(s) appear multiple times in your CSV file. Please remove duplicates and try again."
+  "message": "3 email(s) appear multiple times in your CSV file. Duplicates: john@example.com (appears 2 times); jane@example.com (appears 3 times); admin@example.com (appears 2 times). Please remove duplicates and try again."
 }
 ```
 
@@ -133,22 +116,14 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 3: Emails Already Exist in Other Companies
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** Email addresses in the CSV are already registered in different companies. System prevents creating duplicate global emails.
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Duplicate emails in other companies",
-  "duplicate_count": 3,
-  "duplicates": [
-    "alfasigma@example.com",
-    "user2@example.com",
-    "user3@example.com"
-  ],
-  "message": "3 email address(es) already exist in another company. Please use different email addresses or contact support."
+  "message": "730 email address(es) already exist in another company: alfasigma@example.com, user2@example.com, user3@example.com, user4@example.com, user5@example.com, user6@example.com, user7@example.com, user8@example.com, user9@example.com, user10@example.com, and 720 more. Please use different email addresses or contact support."
 }
 ```
 
@@ -161,21 +136,13 @@ curl -X POST "http://localhost:3000/admin/companies/comp_123/import-user" \
 
 ### ❌ Scenario 4: New Users Missing Passwords
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** New user entries don't have passwords in CSV and company doesn't have a default password configured.
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Missing passwords for new users",
-  "missing_password_count": 5,
-  "missing_password_emails": [
-    "john@example.com",
-    "jane@example.com",
-    "admin@example.com"
-  ],
   "message": "5 new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: john@example.com, jane@example.com, admin@example.com and 2 more"
 }
 ```
@@ -196,15 +163,13 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 5: Invalid File Format
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** Uploaded file is not a valid CSV file.
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Invalid file format",
   "message": "Invalid file format. Only CSV file is allowed."
 }
 ```
@@ -218,15 +183,13 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 6: Empty CSV File
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** CSV file is empty or has missing required columns.
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Empty or invalid CSV",
   "message": "CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email"
 }
 ```
@@ -240,15 +203,13 @@ Jane,Smith,jane@example.com,TempPass456
 
 ### ❌ Scenario 7: Missing Required CSV Columns
 
-**Status:** `422 Unprocessable Entity`
+**Status:** `400 Bad Request`
 
 **Description:** CSV file is missing required columns (`first_name`, `last_name`, `email`).
 
 **Response:**
 ```json
 {
-  "statusCode": 422,
-  "error": "Empty or invalid CSV",
   "message": "CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email"
 }
 ```
@@ -389,9 +350,7 @@ All successful imports return:
 
 ## Response Body Structure
 
-### How to View Responses in Network Tab
-
-When viewing responses in your browser's Network tab or API client (Postman, Insomnia, etc.), you'll see the complete response object:
+All error responses include only the `message` field with complete details about the problem.
 
 **Success (201 Created):**
 ```json
@@ -403,18 +362,12 @@ When viewing responses in your browser's Network tab or API client (Postman, Ins
 }
 ```
 
-**Validation Error (422 Unprocessable Entity):**
+**Error (400 Bad Request):**
 ```json
 {
-  "statusCode": 422,
-  "error": "Duplicate emails in other companies",
-  "message": "3 email address(es) already exist in another company...",
-  "duplicate_count": 3,
-  "duplicates": ["email1@example.com", "email2@example.com", "email3@example.com"]
+  "message": "Detailed error message with all relevant information about which entries failed and why"
 }
 ```
-
-The `statusCode`, `error`, `message`, and all custom fields will appear in the response body.
 
 ---
 
@@ -422,11 +375,11 @@ The `statusCode`, `error`, `message`, and all custom fields will appear in the r
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| 422 - 3+ emails already exist | Duplicate emails in system | Use different emails or remove from CSV |
-| 422 - Email appears multiple times in CSV | Data entry error | Remove duplicates from CSV, keep one instance |
-| 422 - New users missing passwords | No password in CSV + no company default | Add passwords to CSV or configure company default |
-| 422 - Invalid file format | Wrong extension/MIME type | Use `.csv` file with proper CSV formatting |
-| 422 - Empty or invalid CSV | Malformed CSV or missing columns | Check headers: `first_name`, `last_name`, `email` |
+| 400 - Emails already exist in another company | Duplicate emails in system | Use different emails or remove from CSV |
+| 400 - Email appears multiple times in CSV | Data entry error | Remove duplicates from CSV, keep one instance |
+| 400 - New users missing passwords | No password in CSV + no company default | Add passwords to CSV or configure company default |
+| 400 - Invalid file format | Wrong extension/MIME type | Use `.csv` file with proper CSV formatting |
+| 400 - Empty or invalid CSV | Malformed CSV or missing columns | Check headers: `first_name`, `last_name`, `email` |
 | 404 Not Found | Invalid company ID | Verify company ID is correct |
 | 500 Internal Server Error | Server issue | Contact support, check server logs |
 
@@ -443,16 +396,14 @@ The `statusCode`, `error`, `message`, and all custom fields will appear in the r
 
 ## Technical Implementation
 
-### Custom Exception Handling
-The API uses a custom `CsvImportException` class that extends NestJS's `HttpException`. This ensures that all validation error details (error type, duplicate lists, etc.) are properly included in the HTTP response body, not just the message.
+### Simple Message-Based Error Responses
+The API uses `BadRequestException` with comprehensive error messages. All validation error details (duplicate counts, problematic emails, etc.) are embedded directly in the message field for simplicity.
 
-**Exception Flow:**
-1. Validation error occurs in service
-2. `CsvImportException` is thrown with metadata
-3. NestJS exception handler formats response with all fields
-4. Full response object returned in network response
-
-This is why you see complete error objects with `statusCode`, `error`, `duplicate_count`, `duplicates`, etc. in the response body.
+**Error Message Format:**
+- Duplicate emails in CSV: Shows count and list of duplicates
+- Other company duplicates: Shows count and list of emails (up to 10, plus count of more)
+- Missing passwords: Shows count and list of email addresses
+- Invalid format/empty: Shows descriptive message about what's wrong
 
 ---
 
@@ -463,7 +414,7 @@ This is why you see complete error objects with `statusCode`, `error`, `duplicat
 - ✅ Company-scoped imports (users can only be imported into authorized company)
 - ✅ Email uniqueness enforced globally
 - ✅ All operations logged with timestamp
-- ✅ Custom exception handling ensures detailed error responses
+- ✅ Clear error messages for debugging without exposing sensitive data
 
 ---
 
@@ -472,11 +423,10 @@ This is why you see complete error objects with `statusCode`, `error`, `duplicat
 | Code | Meaning | Action |
 |------|---------|--------|
 | `201` | Created | Success - users imported |
-| `400` | Bad Request | File upload/authentication error |
+| `400` | Bad Request | Validation error - check message for details |
 | `401` | Unauthorized | Verify authentication token |
 | `403` | Forbidden | Insufficient permissions |
 | `404` | Not Found | Company doesn't exist |
-| `422` | Unprocessable Entity | CSV validation error - check `error` and `duplicates` fields |
 | `500` | Server Error | Contact support |
 
 ---
@@ -503,48 +453,19 @@ async importUsers(companyId: string, file: File) {
     const data = await response.json();
 
     if (!response.ok) {
-      // Handle validation errors (422)
-      if (response.status === 422) {
-        const error = data as {
-          statusCode: number;
-          error: string;
-          duplicates?: string[] | Array<{ email: string; occurrences: number }>;
-          duplicate_count?: number;
-          missing_password_emails?: string[];
-          message: string;
-        };
-
-        console.error(`Validation Error (${error.error}):`, error.message);
-
-        if (error.duplicates) {
-          console.error('Problematic entries:', error.duplicates);
-          // Show user which emails/entries are problematic
-        }
-
-        throw new Error(error.message);
-      }
-
-      throw new Error(data.message || 'Import failed');
+      // All errors return only a message field
+      console.error('Import failed:', data.message);
+      throw new Error(data.message);
     }
 
     // Success response (201)
-    const result = data as {
-      summary: {
-        total_processed: number;
-        total_updated: number;
-        total_inserted: number;
-        updated_entries: Array<{ email: string; name: string }>;
-      };
-    };
-
     console.log(`Import successful!`);
-    console.log(`Updated: ${result.summary.total_updated} users`);
-    console.log(`Inserted: ${result.summary.total_inserted} users`);
-    console.log(`Updated entries:`, result.summary.updated_entries);
+    console.log(`Updated: ${data.summary.total_updated} users`);
+    console.log(`Inserted: ${data.summary.total_inserted} users`);
 
-    return result;
+    return data;
   } catch (error) {
-    console.error('Import failed:', error instanceof Error ? error.message : String(error));
+    console.error('Error:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -556,8 +477,9 @@ async importUsers(companyId: string, file: File) {
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.2 | 2024-12-14 | Implemented custom `CsvImportException` class; now returns full error objects in network responses with all metadata fields visible |
-| 1.1 | 2024-12-14 | Updated to use 422 status code for validation errors; improved response structure with detailed error fields |
+| 1.3 | 2024-12-14 | Simplified to message-only error responses using BadRequestException; cleaner and easier to debug |
+| 1.2 | 2024-12-14 | Implemented custom exception handling (reverted) |
+| 1.1 | 2024-12-14 | Updated validation error handling |
 | 1.0 | 2024-12-14 | Initial release with detailed error reporting |
 
 ---

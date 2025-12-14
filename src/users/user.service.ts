@@ -1,12 +1,11 @@
 import {
   BadRequestException,
-  HttpException,
-  HttpStatus,
   Injectable,
   NotFoundException,
   StreamableFile,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
-import { CsvImportException } from 'src/common/exceptions/validation.exception';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -310,8 +309,7 @@ export class UserService {
     );
 
     if (!isValidExtension || !isValidMimeType) {
-      throw new CsvImportException(
-        'Invalid file format',
+      throw new BadRequestException(
         'Invalid file format. Only CSV file is allowed.',
       );
     }
@@ -332,8 +330,7 @@ export class UserService {
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
-      throw new CsvImportException(
-        'Empty or invalid CSV',
+      throw new BadRequestException(
         'CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email',
       );
     }
@@ -353,13 +350,11 @@ export class UserService {
       .map(([email, count]) => ({ email, occurrences: count }));
 
     if (csvDuplicates.length > 0) {
-      throw new CsvImportException(
-        'Duplicate entries found in CSV file',
-        `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
-        {
-          duplicate_count: csvDuplicates.length,
-          duplicates: csvDuplicates,
-        },
+      const duplicatesList = csvDuplicates
+        .map((d) => `${d.email} (appears ${d.occurrences} times)`)
+        .join('; ');
+      throw new BadRequestException(
+        `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Duplicates: ${duplicatesList}. Please remove duplicates and try again.`,
       );
     }
 
@@ -457,7 +452,31 @@ export class UserService {
 
     // Insert New Users
     if (usersToInsert.length) {
-      // Validate that all new users have passwords
+      // PRIORITY 1: Check if any emails exist in other companies (reject immediately)
+      const emailsToInsert = usersToInsert.map((user) => user.email);
+      const existingEmailsInOtherCompanies = await this.userRepository.find({
+        where: {
+          email: In(emailsToInsert),
+          company_id: Not(company.id),
+        },
+        select: ['email'],
+      });
+
+      if (existingEmailsInOtherCompanies.length > 0) {
+        const duplicateEmails = existingEmailsInOtherCompanies.map(
+          (user) => user.email,
+        );
+        const emailsList =
+          duplicateEmails.slice(0, 10).join(', ') +
+          (duplicateEmails.length > 10
+            ? `, and ${duplicateEmails.length - 10} more`
+            : '');
+        throw new BadRequestException(
+          `${duplicateEmails.length} email address(es) already exist in another company: ${emailsList}. Please use different email addresses or contact support.`,
+        );
+      }
+
+      // PRIORITY 2: Validate that all new users have passwords (only after other company check)
       const usersWithoutPasswords = usersToInsert.filter(
         (user) => !user.password || user.password.trim() === '',
       );
@@ -473,39 +492,8 @@ export class UserService {
             ? ` and ${usersWithoutPasswords.length - 5} more`
             : '';
 
-        throw new CsvImportException(
-          'Missing passwords for new users',
+        throw new BadRequestException(
           `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
-          {
-            missing_password_count: usersWithoutPasswords.length,
-            missing_password_emails: usersWithoutPasswords.map(
-              (user) => user.email,
-            ),
-          },
-        );
-      }
-
-      // Check if any emails exist in other companies
-      const emailsToInsert = usersToInsert.map((user) => user.email);
-      const existingEmailsInOtherCompanies = await this.userRepository.find({
-        where: {
-          email: In(emailsToInsert),
-          company_id: Not(company.id),
-        },
-        select: ['email'],
-      });
-
-      if (existingEmailsInOtherCompanies.length > 0) {
-        const duplicateEmails = existingEmailsInOtherCompanies.map(
-          (user) => user.email,
-        );
-        throw new CsvImportException(
-          'Duplicate emails in other companies',
-          `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
-          {
-            duplicate_count: duplicateEmails.length,
-            duplicates: duplicateEmails,
-          },
         );
       }
 
