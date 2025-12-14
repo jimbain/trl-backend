@@ -6,6 +6,7 @@ import {
   NotFoundException,
   StreamableFile,
 } from '@nestjs/common';
+import { CsvImportException } from 'src/common/exceptions/validation.exception';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -309,13 +310,9 @@ export class UserService {
     );
 
     if (!isValidExtension || !isValidMimeType) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          error: 'Invalid file format',
-          message: 'Invalid file format. Only CSV file is allowed.',
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+      throw new CsvImportException(
+        'Invalid file format',
+        'Invalid file format. Only CSV file is allowed.',
       );
     }
 
@@ -335,14 +332,9 @@ export class UserService {
     const parsedData: any = this.csvService.parse(file, requiredColumns);
 
     if (!parsedData.length) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          error: 'Empty or invalid CSV',
-          message:
-            'CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email',
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
+      throw new CsvImportException(
+        'Empty or invalid CSV',
+        'CSV file is empty or has invalid data. Ensure it has required columns: first_name, last_name, email',
       );
     }
 
@@ -361,15 +353,13 @@ export class UserService {
       .map(([email, count]) => ({ email, occurrences: count }));
 
     if (csvDuplicates.length > 0) {
-      throw new HttpException(
+      throw new CsvImportException(
+        'Duplicate entries found in CSV file',
+        `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
         {
-          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          error: 'Duplicate entries found in CSV file',
           duplicate_count: csvDuplicates.length,
           duplicates: csvDuplicates,
-          message: `${csvDuplicates.length} email(s) appear multiple times in your CSV file. Please remove duplicates and try again.`,
         },
-        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
@@ -483,17 +473,15 @@ export class UserService {
             ? ` and ${usersWithoutPasswords.length - 5} more`
             : '';
 
-        throw new HttpException(
+        throw new CsvImportException(
+          'Missing passwords for new users',
+          `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
           {
-            statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-            error: 'Missing passwords for new users',
             missing_password_count: usersWithoutPasswords.length,
             missing_password_emails: usersWithoutPasswords.map(
               (user) => user.email,
             ),
-            message: `${usersWithoutPasswords.length} new user(s) are missing passwords. New users must have a password in CSV or a default password configured for the company. Users without passwords: ${missingPasswordEmails}${additionalCount}`,
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
         );
       }
 
@@ -511,15 +499,13 @@ export class UserService {
         const duplicateEmails = existingEmailsInOtherCompanies.map(
           (user) => user.email,
         );
-        throw new HttpException(
+        throw new CsvImportException(
+          'Duplicate emails in other companies',
+          `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
           {
-            statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-            error: 'Duplicate emails in other companies',
             duplicate_count: duplicateEmails.length,
             duplicates: duplicateEmails,
-            message: `${duplicateEmails.length} email address(es) already exist in another company. Please use different email addresses or contact support.`,
           },
-          HttpStatus.UNPROCESSABLE_ENTITY,
         );
       }
 

@@ -62,7 +62,7 @@ export class AdminCompanyUserController {
   }
 
   @Post(':id/import-user')
-  @HttpCode(200)
+  @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
   async uploadCsv(
     @Param('id') id: string,

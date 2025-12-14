@@ -387,6 +387,37 @@ All successful imports return:
 
 ---
 
+## Response Body Structure
+
+### How to View Responses in Network Tab
+
+When viewing responses in your browser's Network tab or API client (Postman, Insomnia, etc.), you'll see the complete response object:
+
+**Success (201 Created):**
+```json
+{
+  "id": "log_123",
+  "company_id": "comp_123",
+  "meta": {...},
+  "summary": {...}
+}
+```
+
+**Validation Error (422 Unprocessable Entity):**
+```json
+{
+  "statusCode": 422,
+  "error": "Duplicate emails in other companies",
+  "message": "3 email address(es) already exist in another company...",
+  "duplicate_count": 3,
+  "duplicates": ["email1@example.com", "email2@example.com", "email3@example.com"]
+}
+```
+
+The `statusCode`, `error`, `message`, and all custom fields will appear in the response body.
+
+---
+
 ## Troubleshooting Guide
 
 | Issue | Cause | Solution |
@@ -410,6 +441,21 @@ All successful imports return:
 
 ---
 
+## Technical Implementation
+
+### Custom Exception Handling
+The API uses a custom `CsvImportException` class that extends NestJS's `HttpException`. This ensures that all validation error details (error type, duplicate lists, etc.) are properly included in the HTTP response body, not just the message.
+
+**Exception Flow:**
+1. Validation error occurs in service
+2. `CsvImportException` is thrown with metadata
+3. NestJS exception handler formats response with all fields
+4. Full response object returned in network response
+
+This is why you see complete error objects with `statusCode`, `error`, `duplicate_count`, `duplicates`, etc. in the response body.
+
+---
+
 ## Security Notes
 
 - ✅ Parameterized queries prevent SQL injection
@@ -417,6 +463,7 @@ All successful imports return:
 - ✅ Company-scoped imports (users can only be imported into authorized company)
 - ✅ Email uniqueness enforced globally
 - ✅ All operations logged with timestamp
+- ✅ Custom exception handling ensures detailed error responses
 
 ---
 
@@ -509,6 +556,7 @@ async importUsers(companyId: string, file: File) {
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2 | 2024-12-14 | Implemented custom `CsvImportException` class; now returns full error objects in network responses with all metadata fields visible |
 | 1.1 | 2024-12-14 | Updated to use 422 status code for validation errors; improved response structure with detailed error fields |
 | 1.0 | 2024-12-14 | Initial release with detailed error reporting |
 
