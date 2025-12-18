@@ -68,9 +68,14 @@ export class AuthController {
     @Request() req,
     @Res() res,
   ) {
-    const user = await this.userService.findByEmail(req.user.email, [
-      'company',
-    ]);
+    console.log('Req:', req);
+    console.log('companyId:', companyId);
+    console.log('req.user:', req.user);
+    const user = await this.userService.findByEmail(
+      req.user.email ?? req.user.id,
+      ['company'],
+    );
+    console.log('User:', user);
 
     if (!user) {
       return res.redirect(
