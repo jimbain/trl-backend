@@ -281,6 +281,8 @@ export class AdminReportService {
       per_page = 20,
       user_ids,
       search,
+      queued_at_from,
+      queued_at_to,
     } = query;
 
     try {
@@ -291,6 +293,8 @@ export class AdminReportService {
           per_page,
           user_ids,
           search,
+          queued_at_from,
+          queued_at_to,
         });
       } else if (media_type === MEDIA.VIDEO) {
         return this.getQueuedVideoTitles({
@@ -299,6 +303,8 @@ export class AdminReportService {
           per_page,
           user_ids,
           search,
+          queued_at_from,
+          queued_at_to,
         });
       } else if (media_type === MEDIA.PHARMA) {
         return this.getQueuedPharmaTitles({
@@ -307,6 +313,8 @@ export class AdminReportService {
           per_page,
           user_ids,
           search,
+          queued_at_from,
+          queued_at_to,
         });
       } else {
         throw new BadRequestException(
@@ -326,8 +334,18 @@ export class AdminReportService {
     per_page: number;
     user_ids?: string[];
     search?: string;
+    queued_at_from?: string;
+    queued_at_to?: string;
   }) {
-    const { company_ids, page, per_page, user_ids, search } = params;
+    const {
+      company_ids,
+      page,
+      per_page,
+      user_ids,
+      search,
+      queued_at_from,
+      queued_at_to,
+    } = params;
 
     const queryBuilder = this.userAudioStatusRepository
       .createQueryBuilder('status')
@@ -367,6 +385,18 @@ export class AdminReportService {
       );
     }
 
+    if (queued_at_from) {
+      queryBuilder.andWhere('DATE(status.updated_at) >= :queued_at_from', {
+        queued_at_from,
+      });
+    }
+
+    if (queued_at_to) {
+      queryBuilder.andWhere('DATE(status.updated_at) <= :queued_at_to', {
+        queued_at_to,
+      });
+    }
+
     queryBuilder.orderBy('status.updated_at', 'DESC');
 
     return this.buildQueuedTitleResponse(queryBuilder, page, per_page);
@@ -378,8 +408,18 @@ export class AdminReportService {
     per_page: number;
     user_ids?: string[];
     search?: string;
+    queued_at_from?: string;
+    queued_at_to?: string;
   }) {
-    const { company_ids, page, per_page, user_ids, search } = params;
+    const {
+      company_ids,
+      page,
+      per_page,
+      user_ids,
+      search,
+      queued_at_from,
+      queued_at_to,
+    } = params;
 
     const queryBuilder = this.videoUserStatusRepository
       .createQueryBuilder('status')
@@ -419,6 +459,18 @@ export class AdminReportService {
       );
     }
 
+    if (queued_at_from) {
+      queryBuilder.andWhere('DATE(status.updated_at) >= :queued_at_from', {
+        queued_at_from,
+      });
+    }
+
+    if (queued_at_to) {
+      queryBuilder.andWhere('DATE(status.updated_at) <= :queued_at_to', {
+        queued_at_to,
+      });
+    }
+
     queryBuilder.orderBy('status.updated_at', 'DESC');
 
     return this.buildQueuedTitleResponse(queryBuilder, page, per_page);
@@ -430,8 +482,18 @@ export class AdminReportService {
     per_page: number;
     user_ids?: string[];
     search?: string;
+    queued_at_from?: string;
+    queued_at_to?: string;
   }) {
-    const { company_ids, page, per_page, user_ids, search } = params;
+    const {
+      company_ids,
+      page,
+      per_page,
+      user_ids,
+      search,
+      queued_at_from,
+      queued_at_to,
+    } = params;
 
     const queryBuilder = this.pharmaUserStatusRepository
       .createQueryBuilder('status')
@@ -469,6 +531,18 @@ export class AdminReportService {
         '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search OR pharma.title ILIKE :search OR pharma.sku ILIKE :search)',
         { search: `%${search}%` },
       );
+    }
+
+    if (queued_at_from) {
+      queryBuilder.andWhere('DATE(status.updated_at) >= :queued_at_from', {
+        queued_at_from,
+      });
+    }
+
+    if (queued_at_to) {
+      queryBuilder.andWhere('DATE(status.updated_at) <= :queued_at_to', {
+        queued_at_to,
+      });
     }
 
     queryBuilder.orderBy('status.updated_at', 'DESC');

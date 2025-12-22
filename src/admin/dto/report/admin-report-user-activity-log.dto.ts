@@ -74,8 +74,8 @@ export class AdminReportUserActivityLogDto {
   @Expose()
   @Transform(({ obj }) =>
     obj?.action === USER_ACTIVITY.KEEP
-      ? DateTimeHelper.format(obj.meta?.keep_at, 'DD-MM-YYYY')
-      : DateTimeHelper.format(obj.meta?.start_time, 'DD-MM-YYYY'),
+      ? DateTimeHelper.format(obj.meta?.keep_at, 'M/D/YYYY')
+      : DateTimeHelper.format(obj.meta?.start_time, 'M/D/YYYY'),
   )
   start_date: string;
 
@@ -83,7 +83,7 @@ export class AdminReportUserActivityLogDto {
   @Transform(({ obj }) =>
     obj?.action === USER_ACTIVITY.KEEP
       ? null
-      : DateTimeHelper.format(obj.meta?.end_time, 'DD-MM-YYYY'),
+      : DateTimeHelper.format(obj.meta?.end_time, 'M/D/YYYY'),
   )
   end_date: string;
 
@@ -169,6 +169,8 @@ export class AdminReportUserActivityLogDto {
   listening_percentage: string;
 
   @Expose()
-  @Transform(({ obj }) => DateTimeHelper.formatDateTime(obj.created_at))
+  @Transform(({ obj }) =>
+    DateTimeHelper.format(obj.created_at, 'M/D/YYYY h:mm:ss A'),
+  )
   created_at: string;
 }

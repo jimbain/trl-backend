@@ -1,4 +1,5 @@
 import { Expose, Transform, Type } from 'class-transformer';
+import { DateTimeHelper } from 'src/common/helpers/datetime.helper';
 
 class UserDto {
   @Expose()
@@ -39,7 +40,7 @@ class CompanyDto {
   logo_url: string | null;
 }
 
-class TitleDto {
+class MediaDto {
   @Expose()
   id: string;
 
@@ -51,14 +52,17 @@ class TitleDto {
 
   @Expose()
   sku: string;
-
-  @Expose()
-  queued_at: Date;
 }
 
 export class AdminQueuedTitleDto {
   @Expose()
   id: string;
+
+  @Expose()
+  @Transform(({ obj }) =>
+    DateTimeHelper.format(obj?.queued_at, 'M/D/YYYY h:mm:ss A'),
+  )
+  queued_at: string;
 
   @Expose()
   @Type(() => UserDto)
@@ -84,13 +88,12 @@ export class AdminQueuedTitleDto {
   company: CompanyDto;
 
   @Expose()
-  @Type(() => TitleDto)
+  @Type(() => MediaDto)
   @Transform(({ obj }) => ({
     id: obj?.item_id,
     type: obj?.item_type,
     title: obj?.title,
     sku: obj?.sku,
-    queued_at: obj?.queued_at,
   }))
-  title: TitleDto;
+  media: MediaDto;
 }

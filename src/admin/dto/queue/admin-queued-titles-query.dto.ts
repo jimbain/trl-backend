@@ -6,8 +6,9 @@ import {
   Max,
   IsArray,
   IsString,
+  Matches,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { Media, MEDIA } from 'src/constants';
 
 export class AdminQueuedTitlesQueryDto {
@@ -42,4 +43,18 @@ export class AdminQueuedTitlesQueryDto {
   @IsOptional()
   @IsString()
   search?: string; // Search by user name, email, or title
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'queued_at_from must be in Y-m-d format (e.g., 2024-12-20)',
+  })
+  queued_at_from?: string; // Date in Y-m-d format
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'queued_at_to must be in Y-m-d format (e.g., 2024-12-20)',
+  })
+  queued_at_to?: string; // Date in Y-m-d format
 }
