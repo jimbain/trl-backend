@@ -32,11 +32,6 @@ class CompanyDto {
   name: string;
 
   @Expose()
-  @Transform(({ obj }) =>
-    obj?.logo_url
-      ? `${process.env.DO_BUCKET_FRONTEND_ENDPOINT}/${obj?.logo_url}`
-      : null,
-  )
   logo_url: string | null;
 }
 
