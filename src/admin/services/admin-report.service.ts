@@ -15,6 +15,12 @@ import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-
 import { Readable } from 'stream';
 import { plainToInstance } from 'class-transformer';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
+import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
+import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
+import { AdminQueuedTitlesQueryDto } from '../dto/queue/admin-queued-titles-query.dto';
+import { AdminQueuedTitleDto } from '../dto/queue/admin-queued-title.dto';
+import { MEDIA } from 'src/constants';
 
 export interface OverviewInterface {
   company_count: number;
@@ -38,6 +44,15 @@ export class AdminReportService {
 
     @InjectRepository(UserActivityLog)
     private readonly userActivityLogRepository: Repository<UserActivityLog>,
+
+    @InjectRepository(UserAudioStatus)
+    private readonly userAudioStatusRepository: Repository<UserAudioStatus>,
+
+    @InjectRepository(VideoUserStatus)
+    private readonly videoUserStatusRepository: Repository<VideoUserStatus>,
+
+    @InjectRepository(PharmaUserStatus)
+    private readonly pharmaUserStatusRepository: Repository<PharmaUserStatus>,
   ) {}
   async getOverview(): Promise<OverviewInterface> {
     const [companyCount, userCount, audioCount] = await Promise.all([
@@ -256,5 +271,223 @@ export class AdminReportService {
     }
 
     return stream;
+  }
+
+  async getQueuedTitles(query: AdminQueuedTitlesQueryDto) {
+    const {
+      media_type,
+      company_ids,
+      page = 1,
+      per_page = 20,
+      user_ids,
+      search,
+    } = query;
+
+    try {
+      if (media_type === MEDIA.AUDIO) {
+        return this.getQueuedAudioTitles({
+          company_ids,
+          page,
+          per_page,
+          user_ids,
+          search,
+        });
+      } else if (media_type === MEDIA.VIDEO) {
+        return this.getQueuedVideoTitles({
+          company_ids,
+          page,
+          per_page,
+          user_ids,
+          search,
+        });
+      } else if (media_type === MEDIA.PHARMA) {
+        return this.getQueuedPharmaTitles({
+          company_ids,
+          page,
+          per_page,
+          user_ids,
+          search,
+        });
+      } else {
+        throw new BadRequestException(
+          `Invalid media type: ${media_type}. Must be audio, video, or pharma.`,
+        );
+      }
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to fetch queued titles: ${error.message}`,
+      );
+    }
+  }
+
+  private async getQueuedAudioTitles(params: {
+    company_ids?: string[];
+    page: number;
+    per_page: number;
+    user_ids?: string[];
+    search?: string;
+  }) {
+    const { company_ids, page, per_page, user_ids, search } = params;
+
+    const queryBuilder = this.userAudioStatusRepository
+      .createQueryBuilder('status')
+      .innerJoin('status.user', 'user')
+      .innerJoin('user.company', 'company')
+      .innerJoin('status.audio', 'audio')
+      .where('status.status = :status', { status: 'queued' })
+      .select([
+        'status.id AS id',
+        'status.user_id AS user_id',
+        'status.audio_id AS item_id',
+        "'" + MEDIA.AUDIO + "' AS item_type",
+        'user.first_name AS user_first_name',
+        'user.last_name AS user_last_name',
+        'user.email AS user_email',
+        'user.title AS user_title',
+        'company.id AS company_id',
+        'company.name AS company_name',
+        'company.logo_url AS company_logo_url',
+        'audio.display_title AS title',
+        'audio.sku AS sku',
+        'status.updated_at AS queued_at',
+      ]);
+
+    if (company_ids?.length) {
+      queryBuilder.andWhere('company.id IN (:...company_ids)', { company_ids });
+    }
+
+    if (user_ids?.length) {
+      queryBuilder.andWhere('user.id IN (:...user_ids)', { user_ids });
+    }
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search OR audio.display_title ILIKE :search OR audio.sku ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    queryBuilder.orderBy('status.updated_at', 'DESC');
+
+    return this.buildQueuedTitleResponse(queryBuilder, page, per_page);
+  }
+
+  private async getQueuedVideoTitles(params: {
+    company_ids?: string[];
+    page: number;
+    per_page: number;
+    user_ids?: string[];
+    search?: string;
+  }) {
+    const { company_ids, page, per_page, user_ids, search } = params;
+
+    const queryBuilder = this.videoUserStatusRepository
+      .createQueryBuilder('status')
+      .innerJoin('status.user', 'user')
+      .innerJoin('user.company', 'company')
+      .innerJoin('status.video', 'video')
+      .where('status.status = :status', { status: 'queued' })
+      .select([
+        'status.id AS id',
+        'status.user_id AS user_id',
+        'status.video_id AS item_id',
+        "'" + MEDIA.VIDEO + "' AS item_type",
+        'user.first_name AS user_first_name',
+        'user.last_name AS user_last_name',
+        'user.email AS user_email',
+        'user.title AS user_title',
+        'company.id AS company_id',
+        'company.name AS company_name',
+        'company.logo_url AS company_logo_url',
+        'video.title AS title',
+        'video.sku AS sku',
+        'status.updated_at AS queued_at',
+      ]);
+
+    if (company_ids?.length) {
+      queryBuilder.andWhere('company.id IN (:...company_ids)', { company_ids });
+    }
+
+    if (user_ids?.length) {
+      queryBuilder.andWhere('user.id IN (:...user_ids)', { user_ids });
+    }
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search OR video.title ILIKE :search OR video.sku ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    queryBuilder.orderBy('status.updated_at', 'DESC');
+
+    return this.buildQueuedTitleResponse(queryBuilder, page, per_page);
+  }
+
+  private async getQueuedPharmaTitles(params: {
+    company_ids?: string[];
+    page: number;
+    per_page: number;
+    user_ids?: string[];
+    search?: string;
+  }) {
+    const { company_ids, page, per_page, user_ids, search } = params;
+
+    const queryBuilder = this.pharmaUserStatusRepository
+      .createQueryBuilder('status')
+      .innerJoin('status.user', 'user')
+      .innerJoin('user.company', 'company')
+      .innerJoin('status.pharma', 'pharma')
+      .where('status.status = :status', { status: 'queued' })
+      .select([
+        'status.id AS id',
+        'status.user_id AS user_id',
+        'status.pharma_id AS item_id',
+        "'" + MEDIA.PHARMA + "' AS item_type",
+        'user.first_name AS user_first_name',
+        'user.last_name AS user_last_name',
+        'user.email AS user_email',
+        'user.title AS user_title',
+        'company.id AS company_id',
+        'company.name AS company_name',
+        'company.logo_url AS company_logo_url',
+        'pharma.title AS title',
+        'pharma.sku AS sku',
+        'status.updated_at AS queued_at',
+      ]);
+
+    if (company_ids?.length) {
+      queryBuilder.andWhere('company.id IN (:...company_ids)', { company_ids });
+    }
+
+    if (user_ids?.length) {
+      queryBuilder.andWhere('user.id IN (:...user_ids)', { user_ids });
+    }
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search OR pharma.title ILIKE :search OR pharma.sku ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    queryBuilder.orderBy('status.updated_at', 'DESC');
+
+    return this.buildQueuedTitleResponse(queryBuilder, page, per_page);
+  }
+
+  private async buildQueuedTitleResponse(
+    queryBuilder: SelectQueryBuilder<any>,
+    page: number,
+    per_page: number,
+  ) {
+    const { data, meta } = await paginate(queryBuilder, page, per_page);
+
+    return {
+      data: plainToInstance(AdminQueuedTitleDto, data, {
+        excludeExtraneousValues: true,
+      }),
+      meta,
+    };
   }
 }

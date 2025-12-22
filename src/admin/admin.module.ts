@@ -51,6 +51,8 @@ import { StorageModule } from 'src/storage/storage.module';
 import { PharmaModule } from 'src/pharma/pharma.module';
 import { VideoModule } from 'src/video/video.module';
 import { AdminStorageController } from './controllers/admin-storage.controller';
+import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
+import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 
 @Module({
   imports: [
@@ -78,6 +80,8 @@ import { AdminStorageController } from './controllers/admin-storage.controller';
       Company,
       User,
       UserAudioStatus,
+      VideoUserStatus,
+      PharmaUserStatus,
       UserAudioplayerPosition,
       UserActivityLog,
       Notification,
