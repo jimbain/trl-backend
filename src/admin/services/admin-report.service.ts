@@ -10,6 +10,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { paginate } from 'src/common/helpers/pagination.helper';
+import { DateTimeHelper } from 'src/common/helpers/datetime.helper';
 import { AdminReportUserActivityLogDto } from '../dto/report/admin-report-user-activity-log.dto';
 import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-user-activity-log-query.dto';
 import { Readable } from 'stream';
@@ -20,7 +21,7 @@ import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 import { AdminQueuedTitlesQueryDto } from '../dto/queue/admin-queued-titles-query.dto';
 import { AdminQueuedTitleDto } from '../dto/queue/admin-queued-title.dto';
-import { MEDIA } from 'src/constants';
+import { MEDIA, USER_ACTIVITY } from 'src/constants';
 
 export interface OverviewInterface {
   company_count: number;
@@ -205,7 +206,7 @@ export class AdminReportService {
 
     // Write CSV Header
     stream.push(
-      'Title,SKU,Media Type,Company,Member Name,Member Email,Title Time,Listened Time,Listened Time(%),TRL Cost,TRL Credits,Rent/Purchase,Start Date,End Date,Renewed\n',
+      'SKU,Title,Media Type,Company,Member Name,Member Email,Start Date,End Date,Renewed,Title Time,Listened Time,Listened Time(%),TRL Cost,TRL Credits,Rent/Purchase\n',
     );
 
     const batchSize = 1000;
@@ -233,24 +234,47 @@ export class AdminReportService {
           items,
         );
 
-        for (const item of transformedItems) {
+        for (let i = 0; i < transformedItems.length; i++) {
+          const item = transformedItems[i];
+          const rawItem = items[i];
+
+          // Format dates for CSV export in MM/DD/YYYY format
+          let startDate = '';
+          let endDate = '';
+
+          if (rawItem?.action === USER_ACTIVITY.KEEP) {
+            startDate = DateTimeHelper.format(
+              rawItem.meta?.keep_at,
+              'MM/DD/YYYY',
+            );
+          } else {
+            startDate = DateTimeHelper.format(
+              rawItem.meta?.start_time,
+              'MM/DD/YYYY',
+            );
+            endDate = DateTimeHelper.format(
+              rawItem.meta?.end_time,
+              'MM/DD/YYYY',
+            );
+          }
+
           const row =
             [
-              `"${item.audio?.title ?? ''}"`,
               `"${item.audio?.sku ?? ''}"`,
+              `"${item.audio?.title ?? ''}"`,
               `"${item.item_type ?? ''}"`,
               `"${item.company?.name ?? ''}"`,
               `"${item.user?.name ?? ''}"`,
               `"${item.user?.email ?? ''}"`,
+              `"${startDate}"`,
+              `"${endDate}"`,
+              `"${item.is_renewed ? 'Yes' : 'No'}"`,
               `"${item.audio?.runtime ?? ''}"`,
               `"${item.listened_time ?? ''}"`,
               `"${item.listening_percentage ?? ''}"`,
               `"${item.audio?.trl_cost ?? ''}"`,
               `"${item.trl_credit ?? ''}"`,
               `"${item.action ?? ''}"`,
-              `"${item.start_date ?? ''}"`,
-              `"${item.end_date ?? ''}"`,
-              `"${item.is_renewed ? 'Yes' : 'No'}"`,
             ].join(',') + '\n';
 
           // Respect backpressure

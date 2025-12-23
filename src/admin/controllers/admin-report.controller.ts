@@ -7,6 +7,7 @@ import {
   StreamableFile,
   UseGuards,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminReportService } from '../services/admin-report.service';
@@ -25,6 +26,7 @@ export class AdminReportController {
   }
 
   @Post('user-activity-logs')
+  @HttpCode(200)
   async findUserActivityLogs(
     @Body() payload: AdminReportUserActivityLogsQueryDto,
     @Res() res: Response,
