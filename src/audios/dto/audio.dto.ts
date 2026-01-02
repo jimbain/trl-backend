@@ -4,9 +4,11 @@ import { MEDIA_AVAILABILITY_TYPE } from 'src/constants';
 export function getAvailableFor(
   audio: any,
 ): 'rent' | 'bookshelf' | 'both' | null {
+  const rentalCost = Number(audio.rental_credit_cost || 0);
   const canRent = audio.total_rented < audio.purchased_rental_license_limit;
+  const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
 
-  switch (audio?.metadata?.available_for) {
+  switch (availableFor) {
     case MEDIA_AVAILABILITY_TYPE.RENTAL:
       return canRent ? 'rent' : null;
 
@@ -14,7 +16,7 @@ export function getAvailableFor(
       return audio.is_only_for_purchase ? 'bookshelf' : null;
 
     case MEDIA_AVAILABILITY_TYPE.BOTH:
-      if (canRent && audio.rental_credit_cost <= audio.bookshelf_credit_cost) {
+      if (canRent && rentalCost <= audio.bookshelf_credit_cost) {
         return 'both';
       } else {
         return 'bookshelf';
@@ -27,10 +29,11 @@ export function getAvailableFor(
 
 export function getAvailableForMessage(audio: any): string | null {
   const canRent = audio.total_rented < audio.purchased_rental_license_limit;
-  const rentalCost = audio.rental_credit_cost;
+  const rentalCost = Number(audio.rental_credit_cost || 0);
   const bookshelfCost = audio.bookshelf_credit_cost;
+  const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
 
-  switch (audio?.metadata?.available_for) {
+  switch (availableFor) {
     case MEDIA_AVAILABILITY_TYPE.PURCHASABLE:
       return audio.is_only_for_purchase
         ? 'This book will be added to your bookshelf and does not need to be checked back in.'
