@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  StreamableFile,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { StorageService } from 'src/storage/storage.service';
@@ -142,8 +137,23 @@ export class AdminVideoService {
     }
 
     // Sorting
-    if (order_by_column) {
-      queryBuilder.orderBy(`video.${order_by_column}`, order_by || 'ASC');
+    if (order_by_column && order_by) {
+      const orderByMap: Record<string, string> = {
+        sku: 'video.sku',
+        title: 'video.title',
+        category: 'category',
+        is_active: 'video.is_active',
+        is_featured: 'video.is_featured',
+        created_at: 'video.created_at',
+        avilar_course_id: 'video.avilar_course_id',
+        group: 'video.group',
+      };
+
+      const column = orderByMap[order_by_column];
+
+      if (column) {
+        queryBuilder.orderBy(column, order_by);
+      }
     } else {
       queryBuilder.orderBy('video.created_at', 'DESC');
     }

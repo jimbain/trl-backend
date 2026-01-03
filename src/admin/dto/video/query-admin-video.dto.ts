@@ -83,6 +83,7 @@ export class QueryAdminVideoDto {
     | 'is_active'
     | 'is_featured'
     | 'title'
+    | 'category'
     | 'created_at'
     | 'avilar_course_id'
     | 'group';
