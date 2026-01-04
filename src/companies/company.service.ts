@@ -303,6 +303,11 @@ export class CompanyService {
 
     Object.assign(company, updateCompanyDto);
 
+    // If description is not in payload, set it to null
+    if (!('description' in updateCompanyDto)) {
+      company.description = null;
+    }
+
     if (logo) {
       const logoPath = await this.fileManagerService.uploadFile(
         logo,
