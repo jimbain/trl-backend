@@ -108,9 +108,12 @@ export class CompanyService {
     }
 
     if (user_name) {
-      queryBuilder.andWhere('user.name ILIKE :user_name', {
-        user_name: `%${user_name}%`,
-      });
+      queryBuilder.andWhere(
+        "(user.first_name ILIKE :user_name OR user.last_name ILIKE :user_name OR CONCAT(user.first_name, ' ', user.last_name) ILIKE :user_name)",
+        {
+          user_name: `%${user_name}%`,
+        },
+      );
     }
 
     if (user_email) {
