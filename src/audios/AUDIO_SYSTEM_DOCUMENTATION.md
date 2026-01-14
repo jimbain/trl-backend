@@ -3,31 +3,34 @@
 ## Table of Contents
 1. [System Overview](#system-overview)
 2. [User Actions](#user-actions)
-3. [Database Schema](#database-schema)
-4. [Data Flow by Action](#data-flow-by-action)
-5. [Entity Relationships](#entity-relationships)
-6. [Configuration & Credits](#configuration--credits)
-7. [API Endpoints](#api-endpoints)
-8. [External Integrations](#external-integrations)
+3. [Playback Tracking](#playback-tracking)
+4. [Database Schema](#database-schema)
+5. [Data Flow by Action](#data-flow-by-action)
+6. [Entity Relationships](#entity-relationships)
+7. [Configuration & Credits](#configuration--credits)
+8. [API Endpoints](#api-endpoints)
+9. [External Integrations](#external-integrations)
 
 ---
 
 ## System Overview
 
-The TRL Audio System allows users to interact with audiobooks through six primary actions:
+The TRL Audio System allows users to interact with audiobooks through eight primary actions:
 - **Queue**: Add audio to a waiting list (no cost)
 - **Dequeue**: Remove audio from the waiting list
 - **Rent**: Temporarily access audio for a configurable period (typically 14 days)
 - **Renew**: Extend the rental period for already-rented audio
 - **Return**: Return rented audio before expiration
 - **Bookshelf/Keep**: Permanently purchase audio for unlimited access
+- **Play**: Track when user starts or resumes playback (analytics & daily counter)
+- **Pause**: Save current playback position for resume functionality
 
 ### Core Components
 - **Audio Entity**: Represents the audiobook catalog
-- **Audio Metadata**: Detailed information about each audiobook
+- **Audio Metadata**: Detailed information about each audiobook (chapters, duration, narrators, etc.)
 - **User Audio Status**: Tracks the relationship between users and audios (queued/rented/bookshelved)
-- **User Activity Log**: Records all user actions with metadata
-- **User Audioplayer Position**: Tracks playback progress for resume functionality
+- **User Activity Log**: Records all user actions with metadata (including play/pause events)
+- **User Audioplayer Position**: Tracks exact playback position for resume functionality
 - **Audio Reviews**: User ratings and reviews
 
 ---
@@ -260,6 +263,195 @@ User clicks "Add to Bookshelf" → API call → Check daily purchase limit →
 Check company credits → Purchase retail license from Findaway →
 Create/update user_audio_statuses → Deduct credits → Log activity → Return status
 ```
+
+---
+
+## Playback Tracking
+
+The audio system tracks user playback positions and listening activity through PLAY and PAUSE events. This enables resume functionality and analytics on listening behavior.
+
+### 7. PLAY Event
+
+**Purpose**: Record when a user starts or resumes playing an audio, and track playback analytics.
+
+**API Endpoint**: `POST /audios/:id/trigger-event/play`
+
+**Service Method**: `AudioService.triggerAudioPlayerEvent(audioId, 'play', payload, user)`
+
+**Credit Cost**: 0 (Free action)
+
+**Request Payload**:
+```json
+{
+  "part_number": 1,
+  "chapter_number": 3,
+  "play_position": 120
+}
+```
+
+**Database Operations**:
+
+| Table | Operation | Columns Affected | Values |
+|-------|-----------|------------------|---------|
+| `user_activity_logs` | INSERT or UPDATE | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at`, `updated_at` | user.id, audioId, 'audio', 'play', play metadata, NOW(), NOW() |
+| `audios2` | UPDATE | `total_played` | INCREMENT by 1 (once per day per user) |
+
+**Validation Rules**:
+- Audio must exist and be active
+- Chapter must exist in the audio metadata
+- `play_position` must not exceed chapter duration
+- User must have rented or bookshelved the audio to access playlist
+
+**Activity Log Meta Structure**:
+```json
+{
+  "start_part_number": 1,
+  "start_chapter_number": 1,
+  "start_position": 0,
+  "end_part_number": 1,
+  "end_chapter_number": 3,
+  "end_position": 120,
+  "total_time_played": 7320
+}
+```
+
+**Behavior**:
+- **First play of the day**: Creates new activity log with start position
+- **Subsequent plays same day**: Updates existing activity log, adjusting `start_*` values to earliest position
+- **Play counter**: Increments `audios2.total_played` only once per day per user
+- **Total time calculation**: Automatically calculates time between start and end positions across chapters
+
+**Response**: HTTP 200 (no body returned)
+
+**Example Flow**:
+```
+User starts playing audio → API call → Validate chapter exists →
+Check for existing play activity today →
+If exists: Update start/end positions, recalculate total_time_played →
+If new: Create activity log, increment total_played →
+Return success
+```
+
+---
+
+### 8. PAUSE Event
+
+**Purpose**: Update playback position when user pauses, enabling resume functionality.
+
+**API Endpoint**: `POST /audios/:id/trigger-event/pause`
+
+**Service Method**: `AudioService.triggerAudioPlayerEvent(audioId, 'pause', payload, user)`
+
+**Credit Cost**: 0 (Free action)
+
+**Request Payload**:
+```json
+{
+  "part_number": 1,
+  "chapter_number": 5,
+  "play_position": 450
+}
+```
+
+**Database Operations**:
+
+| Table | Operation | Columns Affected | Values |
+|-------|-----------|------------------|---------|
+| `user_audioplayer_positions` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `part_number`, `chapter_number`, `play_position`, `updated_at` | ULID, user.id, audioId, part#, chapter#, position, NOW() |
+| `user_activity_logs` | UPDATE | `meta.end_*`, `meta.total_time_played`, `updated_at` | Updated end position and calculated time, NOW() |
+
+**Validation Rules**:
+- Audio must exist and be active
+- Chapter must exist in the audio metadata
+- `play_position` must not exceed chapter duration
+
+**Activity Log Meta Update**:
+The most recent PLAY activity log is updated with:
+```json
+{
+  "start_part_number": 1,
+  "start_chapter_number": 1,
+  "start_position": 0,
+  "end_part_number": 1,
+  "end_chapter_number": 5,
+  "end_position": 450,
+  "total_time_played": 14250
+}
+```
+
+**Behavior**:
+- **Upsert position**: Creates or updates user's playback position
+- **Activity log update**: Finds latest PLAY activity and updates end position
+- **Resume functionality**: Position is retrieved when user requests playlist
+- **Time calculation**: Recalculates `total_time_played` from start to new end position
+
+**Response**: HTTP 200 (no body returned)
+
+**Example Flow**:
+```
+User pauses audio → API call → Validate chapter exists →
+Upsert user_audioplayer_positions record →
+Find latest play activity log → Update end position and total_time_played →
+Return success
+```
+
+---
+
+### Playback Position Tracking Details
+
+**How Resume Works**:
+
+1. User requests playlist via `GET /audios/:id/playlist`
+2. System retrieves `user_audioplayer_positions` record for user+audio
+3. Returns last known position in response:
+```json
+{
+  "audio_metadata": {...},
+  "audio_player_data": {
+    "chapter_number": 5,
+    "part_number": 1,
+    "play_position": 450
+  },
+  "playlist": {...}
+}
+```
+4. Client resumes playback from this position
+
+**Total Time Played Calculation**:
+
+The system calculates total listening time by:
+1. Identifying all chapters between start and end positions
+2. For start chapter: `chapter.duration - start_position`
+3. For end chapter: `end_position`
+4. For middle chapters: Full `chapter.duration`
+5. Sum all durations for total time
+
+**Example**:
+```
+Chapters: [
+  {part: 1, ch: 1, duration: 600},
+  {part: 1, ch: 2, duration: 550},
+  {part: 1, ch: 3, duration: 720}
+]
+
+User plays from:
+  start: {part: 1, ch: 1, position: 100}
+  end:   {part: 1, ch: 3, position: 120}
+
+Calculation:
+  Chapter 1: 600 - 100 = 500
+  Chapter 2: 550 (full chapter)
+  Chapter 3: 120
+  Total: 500 + 550 + 120 = 1170 seconds
+```
+
+**Daily Activity Consolidation**:
+
+- One activity log per user per audio per day
+- PLAY events update the earliest start position
+- PAUSE events update the latest end position
+- Total time reflects the span from earliest to latest position in that day
+- New day = new activity log entry
 
 ---
 
@@ -770,6 +962,130 @@ interface AudioActivityMeta {
 
 ---
 
+### PLAY Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ POST /audios/:id/trigger-event/play                         │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+           ┌──────────────────────┐
+           │ AudioService         │
+           │ .triggerAudioPlayer  │
+           │ Event('play')        │
+           └──────────┬───────────┘
+                      │
+                      ▼
+        ┌─────────────────────────┐
+        │ Validate:               │
+        │ - Audio exists          │
+        │ - Chapter exists        │
+        │ - Position valid        │
+        └────────┬────────────────┘
+                 │
+                 ▼
+    ┌────────────────────────────────────┐
+    │ Check for existing play activity   │
+    │ today (DATE(created_at) = today)   │
+    └────────┬───────────────────────────┘
+             │
+             ├───── Existing? ─────┐
+             │                      │
+             ▼ YES                  ▼ NO
+    ┌────────────────────┐   ┌────────────────────┐
+    │ UPDATE activity    │   │ CREATE activity    │
+    │ - Update start_*   │   │ - Set start_*      │
+    │   to earliest pos  │   │ - total_time = 0   │
+    │ - Recalc time      │   │                    │
+    └────────┬───────────┘   └────────┬───────────┘
+             │                        │
+             └────────┬───────────────┘
+                      │
+                      ▼
+         ┌────────────────────────────┐
+         │ INCREMENT audios2          │
+         │ SET total_played =         │
+         │     total_played + 1       │
+         │ (once per day per user)    │
+         └────────┬───────────────────┘
+                  │
+                  ▼
+         ┌────────────────────────────┐
+         │ Return HTTP 200            │
+         └────────────────────────────┘
+```
+
+---
+
+### PAUSE Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ POST /audios/:id/trigger-event/pause                        │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+           ┌──────────────────────┐
+           │ AudioService         │
+           │ .triggerAudioPlayer  │
+           │ Event('pause')       │
+           └──────────┬───────────┘
+                      │
+                      ▼
+        ┌─────────────────────────┐
+        │ Validate:               │
+        │ - Audio exists          │
+        │ - Chapter exists        │
+        │ - Position valid        │
+        └────────┬────────────────┘
+                 │
+                 ▼
+    ┌────────────────────────────────────┐
+    │ Find existing                      │
+    │ user_audioplayer_positions         │
+    │ WHERE user_id + audio_id           │
+    └────────┬───────────────────────────┘
+             │
+             ├───── Exists? ──────┐
+             │                     │
+             ▼ YES                 ▼ NO
+    ┌────────────────┐   ┌────────────────────┐
+    │ UPDATE record  │   │ INSERT new record  │
+    │ - part_number  │   │ - user_id          │
+    │ - chapter_num  │   │ - audio_id         │
+    │ - play_pos     │   │ - part_number      │
+    │ - updated_at   │   │ - chapter_number   │
+    └────────┬───────┘   │ - play_position    │
+             │            └────────┬───────────┘
+             │                     │
+             └──────────┬──────────┘
+                        │
+                        ▼
+           ┌────────────────────────────┐
+           │ Find latest PLAY activity  │
+           │ WHERE user_id + audio_id   │
+           │ ORDER BY created_at DESC   │
+           └────────┬───────────────────┘
+                    │
+                    ▼ (if found)
+           ┌────────────────────────────┐
+           │ UPDATE activity log        │
+           │ - Update end_part_number   │
+           │ - Update end_chapter_num   │
+           │ - Update end_position      │
+           │ - Recalc total_time_played │
+           │ - updated_at = NOW()       │
+           └────────┬───────────────────┘
+                    │
+                    ▼
+           ┌────────────────────────────┐
+           │ Return HTTP 200            │
+           └────────────────────────────┘
+```
+
+---
+
 ## Entity Relationships
 
 ```
@@ -957,6 +1273,44 @@ Content-Type: application/json
 | POST | `/audios/:audioId/reviews` | Create/update audio review | JWT |
 | GET | `/audios/:audioId/reviews` | Get reviews for audio | JWT |
 
+### Audio Playback Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/audios/:id/playlist` | Get audio playlist and resume position | JWT |
+| POST | `/audios/:id/trigger-event/play` | Record play event and track listening | JWT |
+| POST | `/audios/:id/trigger-event/pause` | Save playback position on pause | JWT |
+
+**Playlist Response Example**:
+```json
+{
+  "audio_metadata": {
+    "id": "audio_01HQRS3...",
+    "title": "The Great Novel",
+    "authors": ["Author Name"],
+    "chapters": [...]
+  },
+  "audio_player_data": {
+    "part_number": 1,
+    "chapter_number": 5,
+    "play_position": 450
+  },
+  "playlist": {
+    "manifest": "https://...",
+    "license_id": "findaway_license_123"
+  }
+}
+```
+
+**Trigger Event Request Example**:
+```json
+{
+  "part_number": 1,
+  "chapter_number": 5,
+  "play_position": 450
+}
+```
+
 ---
 
 ## External Integrations
@@ -1118,14 +1472,16 @@ MEDIA_AVAILABILITY_TYPE = {
 
 Quick reference for which tables are affected by each action:
 
-| Action | user_audio_statuses | user_activity_logs | audios2 | companies | Findaway API |
-|--------|-------------------|-------------------|---------|-----------|-------------|
-| **QUEUE** | INSERT | INSERT | - | - | - |
-| **DEQUEUE** | DELETE | - | - | - | - |
-| **RENT** | INSERT/UPDATE | INSERT | +1 total_rented | -credits | CHECKOUT |
-| **RENEW** | UPDATE | INSERT | +1 total_rented | -credits | CHECKOUT |
-| **RETURN** | UPDATE | UPDATE | - | - | - |
-| **BOOKSHELF** | INSERT/UPDATE | INSERT | - | -credits | PURCHASE |
+| Action | user_audio_statuses | user_activity_logs | user_audioplayer_positions | audios2 | companies | Findaway API |
+|--------|-------------------|-------------------|---------------------------|---------|-----------|-------------|
+| **QUEUE** | INSERT | INSERT | - | - | - | - |
+| **DEQUEUE** | DELETE | - | - | - | - | - |
+| **RENT** | INSERT/UPDATE | INSERT | - | +1 total_rented | -credits | CHECKOUT |
+| **RENEW** | UPDATE | INSERT | - | +1 total_rented | -credits | CHECKOUT |
+| **RETURN** | UPDATE | UPDATE | - | - | - | - |
+| **BOOKSHELF** | INSERT/UPDATE | INSERT | - | - | -credits | PURCHASE |
+| **PLAY** | - | INSERT/UPDATE | - | +1 total_played* | - | - |
+| **PAUSE** | - | UPDATE | INSERT/UPDATE | - | - | - |
 
 **Legend**:
 - `INSERT`: New record created
@@ -1133,6 +1489,7 @@ Quick reference for which tables are affected by each action:
 - `DELETE`: Record removed
 - `-credits`: available_credits decremented
 - `+1 total_rented`: Counter incremented
+- `+1 total_played*`: Counter incremented (once per day per user)
 - `CHECKOUT`: License checkout API call
 - `PURCHASE`: License purchase API call
 
@@ -1157,6 +1514,9 @@ Quick reference for which tables are affected by each action:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-12
+**Document Version**: 1.1
+**Last Updated**: 2026-01-14
 **Maintained By**: Development Team
+**Changelog**:
+- v1.1 (2026-01-14): Added comprehensive playback tracking documentation (PLAY/PAUSE events, position tracking, resume functionality)
+- v1.0 (2026-01-12): Initial documentation with core actions (Queue, Rent, Bookshelf, etc.)

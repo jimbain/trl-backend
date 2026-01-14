@@ -994,7 +994,18 @@ The pharma system tracks two primary video player events:
 
 **Update Frequency**: On every PAUSE event
 
-**Resume Capability**: When user returns to video, frontend can query last position and resume from that point
+**Resume Capability**:
+
+1. User requests pharma video details via `GET /pharmas/:id`
+2. System retrieves `pharma_user_videoplayer_positions` record for user+pharma
+3. Returns last known position in response metadata
+4. Frontend player resumes playback from this position
+
+**How It Works**:
+- Each user-pharma pair has at most one position record (UNIQUE constraint)
+- Position is upserted (created or updated) on every PAUSE event
+- No position tracking on PLAY event (only activity logging)
+- Position persists indefinitely until user pauses at a different location
 
 ### Activity Log Metadata
 
@@ -1012,7 +1023,32 @@ The pharma system tracks two primary video player events:
 - `end_position`: Maximum position seen during the day
 - `total_time_played`: end_position - start_position
 
+**Example Calculation**:
+```
+User watches pharma video multiple times in one day:
+
+Session 1 (morning):  Plays from 0 to 120 seconds
+Session 2 (afternoon): Plays from 50 to 200 seconds
+
+Activity Log Result:
+{
+  "start_position": 0,    // min(0, 50) = 0
+  "end_position": 200,    // max(120, 200) = 200
+  "total_time_played": 200  // 200 - 0 = 200 seconds
+}
+
+Note: This represents the SPAN of content watched, not exact viewing time.
+If user skips sections, they still contribute to the span.
+```
+
 **Daily Aggregation**: Each day gets one PLAY log per user per pharma, updated with each play event
+
+**Important Notes**:
+- Unlike audio (which tracks chapters), pharma videos are linear
+- `total_time_played` represents the span from earliest to latest position
+- Does NOT account for rewatching the same section multiple times
+- Does NOT subtract skipped sections
+- Provides a simple engagement metric per day
 
 ---
 
@@ -1118,6 +1154,9 @@ Quick reference for which tables are affected by each action:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-12
+**Document Version**: 1.1
+**Last Updated**: 2026-01-14
 **Maintained By**: Development Team
+**Changelog**:
+- v1.1 (2026-01-14): Enhanced playback tracking documentation with resume functionality details and time calculation examples
+- v1.0 (2026-01-12): Initial documentation

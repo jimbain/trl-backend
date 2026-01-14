@@ -944,14 +944,63 @@ Each event logs:
 - Monitor engagement patterns
 
 **User Experience**:
-- No position resume (unlike pharma - events only)
+- **No position resume capability** (unlike pharma/audio - events only)
 - Events tracked independently of rental status
-- All playback interactions logged
+- All playback interactions logged for analytics
+- Frontend responsible for any resume logic (not backend-managed)
 
 **Reporting**:
 - Daily/weekly/monthly play counts
 - User engagement metrics
 - Content performance analysis
+
+---
+
+### Position Tracking vs Event Tracking
+
+**Important Distinction**:
+
+The video system uses **event-only tracking**, which differs from audio and pharma systems:
+
+| Feature | Video System | Pharma System | Audio System |
+|---------|--------------|---------------|--------------|
+| **Position Persistence** | ❌ No | ✅ Yes (table) | ✅ Yes (table) |
+| **Resume Capability** | ❌ Backend doesn't track | ✅ Backend managed | ✅ Backend managed |
+| **Event Logging** | ✅ All events logged | ✅ Play/pause only | ✅ Play/pause only |
+| **Play Counter** | ✅ Yes | ✅ Yes | ✅ Yes (daily limit) |
+| **Position Table** | ❌ None | `pharma_user_videoplayer_positions` | `user_audioplayer_positions` |
+| **Use Case** | Analytics & reporting | Resume + analytics | Resume + analytics + chapters |
+
+**Why Event-Only for Videos?**:
+- Focus on engagement analytics rather than resume functionality
+- Simpler implementation for general training videos
+- Frontend can handle resume if needed (e.g., localStorage)
+- All position data available in activity logs for analysis
+
+**What Gets Tracked**:
+- Every player interaction (play, pause, seek, ended, etc.)
+- Position at time of each event
+- No persistent "last position" stored
+- Multiple events can occur per viewing session
+
+**Example Event Sequence**:
+```
+User watches video:
+
+1. Event: play, position: 0        → Logged, total_played++
+2. Event: pause, position: 120     → Logged only
+3. Event: seek, position: 180      → Logged only
+4. Event: play, position: 180      → Logged, total_played++
+5. Event: ended, position: 600     → Logged, total_played++
+
+Result: 3 play/ended events increment counter, all 5 events in activity log
+```
+
+**For Resume Functionality**:
+If resume is needed, frontend should:
+- Store last position in browser localStorage
+- Or query activity logs for latest pause/seek event
+- Backend does not provide dedicated resume position API
 
 ---
 
@@ -1221,6 +1270,9 @@ Quick reference for which tables are affected by each action:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-12
+**Document Version**: 1.1
+**Last Updated**: 2026-01-14
 **Maintained By**: Development Team
+**Changelog**:
+- v1.1 (2026-01-14): Enhanced event tracking documentation, clarified event-only approach vs position persistence in audio/pharma
+- v1.0 (2026-01-12): Initial documentation
