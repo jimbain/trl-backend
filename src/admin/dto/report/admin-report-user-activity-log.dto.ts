@@ -146,23 +146,41 @@ export class AdminReportUserActivityLogDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    const ms = Number(obj?.listened_time_ms || 0) / 10;
-    const hours = Math.floor(ms / 3600000);
-    const minutes = Math.floor((ms % 3600000) / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${hours.toString().padStart(2, '0')}:${minutes
+    let ms = Number(obj?.listened_time_ms || 0);
+
+    // Get runtime in milliseconds for comparison
+    const runtime = obj?.metadata_runtime || '00:00:00';
+    const [hours, minutes, seconds] = runtime.split(':').map(Number);
+    const runtimeMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+
+    // If listened time is greater than runtime, divide by 10
+    if (ms > runtimeMs && runtimeMs > 0) {
+      ms = ms / 10;
+    }
+
+    const hoursResult = Math.floor(ms / 3600000);
+    const minutesResult = Math.floor((ms % 3600000) / 60000);
+    const secondsResult = Math.floor((ms % 60000) / 1000);
+    return `${hoursResult.toString().padStart(2, '0')}:${minutesResult
       .toString()
-      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      .padStart(2, '0')}:${secondsResult.toString().padStart(2, '0')}`;
   })
   listened_time: string;
 
   @Expose()
   @Transform(({ obj }) => {
-    const listenedMs = Number(obj?.listened_time_ms || 0) / 10;
+    let listenedMs = Number(obj?.listened_time_ms || 0);
     const runtime = obj?.metadata_runtime || '00:00:00';
     const [hours, minutes, seconds] = runtime.split(':').map(Number);
     const runtimeMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+
     if (runtimeMs === 0) return '0.00%';
+
+    // If listened time is greater than runtime, divide by 10
+    if (listenedMs > runtimeMs) {
+      listenedMs = listenedMs / 10;
+    }
+
     const percentage = (listenedMs / runtimeMs) * 100;
     return `${Math.round(percentage)}%`;
   })
