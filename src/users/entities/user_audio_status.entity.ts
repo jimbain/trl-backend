@@ -41,6 +41,13 @@ export class UserAudioStatus extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true, comment: 'Only for Rent' })
   rental_expire_at: Date;
 
+  @Column({
+    type: 'int',
+    nullable: true,
+    comment: 'Sequence of title in the list',
+  })
+  list_order: number;
+
   @ManyToOne(() => User, (user) => user.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

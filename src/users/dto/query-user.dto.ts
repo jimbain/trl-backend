@@ -7,7 +7,6 @@ import {
   Min,
   IsIn,
   IsBoolean,
-  IsEmail,
   IsArray,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -54,7 +53,7 @@ export class QueryUserDto {
   name?: string;
 
   @IsOptional()
-  @IsEmail()
+  @IsString()
   email?: string;
 
   @IsOptional()

@@ -40,6 +40,13 @@ export class VideoUserStatus {
   @Column({ type: 'timestamp', nullable: true })
   next_rental_expire_at?: Date;
 
+  @Column({
+    type: 'int',
+    nullable: true,
+    comment: 'Sequence of title in the list',
+  })
+  list_order: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 
