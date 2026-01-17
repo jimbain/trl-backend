@@ -146,7 +146,7 @@ export class AdminReportUserActivityLogDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    const ms = obj?.listened_time_ms || 0;
+    const ms = Number(obj?.listened_time_ms || 0) / 10;
     const hours = Math.floor(ms / 3600000);
     const minutes = Math.floor((ms % 3600000) / 60000);
     const seconds = Math.floor((ms % 60000) / 1000);
@@ -158,7 +158,7 @@ export class AdminReportUserActivityLogDto {
 
   @Expose()
   @Transform(({ obj }) => {
-    const listenedMs = obj?.listened_time_ms || 0;
+    const listenedMs = Number(obj?.listened_time_ms || 0) / 10;
     const runtime = obj?.metadata_runtime || '00:00:00';
     const [hours, minutes, seconds] = runtime.split(':').map(Number);
     const runtimeMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
