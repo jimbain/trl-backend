@@ -194,6 +194,7 @@ export class PharmaService {
         'pharmaUserStatus.status AS status',
         'pharmaUserStatus.current_rental_expire_at AS current_rental_expire_at',
         'pharmaUserStatus.next_rental_expire_at AS next_rental_expire_at',
+        'pharmaUserStatus.list_order AS list_order',
       ]);
 
     if (is_featured !== undefined) {
@@ -248,12 +249,22 @@ export class PharmaService {
 
     // Add sorting
     if (sort_by) {
-      const validSortFields = ['title', 'created_at', 'updated_at'];
-      const sortField = validSortFields.includes(sort_by)
-        ? sort_by
-        : 'created_at';
+      const validSortFields = [
+        'title',
+        'created_at',
+        'updated_at',
+        'list_order',
+      ] as const;
       const sortDirection = sort_order === 'desc' ? 'DESC' : 'ASC';
-      queryBuilder.orderBy(`pharma.${sortField}`, sortDirection);
+
+      // If sorting by list_order, use pharmaUserStatus, otherwise use pharma
+      if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
+        queryBuilder.orderBy('pharmaUserStatus.list_order', sortDirection);
+      } else if (validSortFields.includes(sort_by)) {
+        queryBuilder.orderBy(`pharma.${sort_by}`, sortDirection);
+      } else {
+        queryBuilder.orderBy('pharma.created_at', sortDirection);
+      }
     } else if (popular) {
       // Popular sorting by rating
       queryBuilder.orderBy('pharma.total_played', 'DESC');
@@ -455,8 +466,24 @@ export class PharmaService {
       popularPharmas,
     ] = await Promise.all([
       this.findAll({ is_featured: true, per_page: 10 }, user),
-      this.findAll({ status: 'queued', per_page: 10 }, user),
-      this.findAll({ status: 'rented', per_page: 10 }, user),
+      this.findAll(
+        {
+          status: 'queued',
+          per_page: 10,
+          sort_by: 'list_order',
+          sort_order: 'asc',
+        },
+        user,
+      ),
+      this.findAll(
+        {
+          status: 'rented',
+          per_page: 10,
+          sort_by: 'list_order',
+          sort_order: 'asc',
+        },
+        user,
+      ),
       this.findAll({ popular: true, per_page: 10 }, user),
     ]);
 

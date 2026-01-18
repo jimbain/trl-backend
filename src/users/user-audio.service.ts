@@ -151,6 +151,41 @@ export class UserAudioService {
     return data.checkout;
   }
 
+  async getNextListOrder(
+    userId: string,
+    status: 'queued' | 'rented' | 'bookshelved',
+  ): Promise<number> {
+    const result = await this.userAudioStatusRepository
+      .createQueryBuilder('userAudioStatus')
+      .select('MAX(userAudioStatus.list_order)', 'maxListOrder')
+      .where('userAudioStatus.user_id = :userId', { userId })
+      .andWhere('userAudioStatus.status = :status', { status })
+      .getRawOne();
+
+    const maxListOrder = result?.maxListOrder ?? 0;
+    return maxListOrder + 1;
+  }
+
+  async reorderListAfterRemoval(
+    userId: string,
+    status: 'queued' | 'rented' | 'bookshelved',
+    removedListOrder: number,
+  ): Promise<void> {
+    if (!removedListOrder) return;
+
+    // Decrement list_order for all items after the removed item
+    await this.userAudioStatusRepository
+      .createQueryBuilder()
+      .update(UserAudioStatus)
+      .set({ list_order: () => 'list_order - 1' })
+      .where('user_id = :userId', { userId })
+      .andWhere('status = :status', { status })
+      .andWhere('list_order > :removedOrder', {
+        removedOrder: removedListOrder,
+      })
+      .execute();
+  }
+
   async storeUserActivityLog(
     user: User,
     audio: Audio,
@@ -198,7 +233,7 @@ export class UserAudioService {
   }
 
   async queueAudio(audioId: string, user: User) {
-    const [audio, userAudio] = await Promise.all([
+    const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
       this.userAudioStatusRepository.findOne({
         where: {
@@ -206,6 +241,7 @@ export class UserAudioService {
           user_id: user.id,
         },
       }),
+      this.getNextListOrder(user.id, 'queued'),
     ]);
 
     if (userAudio) {
@@ -218,6 +254,7 @@ export class UserAudioService {
       audio_id: audio.id,
       user_id: user.id,
       status: 'queued',
+      list_order: nextListOrder,
       updated_at: new Date(),
     });
 
@@ -243,7 +280,12 @@ export class UserAudioService {
       );
     }
 
+    const removedListOrder = queuedAudio.list_order;
+
     await this.userAudioStatusRepository.remove(queuedAudio);
+
+    // Reorder remaining items
+    await this.reorderListAfterRemoval(user.id, 'queued', removedListOrder);
 
     return {
       message: `The audio book with ID ${audioId} has been removed from your queued list.`,
@@ -335,22 +377,30 @@ export class UserAudioService {
       new Date().setDate(new Date().getDate() + rentalPeriodInDays),
     );
 
-    const updatedUserAudio = userAudio
-      ? {
-          ...userAudio,
-          status: 'rented',
-          updated_at: new Date(),
-          rental_expire_at: rentalExpiresAt,
-          license_id: null,
-        }
-      : this.userAudioStatusRepository.create({
-          audio_id: audioId,
-          user_id: user.id,
-          status: 'rented',
-          updated_at: new Date(),
-          rental_expire_at: rentalExpiresAt,
-          license_id: null,
-        });
+    let updatedUserAudio: UserAudioStatus;
+    if (userAudio) {
+      userAudio.status = 'rented';
+      userAudio.updated_at = new Date();
+      userAudio.rental_expire_at = rentalExpiresAt;
+      userAudio.license_id = null;
+
+      // Assign list_order if not already set
+      if (!userAudio.list_order) {
+        userAudio.list_order = await this.getNextListOrder(user.id, 'rented');
+      }
+      updatedUserAudio = userAudio;
+    } else {
+      const nextRentListOrder = await this.getNextListOrder(user.id, 'rented');
+      updatedUserAudio = this.userAudioStatusRepository.create({
+        audio_id: audioId,
+        user_id: user.id,
+        status: 'rented',
+        updated_at: new Date(),
+        rental_expire_at: rentalExpiresAt,
+        license_id: null,
+        list_order: nextRentListOrder,
+      });
+    }
 
     const license = await this.getLicenseForCheckoutToRentAudio(audio.sku);
     const checkout = await this.checkoutLicenseOfAudio(
@@ -432,22 +482,36 @@ export class UserAudioService {
       );
     }
 
-    const updatedUserAudio = userAudio
-      ? {
-          ...userAudio,
-          status: 'bookshelved',
-          updated_at: new Date(),
-          rental_expire_at: null,
-          license_id: null,
-        }
-      : this.userAudioStatusRepository.create({
-          audio_id: audioId,
-          user_id: user.id,
-          status: 'bookshelved',
-          updated_at: new Date(),
-          rental_expire_at: null,
-          license_id: null,
-        });
+    let updatedUserAudio: UserAudioStatus;
+    if (userAudio) {
+      userAudio.status = 'bookshelved';
+      userAudio.updated_at = new Date();
+      userAudio.rental_expire_at = null;
+      userAudio.license_id = null;
+
+      // Assign list_order if not already set
+      if (!userAudio.list_order) {
+        userAudio.list_order = await this.getNextListOrder(
+          user.id,
+          'bookshelved',
+        );
+      }
+      updatedUserAudio = userAudio;
+    } else {
+      const nextBookshelfListOrder = await this.getNextListOrder(
+        user.id,
+        'bookshelved',
+      );
+      updatedUserAudio = this.userAudioStatusRepository.create({
+        audio_id: audioId,
+        user_id: user.id,
+        status: 'bookshelved',
+        updated_at: new Date(),
+        rental_expire_at: null,
+        license_id: null,
+        list_order: nextBookshelfListOrder,
+      });
+    }
 
     const license = licenses[0];
     updatedUserAudio.license_id = license.id;

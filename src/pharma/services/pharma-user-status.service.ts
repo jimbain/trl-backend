@@ -29,6 +29,41 @@ export class PharmaUserStatusService {
     private readonly companyService: CompanyService,
   ) {}
 
+  async getNextListOrder(
+    userId: string,
+    status: 'queued' | 'rented',
+  ): Promise<number> {
+    const result = await this.pharmaUserStatusRepository
+      .createQueryBuilder('pharmaUserStatus')
+      .select('MAX(pharmaUserStatus.list_order)', 'maxListOrder')
+      .where('pharmaUserStatus.user_id = :userId', { userId })
+      .andWhere('pharmaUserStatus.status = :status', { status })
+      .getRawOne();
+
+    const maxListOrder = result?.maxListOrder ?? 0;
+    return maxListOrder + 1;
+  }
+
+  async reorderListAfterRemoval(
+    userId: string,
+    status: 'queued' | 'rented',
+    removedListOrder: number,
+  ): Promise<void> {
+    if (!removedListOrder) return;
+
+    // Decrement list_order for all items after the removed item
+    await this.pharmaUserStatusRepository
+      .createQueryBuilder()
+      .update(PharmaUserStatus)
+      .set({ list_order: () => 'list_order - 1' })
+      .where('user_id = :userId', { userId })
+      .andWhere('status = :status', { status })
+      .andWhere('list_order > :removedOrder', {
+        removedOrder: removedListOrder,
+      })
+      .execute();
+  }
+
   async storeUserActivityLog(
     user: User,
     pharma: Pharma,
@@ -53,7 +88,7 @@ export class PharmaUserStatusService {
   }
 
   async queue(id: string, user: User) {
-    const [pharma, pharmaUser] = await Promise.all([
+    const [pharma, pharmaUser, nextListOrder] = await Promise.all([
       this.pharmaService.findById(id),
       this.pharmaUserStatusRepository.findOne({
         where: {
@@ -61,6 +96,7 @@ export class PharmaUserStatusService {
           user_id: user.id,
         },
       }),
+      this.getNextListOrder(user.id, 'queued'),
     ]);
 
     if (pharmaUser) {
@@ -73,6 +109,7 @@ export class PharmaUserStatusService {
       pharma_id: id,
       user_id: user.id,
       status: 'queued',
+      list_order: nextListOrder,
       updated_at: new Date(),
     });
 
@@ -98,7 +135,12 @@ export class PharmaUserStatusService {
       );
     }
 
+    const removedListOrder = queuedPharma.list_order;
+
     await this.pharmaUserStatusRepository.remove(queuedPharma);
+
+    // Reorder remaining items
+    await this.reorderListAfterRemoval(user.id, 'queued', removedListOrder);
   }
 
   async rent(id: string, user: User) {
@@ -136,7 +178,7 @@ export class PharmaUserStatusService {
       throw new BadRequestException(`Pharma is already rented`);
     }
 
-    let updatedPharmaUser;
+    let updatedPharmaUser: PharmaUserStatus;
     if (pharmaUser) {
       // Update existing status
       if (!pharmaUser.rental_start_at) {
@@ -149,9 +191,16 @@ export class PharmaUserStatusService {
       );
       pharmaUser.next_rental_expire_at = null;
       pharmaUser.updated_at = new Date();
+
+      // Assign list_order if not already set
+      if (!pharmaUser.list_order) {
+        pharmaUser.list_order = await this.getNextListOrder(user.id, 'rented');
+      }
+
       updatedPharmaUser = pharmaUser;
     } else {
       // Create new status
+      const nextListOrder = await this.getNextListOrder(user.id, 'rented');
       updatedPharmaUser = this.pharmaUserStatusRepository.create({
         pharma_id: id,
         user_id: user.id,
@@ -161,6 +210,7 @@ export class PharmaUserStatusService {
           Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
         ),
         next_rental_expire_at: null,
+        list_order: nextListOrder,
       });
     }
 

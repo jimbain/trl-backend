@@ -48,7 +48,7 @@ export class QueryVideoDto {
 
   @IsOptional()
   @IsString()
-  sort_by?: 'title' | 'created_at' | 'updated_at';
+  sort_by?: 'title' | 'created_at' | 'updated_at' | 'list_order';
 
   @IsOptional()
   @IsString()

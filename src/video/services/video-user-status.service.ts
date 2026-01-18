@@ -35,6 +35,41 @@ export class VideoUserStatusService {
     private readonly avilarIntegrationService: AvilarIntegrationService,
   ) {}
 
+  async getNextListOrder(
+    userId: string,
+    status: 'queued' | 'rented',
+  ): Promise<number> {
+    const result = await this.videoUserStatusRepository
+      .createQueryBuilder('videoUserStatus')
+      .select('MAX(videoUserStatus.list_order)', 'maxListOrder')
+      .where('videoUserStatus.user_id = :userId', { userId })
+      .andWhere('videoUserStatus.status = :status', { status })
+      .getRawOne();
+
+    const maxListOrder = result?.maxListOrder ?? 0;
+    return maxListOrder + 1;
+  }
+
+  async reorderListAfterRemoval(
+    userId: string,
+    status: 'queued' | 'rented',
+    removedListOrder: number,
+  ): Promise<void> {
+    if (!removedListOrder) return;
+
+    // Decrement list_order for all items after the removed item
+    await this.videoUserStatusRepository
+      .createQueryBuilder()
+      .update(VideoUserStatus)
+      .set({ list_order: () => 'list_order - 1' })
+      .where('user_id = :userId', { userId })
+      .andWhere('status = :status', { status })
+      .andWhere('list_order > :removedOrder', {
+        removedOrder: removedListOrder,
+      })
+      .execute();
+  }
+
   async storeUserActivityLog(
     user: User,
     video: Video,
@@ -88,10 +123,12 @@ export class VideoUserStatusService {
           throw new BadRequestException('Video is already in your queue');
         }
 
+        const nextListOrder = await this.getNextListOrder(user.id, 'queued');
         userStatus = this.videoUserStatusRepository.create({
           video_id: video.id,
           user_id: user.id,
           status: 'queued',
+          list_order: nextListOrder,
         });
 
         await this.videoUserStatusRepository.save(userStatus);
@@ -104,7 +141,12 @@ export class VideoUserStatusService {
           throw new BadRequestException('Video is not in your queue');
         }
 
+        const removedListOrder = userStatus.list_order;
+
         await this.videoUserStatusRepository.remove(userStatus);
+
+        // Reorder remaining items
+        await this.reorderListAfterRemoval(user.id, 'queued', removedListOrder);
 
         return { message: 'Video removed from queue successfully' };
 
@@ -185,18 +227,31 @@ export class VideoUserStatusService {
 
         // Create userStatus if it doesn't exist
         if (!userStatus) {
+          const nextRentListOrder = await this.getNextListOrder(
+            user.id,
+            'rented',
+          );
           userStatus = this.videoUserStatusRepository.create({
             video_id: video.id,
             user_id: user.id,
             status: 'rented',
             rental_start_at: now,
             current_rental_expire_at: rentalExpireAt,
+            list_order: nextRentListOrder,
           });
         } else {
           // Update existing userStatus
           userStatus.status = 'rented';
           userStatus.rental_start_at = now;
           userStatus.current_rental_expire_at = rentalExpireAt;
+
+          // Assign list_order if not already set
+          if (!userStatus.list_order) {
+            userStatus.list_order = await this.getNextListOrder(
+              user.id,
+              'rented',
+            );
+          }
         }
 
         // Validate userStatus was created/updated properly

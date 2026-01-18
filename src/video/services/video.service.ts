@@ -159,6 +159,7 @@ export class VideoService {
         'videoUserStatus.status AS status',
         'videoUserStatus.current_rental_expire_at AS current_rental_expire_at',
         'videoUserStatus.next_rental_expire_at AS next_rental_expire_at',
+        'videoUserStatus.list_order AS list_order',
       ]);
 
     if (is_featured !== undefined) {
@@ -233,11 +234,22 @@ export class VideoService {
 
     // Sorting
     if (sort_by && sort_order) {
-      const sortField = `video.${sort_by}`;
-      queryBuilder.orderBy(
-        sortField,
-        sort_order.toUpperCase() as 'ASC' | 'DESC',
-      );
+      const validSortFields = [
+        'title',
+        'created_at',
+        'updated_at',
+        'list_order',
+      ] as const;
+      const sortDirection = sort_order.toUpperCase() as 'ASC' | 'DESC';
+
+      // If sorting by list_order, use videoUserStatus, otherwise use video
+      if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
+        queryBuilder.orderBy('videoUserStatus.list_order', sortDirection);
+      } else if (validSortFields.includes(sort_by)) {
+        queryBuilder.orderBy(`video.${sort_by}`, sortDirection);
+      } else {
+        queryBuilder.orderBy('video.created_at', sortDirection);
+      }
     } else if (popular) {
       queryBuilder.orderBy('video.total_played', 'DESC');
     } else {
@@ -482,15 +494,25 @@ export class VideoService {
       user,
     );
 
-    // Get user's queued videos
+    // Get user's queued videos sorted by list_order
     const queuedVideos = await this.findAll(
-      { status: 'queued', per_page: 10 },
+      {
+        status: 'queued',
+        per_page: 10,
+        sort_by: 'list_order',
+        sort_order: 'asc',
+      },
       user,
     );
 
-    // Get user's rented videos
+    // Get user's rented videos sorted by list_order
     const rentedVideos = await this.findAll(
-      { status: 'rented', per_page: 10 },
+      {
+        status: 'rented',
+        per_page: 10,
+        sort_by: 'list_order',
+        sort_order: 'asc',
+      },
       user,
     );
 

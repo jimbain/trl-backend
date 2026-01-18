@@ -16,6 +16,7 @@ import { AdminReportUserActivityLogsQueryDto } from '../dto/report/admin-report-
 import { Readable } from 'stream';
 import { plainToInstance } from 'class-transformer';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
+import { Video } from 'src/video/entities/video.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
@@ -96,11 +97,19 @@ export class AdminReportService {
         },
       )
       .leftJoin(
+        Video,
+        'video',
+        'video.id = log.item_id AND log.item_type = :videoType',
+        {
+          videoType: 'video',
+        },
+      )
+      .leftJoin(
         Pharma,
         'pharma',
-        'pharma.id = log.item_id AND log.item_type = :type',
+        'pharma.id = log.item_id AND log.item_type = :pharmaType',
         {
-          type: 'pharma',
+          pharmaType: 'pharma',
         },
       )
       .leftJoin('audio.metadata', 'metadata')
@@ -122,6 +131,10 @@ export class AdminReportService {
         'audio.display_title AS audio_display_title',
         'audio.sku AS audio_sku',
         'audio.bookshelf_credit_cost AS audio_bookshelf_credit_cost',
+        'video.id AS video_id',
+        'video.title AS video_title',
+        'video.sku AS video_sku',
+        'video.runtime AS video_runtime',
         'pharma.id AS pharma_id',
         'pharma.sku AS pharma_sku',
         'pharma.title AS pharma_title',

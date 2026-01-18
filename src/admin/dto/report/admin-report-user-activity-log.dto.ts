@@ -34,6 +34,20 @@ class PharmaDto {
   runtime: number;
 }
 
+class VideoDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  title: string;
+
+  @Expose()
+  sku: string;
+
+  @Expose()
+  runtime: string;
+}
+
 class CompanyDto {
   @Expose()
   id: number;
@@ -119,6 +133,20 @@ export class AdminReportUserActivityLogDto {
       : null,
   )
   pharma: PharmaDto | null;
+
+  @Expose()
+  @Type(() => VideoDto)
+  @Transform(({ obj }) =>
+    obj.item_type === 'video'
+      ? {
+          id: obj.video_id,
+          title: obj.video_title,
+          sku: obj.video_sku,
+          runtime: obj.video_runtime,
+        }
+      : null,
+  )
+  video: VideoDto | null;
 
   @Expose()
   @Type(() => CompanyDto)

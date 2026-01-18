@@ -108,6 +108,7 @@ export class AudioService {
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
         'userAudioStatus.audio_id AS audio_id',
+        'userAudioStatus.list_order AS list_order',
       ]);
 
     if (ids?.length > 0) {
@@ -395,6 +396,7 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
+        'userAudioStatus.list_order AS list_order',
       ]);
 
     if (limit) {
@@ -463,7 +465,9 @@ export class AudioService {
         'userAudioStatus.updated_at AS updated_at',
         'userAudioStatus.status AS status',
         'userAudioStatus.rental_expire_at AS rental_expires_at',
-      ]);
+        'userAudioStatus.list_order AS list_order',
+      ])
+      .orderBy('userAudioStatus.list_order', 'ASC');
 
     if (limit) {
       queryBuilder.take(limit);
