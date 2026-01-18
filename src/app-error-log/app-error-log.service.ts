@@ -19,6 +19,7 @@ export class AppErrorLogService {
       app_platform: 'ios' | 'android';
       summary: string;
       stack_trace: string;
+      meta?: Record<string, any>;
       created_at: string;
       user_email?: string;
       company_name?: string;
@@ -36,6 +37,7 @@ export class AppErrorLogService {
         'log.app_platform AS app_platform',
         'log.summary AS summary',
         'log.stack_trace AS stack_trace',
+        'log.meta AS meta',
         "TO_CHAR(log.created_at, 'MM-DD-YYYY') AS created_at",
         'user.email AS user_email',
         'company.name AS company_name',

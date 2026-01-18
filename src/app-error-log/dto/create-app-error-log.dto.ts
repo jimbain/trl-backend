@@ -1,4 +1,10 @@
-import { IsString, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsObject,
+} from 'class-validator';
 import { User } from 'src/users/entities/user.entity';
 import { IsExist } from 'src/validation/validators/is-exist.validator';
 
@@ -23,4 +29,8 @@ export class CreateAppErrorLogDto {
   @IsString()
   @IsNotEmpty()
   stack_trace: string;
+
+  @IsObject()
+  @IsOptional()
+  meta?: Record<string, any>;
 }

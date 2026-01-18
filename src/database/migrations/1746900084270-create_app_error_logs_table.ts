@@ -75,6 +75,11 @@ export class CreateAppErrorLogsTable1746900084270
             isNullable: true,
           },
           {
+            name: 'meta',
+            type: 'jsonb',
+            isNullable: true,
+          },
+          {
             name: 'created_at',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',

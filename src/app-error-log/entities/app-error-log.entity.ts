@@ -28,6 +28,9 @@ export class AppErrorLog {
   @Column({ type: 'text' })
   stack_trace: string | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  meta: Record<string, any> | null;
+
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
