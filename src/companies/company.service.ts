@@ -80,18 +80,14 @@ export class CompanyService {
           'company.available_credits AS available_credits',
           'company.is_active AS is_active',
           "TO_CHAR(company.created_at, 'MM/DD/YYYY') AS created_at",
-          'COALESCE(COUNT(DISTINCT user.id), 0) AS active_user_count',
+          'COALESCE(COUNT(DISTINCT CASE WHEN user.is_active = true THEN user.id END), 0) AS active_user_count',
+          'COALESCE(COUNT(DISTINCT user.id), 0) AS total_employee_count',
         ],
       ]),
     ];
 
     queryBuilder
-      .leftJoinAndSelect(
-        'company.users',
-        'user',
-        'user.is_active = :userActive',
-        { userActive: true },
-      )
+      .leftJoinAndSelect('company.users', 'user')
       .select(selections)
       .groupBy('company.id')
       .orderBy(

@@ -42,6 +42,10 @@ export class CompanyListDto {
   active_user_count: number;
 
   @Expose()
+  @Transform(({ value }) => parseInt(value) ?? 0)
+  total_employee_count: number;
+
+  @Expose()
   created_at: string;
 }
 
