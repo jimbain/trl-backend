@@ -91,8 +91,9 @@ export class CompanyService {
       .select(selections)
       .groupBy('company.id')
       .orderBy(
-        sort_column === 'active_user_count'
-          ? 'active_user_count'
+        sort_column === 'active_user_count' ||
+          sort_column === 'total_employee_count'
+          ? sort_column
           : `company.${sort_column}`,
         sort_order as 'ASC' | 'DESC',
       );
