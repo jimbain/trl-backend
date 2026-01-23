@@ -25,10 +25,12 @@ export class IsBasicAuthCompanyUserConstraint
       return false;
     }
 
-    const user = await this.entityManager.findOne(User, {
-      where: { email: value.toLowerCase() },
-      relations: ['company'],
-    });
+    // Use query builder with LOWER() for case-insensitive comparison
+    const user = await this.entityManager
+      .createQueryBuilder(User, 'user')
+      .leftJoinAndSelect('user.company', 'company')
+      .where('LOWER(user.email) = LOWER(:email)', { email: value })
+      .getOne();
 
     if (!user) {
       this.errorMessage = 'User does not exist';
