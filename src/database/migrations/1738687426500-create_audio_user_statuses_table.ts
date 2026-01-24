@@ -29,17 +29,17 @@ export class CreateUserAudioStatusesTable1738687426500
   private indices = [
     {
       columnName: 'audio_id',
-      indexName: 'IDX_USER_AUDIO_STATUSES_AUDIO_ID',
+      indexName: 'IDX_AUDIO_USER_STATUSES_AUDIO_ID',
       isUnique: false,
     },
     {
       columnName: 'user_id',
-      indexName: 'IDX_USER_AUDIO_STATUSES_USER_ID',
+      indexName: 'IDX_AUDIO_USER_STATUSES_USER_ID',
       isUnique: false,
     },
     {
       columnName: 'status',
-      indexName: 'IDX_USER_AUDIO_STATUSES_USER_ID',
+      indexName: 'IDX_AUDIO_USER_STATUSES_USER_ID',
       isUnique: false,
     },
   ];
@@ -47,7 +47,7 @@ export class CreateUserAudioStatusesTable1738687426500
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'audio_user_statuses',
+        name: this.tableName,
         columns: [
           {
             name: 'id',
