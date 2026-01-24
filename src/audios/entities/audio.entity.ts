@@ -13,7 +13,7 @@ import {
 import { ulid } from 'ulidx';
 import { AudioMetadata } from './audio_metadata.entity';
 
-@Entity({ name: 'audios2' })
+@Entity({ name: 'audios' })
 export class Audio extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 35 })
   id: string;

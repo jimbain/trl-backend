@@ -115,7 +115,7 @@ Delete user_audio_statuses record → Return success
 |-------|-----------|------------------|---------|
 | `user_audio_statuses` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `status`, `license_id`, `rental_expire_at`, `updated_at` | ULID, user.id, audioId, 'rented', licenseId, NOW() + rental_period, NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'rent', `{credit_used, start_time, end_time}`, NOW() |
-| `audios2` | UPDATE | `total_rented` | INCREMENT by 1 |
+| `audios` | UPDATE | `total_rented` | INCREMENT by 1 |
 | `companies` | UPDATE | `available_credits` | DECREMENT by credit cost |
 
 **Validation Rules**:
@@ -163,7 +163,7 @@ Log activity → Sync to Elasticsearch → Return status
 |-------|-----------|------------------|---------|
 | `user_audio_statuses` | UPDATE | `rental_expire_at`, `updated_at` | Current expire + rental_period, NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'renew', `{credit_used, start_time, end_time}`, NOW() |
-| `audios2` | UPDATE | `total_rented` | INCREMENT by 1 |
+| `audios` | UPDATE | `total_rented` | INCREMENT by 1 |
 | `companies` | UPDATE | `available_credits` | DECREMENT by credit cost |
 
 **Validation Rules**:
@@ -294,7 +294,7 @@ The audio system tracks user playback positions and listening activity through P
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
 | `user_activity_logs` | INSERT or UPDATE | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at`, `updated_at` | user.id, audioId, 'audio', 'play', play metadata, NOW(), NOW() |
-| `audios2` | UPDATE | `total_played` | INCREMENT by 1 (once per day per user) |
+| `audios` | UPDATE | `total_played` | INCREMENT by 1 (once per day per user) |
 
 **Validation Rules**:
 - Audio must exist and be active
@@ -318,7 +318,7 @@ The audio system tracks user playback positions and listening activity through P
 **Behavior**:
 - **First play of the day**: Creates new activity log with start position
 - **Subsequent plays same day**: Updates existing activity log, adjusting `start_*` values to earliest position
-- **Play counter**: Increments `audios2.total_played` only once per day per user
+- **Play counter**: Increments `audios.total_played` only once per day per user
 - **Total time calculation**: Automatically calculates time between start and end positions across chapters
 
 **Response**: HTTP 200 (no body returned)
@@ -457,7 +457,7 @@ Calculation:
 
 ## Database Schema
 
-### Table: `audios2`
+### Table: `audios`
 
 **Purpose**: Stores core audio/audiobook catalog data.
 
@@ -468,7 +468,7 @@ Calculation:
 | Column Name | Type | Nullable | Default | Description |
 |------------|------|----------|---------|-------------|
 | `id` | VARCHAR(35) | NO | - | Primary key (ULID) |
-| `sku` | VARCHAR | YES | NULL | Stock Keeping Unit, FK to audio_metadata2 |
+| `sku` | VARCHAR | YES | NULL | Stock Keeping Unit, FK to audio_metadata |
 | `is_active` | BOOLEAN | NO | true | Whether audio is available in catalog |
 | `is_excluded` | BOOLEAN | NO | false | Excluded from general catalog |
 | `is_featured` | BOOLEAN | NO | false | Featured in UI |
@@ -501,7 +501,7 @@ Calculation:
 - `IDX_AUDIOS_BOOKSHELF_CREDIT_COST` (on `bookshelf_credit_cost`)
 
 **Foreign Keys**:
-- `sku` → `audio_metadata2.sku` (SET NULL on delete)
+- `sku` → `audio_metadata.sku` (SET NULL on delete)
 
 **Modified By Actions**:
 - **RENT**: `total_rented` incremented
@@ -509,7 +509,7 @@ Calculation:
 
 ---
 
-### Table: `audio_metadata2`
+### Table: `audio_metadata`
 
 **Purpose**: Stores detailed metadata about audiobooks from Findaway.
 
@@ -584,7 +584,7 @@ Calculation:
 |------------|------|----------|---------|-------------|
 | `id` | VARCHAR(255) | NO | - | Primary key (ULID) |
 | `user_id` | VARCHAR | NO | - | FK to users table |
-| `audio_id` | VARCHAR | NO | - | FK to audios2 table |
+| `audio_id` | VARCHAR | NO | - | FK to audios table |
 | `status` | ENUM | NO | 'queued' | 'queued', 'rented', 'bookshelved' |
 | `license_id` | VARCHAR | YES | NULL | Findaway license ID |
 | `updated_at` | TIMESTAMP | NO | NOW() | Last update timestamp |
@@ -599,7 +599,7 @@ Calculation:
 
 **Foreign Keys**:
 - `user_id` → `users.id` (CASCADE delete)
-- `audio_id` → `audios2.id` (CASCADE delete)
+- `audio_id` → `audios.id` (CASCADE delete)
 
 **Modified By Actions**:
 - **QUEUE**: INSERT with status='queued'
@@ -623,7 +623,7 @@ Calculation:
 |------------|------|----------|---------|-------------|
 | `id` | VARCHAR(55) | NO | - | Primary key (ULID) |
 | `user_id` | VARCHAR | NO | - | FK to users table |
-| `audio_id` | VARCHAR | NO | - | FK to audios2 table |
+| `audio_id` | VARCHAR | NO | - | FK to audios table |
 | `part_number` | INT | YES | NULL | Current part number (multi-part audiobooks) |
 | `chapter_number` | INT | YES | NULL | Current chapter number |
 | `play_position` | INT | YES | NULL | Position in seconds within chapter |
@@ -634,7 +634,7 @@ Calculation:
 
 **Foreign Keys**:
 - `user_id` → `users.id` (CASCADE delete)
-- `audio_id` → `audios2.id` (CASCADE delete)
+- `audio_id` → `audios.id` (CASCADE delete)
 
 **Modified By Actions**:
 - **PLAY/PAUSE**: Updated via separate player event handlers (not in UserAudioService)
@@ -708,7 +708,7 @@ interface AudioActivityMeta {
 | Column Name | Type | Nullable | Default | Description |
 |------------|------|----------|---------|-------------|
 | `id` | VARCHAR(45) | NO | - | Primary key (ULID) |
-| `audio_id` | VARCHAR | NO | - | FK to audios2 table |
+| `audio_id` | VARCHAR | NO | - | FK to audios table |
 | `user_id` | VARCHAR | NO | - | FK to users table |
 | `rate` | INT | NO | - | Rating score (typically 1-5) |
 | `review` | TEXT | YES | NULL | Review text |
@@ -724,7 +724,7 @@ interface AudioActivityMeta {
 - `IDX_AUDIO_REVIEWS_USER_ID` (on `user_id`)
 
 **Foreign Keys**:
-- `audio_id` → `audios2.id` (CASCADE delete)
+- `audio_id` → `audios.id` (CASCADE delete)
 - `user_id` → `users.id` (CASCADE delete)
 
 **Modified By Actions**: Separate review API (not part of queue/rent/bookshelf flow)
@@ -851,7 +851,7 @@ interface AudioActivityMeta {
              │
              ▼
     ┌────────────────────────────────────┐
-    │ UPDATE audios2                     │
+    │ UPDATE audios                     │
     │ SET total_rented =                 │
     │     total_rented + 1               │
     │ WHERE id = audioId                 │
@@ -1004,7 +1004,7 @@ interface AudioActivityMeta {
                       │
                       ▼
          ┌────────────────────────────┐
-         │ INCREMENT audios2          │
+         │ INCREMENT audios          │
          │ SET total_played =         │
          │     total_played + 1       │
          │ (once per day per user)    │
@@ -1125,7 +1125,7 @@ interface AudioActivityMeta {
                                             │
                                             ▼
                                     ┌──────────────┐
-                                    │   audios2    │
+                                    │   audios    │
                                     │              │
                                     │ - id         │
                                     │ - sku        │──┐ FK: sku
@@ -1472,7 +1472,7 @@ MEDIA_AVAILABILITY_TYPE = {
 
 Quick reference for which tables are affected by each action:
 
-| Action | user_audio_statuses | user_activity_logs | user_audioplayer_positions | audios2 | companies | Findaway API |
+| Action | user_audio_statuses | user_activity_logs | user_audioplayer_positions | audios | companies | Findaway API |
 |--------|-------------------|-------------------|---------------------------|---------|-----------|-------------|
 | **QUEUE** | INSERT | INSERT | - | - | - | - |
 | **DEQUEUE** | DELETE | - | - | - | - | - |
