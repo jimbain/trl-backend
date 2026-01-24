@@ -13,7 +13,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { ulid } from 'ulidx';
 import { MediaStatus, USER_MEDIA_STATUS } from 'src/constants';
 
-@Entity({ name: 'user_audio_statuses' })
+@Entity({ name: 'audio_user_statuses' })
 @Unique(['audio_id', 'user_id'])
 export class UserAudioStatus extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 255 })

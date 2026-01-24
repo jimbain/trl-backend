@@ -9,7 +9,7 @@ import {
 export class CreateUserAudioplayerPositionsTable1738687474821
   implements MigrationInterface
 {
-  private tableName = 'user_audioplayer_positions';
+  private tableName = 'audio_user_player_positions';
 
   private foreignKeys = [
     {

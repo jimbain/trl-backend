@@ -51,7 +51,7 @@ The TRL Audio System allows users to interact with audiobooks through eight prim
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | INSERT | `id`, `user_id`, `audio_id`, `status`, `updated_at` | ULID, user.id, audioId, 'queued', NOW() |
+| `audio_user_statuses` | INSERT | `id`, `user_id`, `audio_id`, `status`, `updated_at` | ULID, user.id, audioId, 'queued', NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'queue', `{credit_used: 0}`, NOW() |
 
 **Validation Rules**:
@@ -63,7 +63,7 @@ The TRL Audio System allows users to interact with audiobooks through eight prim
 **Example Flow**:
 ```
 User clicks "Add to Queue" → API call → Check if audio exists →
-Check if user already has this audio → Create user_audio_statuses record →
+Check if user already has this audio → Create audio_user_statuses record →
 Log activity → Return success
 ```
 
@@ -83,7 +83,7 @@ Log activity → Return success
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | DELETE | WHERE `user_id` = user.id AND `audio_id` = audioId AND `status` = 'queued' | - |
+| `audio_user_statuses` | DELETE | WHERE `user_id` = user.id AND `audio_id` = audioId AND `status` = 'queued' | - |
 
 **Validation Rules**:
 - Audio must exist in the user's queue (status = 'queued')
@@ -94,7 +94,7 @@ Log activity → Return success
 **Example Flow**:
 ```
 User clicks "Remove from Queue" → API call → Find queued audio →
-Delete user_audio_statuses record → Return success
+Delete audio_user_statuses record → Return success
 ```
 
 ---
@@ -113,7 +113,7 @@ Delete user_audio_statuses record → Return success
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `status`, `license_id`, `rental_expire_at`, `updated_at` | ULID, user.id, audioId, 'rented', licenseId, NOW() + rental_period, NOW() |
+| `audio_user_statuses` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `status`, `license_id`, `rental_expire_at`, `updated_at` | ULID, user.id, audioId, 'rented', licenseId, NOW() + rental_period, NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'rent', `{credit_used, start_time, end_time}`, NOW() |
 | `audios` | UPDATE | `total_rented` | INCREMENT by 1 |
 | `companies` | UPDATE | `available_credits` | DECREMENT by credit cost |
@@ -141,7 +141,7 @@ Delete user_audio_statuses record → Return success
 ```
 User clicks "Rent" → API call → Check rental limits → Check company credits →
 Check available licenses → Purchase license if needed → Checkout license from Findaway →
-Create/update user_audio_statuses → Increment total_rented → Deduct credits →
+Create/update audio_user_statuses → Increment total_rented → Deduct credits →
 Log activity → Sync to Elasticsearch → Return status
 ```
 
@@ -161,7 +161,7 @@ Log activity → Sync to Elasticsearch → Return status
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | UPDATE | `rental_expire_at`, `updated_at` | Current expire + rental_period, NOW() |
+| `audio_user_statuses` | UPDATE | `rental_expire_at`, `updated_at` | Current expire + rental_period, NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'renew', `{credit_used, start_time, end_time}`, NOW() |
 | `audios` | UPDATE | `total_rented` | INCREMENT by 1 |
 | `companies` | UPDATE | `available_credits` | DECREMENT by credit cost |
@@ -206,7 +206,7 @@ Increment total_rented → Deduct credits → Log activity → Return status
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | UPDATE | `rental_expire_at`, `updated_at` | NOW(), NOW() |
+| `audio_user_statuses` | UPDATE | `rental_expire_at`, `updated_at` | NOW(), NOW() |
 | `user_activity_logs` | UPDATE | `meta.end_time` | NOW() (updates the original rent log) |
 
 **Validation Rules**:
@@ -237,7 +237,7 @@ Update rental_expire_at to NOW() → Update activity log end_time → Return sta
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audio_statuses` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `status`, `license_id`, `updated_at` | ULID, user.id, audioId, 'bookshelved', licenseId, NOW() |
+| `audio_user_statuses` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `status`, `license_id`, `updated_at` | ULID, user.id, audioId, 'bookshelved', licenseId, NOW() |
 | `user_activity_logs` | INSERT | `user_id`, `item_id`, `item_type`, `action`, `meta`, `created_at` | user.id, audioId, 'audio', 'keep', `{credit_used, keep_at}`, NOW() |
 | `companies` | UPDATE | `available_credits` | DECREMENT by bookshelf_credit_cost |
 
@@ -261,7 +261,7 @@ Update rental_expire_at to NOW() → Update activity log end_time → Return sta
 ```
 User clicks "Add to Bookshelf" → API call → Check daily purchase limit →
 Check company credits → Purchase retail license from Findaway →
-Create/update user_audio_statuses → Deduct credits → Log activity → Return status
+Create/update audio_user_statuses → Deduct credits → Log activity → Return status
 ```
 
 ---
@@ -357,7 +357,7 @@ Return success
 
 | Table | Operation | Columns Affected | Values |
 |-------|-----------|------------------|---------|
-| `user_audioplayer_positions` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `part_number`, `chapter_number`, `play_position`, `updated_at` | ULID, user.id, audioId, part#, chapter#, position, NOW() |
+| `audio_user_player_positions` | INSERT or UPDATE | `id`, `user_id`, `audio_id`, `part_number`, `chapter_number`, `play_position`, `updated_at` | ULID, user.id, audioId, part#, chapter#, position, NOW() |
 | `user_activity_logs` | UPDATE | `meta.end_*`, `meta.total_time_played`, `updated_at` | Updated end position and calculated time, NOW() |
 
 **Validation Rules**:
@@ -390,7 +390,7 @@ The most recent PLAY activity log is updated with:
 **Example Flow**:
 ```
 User pauses audio → API call → Validate chapter exists →
-Upsert user_audioplayer_positions record →
+Upsert audio_user_player_positions record →
 Find latest play activity log → Update end position and total_time_played →
 Return success
 ```
@@ -402,7 +402,7 @@ Return success
 **How Resume Works**:
 
 1. User requests playlist via `GET /audios/:id/playlist`
-2. System retrieves `user_audioplayer_positions` record for user+audio
+2. System retrieves `audio_user_player_positions` record for user+audio
 3. Returns last known position in response:
 ```json
 {
@@ -572,7 +572,7 @@ Calculation:
 
 ---
 
-### Table: `user_audio_statuses`
+### Table: `audio_user_statuses`
 
 **Purpose**: Junction table tracking the relationship between users and audios (queued/rented/bookshelved).
 
@@ -611,7 +611,7 @@ Calculation:
 
 ---
 
-### Table: `user_audioplayer_positions`
+### Table: `audio_user_player_positions`
 
 **Purpose**: Tracks user playback position for resume functionality.
 
@@ -773,7 +773,7 @@ interface AudioActivityMeta {
                  │
                  ▼
     ┌────────────────────────────┐
-    │ INSERT user_audio_statuses │
+    │ INSERT audio_user_statuses │
     │ - id: ULID                 │
     │ - user_id: user.id         │
     │ - audio_id: audioId        │
@@ -838,7 +838,7 @@ interface AudioActivityMeta {
              │
              ▼
     ┌────────────────────────────────────┐
-    │ INSERT/UPDATE user_audio_statuses  │
+    │ INSERT/UPDATE audio_user_statuses  │
     │ - id: ULID                         │
     │ - user_id: user.id                 │
     │ - audio_id: audioId                │
@@ -923,7 +923,7 @@ interface AudioActivityMeta {
              │
              ▼
     ┌────────────────────────────────────┐
-    │ INSERT/UPDATE user_audio_statuses  │
+    │ INSERT/UPDATE audio_user_statuses  │
     │ - id: ULID                         │
     │ - user_id: user.id                 │
     │ - audio_id: audioId                │
@@ -1043,7 +1043,7 @@ interface AudioActivityMeta {
                  ▼
     ┌────────────────────────────────────┐
     │ Find existing                      │
-    │ user_audioplayer_positions         │
+    │ audio_user_player_positions         │
     │ WHERE user_id + audio_id           │
     └────────┬───────────────────────────┘
              │
@@ -1472,7 +1472,7 @@ MEDIA_AVAILABILITY_TYPE = {
 
 Quick reference for which tables are affected by each action:
 
-| Action | user_audio_statuses | user_activity_logs | user_audioplayer_positions | audios | companies | Findaway API |
+| Action | audio_user_statuses | user_activity_logs | audio_user_player_positions | audios | companies | Findaway API |
 |--------|-------------------|-------------------|---------------------------|---------|-----------|-------------|
 | **QUEUE** | INSERT | INSERT | - | - | - | - |
 | **DEQUEUE** | DELETE | - | - | - | - | - |

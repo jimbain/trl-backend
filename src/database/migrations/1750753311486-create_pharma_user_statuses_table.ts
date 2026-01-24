@@ -68,6 +68,12 @@ export class CreatePharmaUserStatusesTable1750753311486
             default: "'queued'",
           },
           {
+            name: 'list_order',
+            type: 'int',
+            isNullable: true,
+            comment: 'Sequence of title in the list',
+          },
+          {
             name: 'rental_start_at',
             type: 'timestamp',
             isNullable: true,

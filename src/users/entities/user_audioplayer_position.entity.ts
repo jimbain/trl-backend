@@ -12,7 +12,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { ulid } from 'ulidx';
 
-@Entity({ name: 'user_audioplayer_positions' })
+@Entity({ name: 'audio_user_player_positions' })
 @Unique(['user_id', 'audio_id'])
 export class UserAudioplayerPosition extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 55 })

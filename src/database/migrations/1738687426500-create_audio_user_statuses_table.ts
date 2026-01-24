@@ -9,7 +9,7 @@ import {
 export class CreateUserAudioStatusesTable1738687426500
   implements MigrationInterface
 {
-  private tableName = 'user_audio_statuses';
+  private tableName = 'audio_user_statuses';
 
   private foreignKeys = [
     {
@@ -37,12 +37,17 @@ export class CreateUserAudioStatusesTable1738687426500
       indexName: 'IDX_USER_AUDIO_STATUSES_USER_ID',
       isUnique: false,
     },
+    {
+      columnName: 'status',
+      indexName: 'IDX_USER_AUDIO_STATUSES_USER_ID',
+      isUnique: false,
+    },
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'user_audio_statuses',
+        name: 'audio_user_statuses',
         columns: [
           {
             name: 'id',
@@ -65,6 +70,12 @@ export class CreateUserAudioStatusesTable1738687426500
             type: 'enum',
             enum: ['queued', 'rented', 'bookshelved'],
             default: "'queued'",
+          },
+          {
+            name: 'list_order',
+            type: 'int',
+            isNullable: true,
+            comment: 'Sequence of title in the list',
           },
           {
             name: 'license_id',

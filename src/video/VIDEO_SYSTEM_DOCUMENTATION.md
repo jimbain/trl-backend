@@ -968,7 +968,7 @@ The video system uses **event-only tracking**, which differs from audio and phar
 | **Resume Capability** | ❌ Backend doesn't track | ✅ Backend managed | ✅ Backend managed |
 | **Event Logging** | ✅ All events logged | ✅ Play/pause only | ✅ Play/pause only |
 | **Play Counter** | ✅ Yes | ✅ Yes | ✅ Yes (daily limit) |
-| **Position Table** | ❌ None | `pharma_user_videoplayer_positions` | `user_audioplayer_positions` |
+| **Position Table** | ❌ None | `pharma_user_videoplayer_positions` | `audio_user_player_positions` |
 | **Use Case** | Analytics & reporting | Resume + analytics | Resume + analytics + chapters |
 
 **Why Event-Only for Videos?**:
