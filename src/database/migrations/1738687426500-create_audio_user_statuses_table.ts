@@ -39,7 +39,7 @@ export class CreateUserAudioStatusesTable1738687426500
     },
     {
       columnName: 'status',
-      indexName: 'IDX_AUDIO_USER_STATUSES_USER_ID',
+      indexName: 'IDX_AUDIO_USER_STATUSES_STATUS',
       isUnique: false,
     },
   ];

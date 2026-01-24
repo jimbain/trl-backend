@@ -38,6 +38,11 @@ export class CreatePharmaUserStatusesTable1750753311486
       indexName: 'IDX_PHARMA_USER_STATUSES_USER_ID',
       isUnique: false,
     },
+    {
+      columnName: 'status',
+      indexName: 'IDX_PHARMA_USER_STATUSES_STATUS',
+      isUnique: false,
+    },
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {

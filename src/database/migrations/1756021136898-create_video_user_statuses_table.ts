@@ -38,6 +38,11 @@ export class CreateVideoUserStatusesTable1756021136898
       indexName: 'IDX_VIDEO_USER_STATUSES_USER_ID',
       isUnique: false,
     },
+    {
+      columnName: 'status',
+      indexName: 'IDX_VIDEO_USER_STATUSES_STATUS',
+      isUnique: false,
+    },
   ];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
