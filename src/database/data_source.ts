@@ -17,7 +17,7 @@ export const getDataSourceOptions = (): DataSourceOptions => ({
     process.env.POSTGRES_SSL === 'true'
       ? {
           rejectUnauthorized: true,
-          ca: fs.readFileSync('cert/dev-db-ca-certificate.crt').toString(),
+          ca: fs.readFileSync('cert/db-ca-certificate.crt').toString(),
         }
       : false,
   entities: ['dist/**/entities/*.entity.js'],

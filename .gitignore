@@ -403,3 +403,7 @@ credential
 
 docker-compose.yml
 docker-compose.yaml
+
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
