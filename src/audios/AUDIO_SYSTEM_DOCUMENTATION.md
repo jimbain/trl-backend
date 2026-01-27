@@ -594,8 +594,8 @@ Calculation:
 - UNIQUE (`audio_id`, `user_id`) - One status per user-audio pair
 
 **Indexes**:
-- `IDX_USER_AUDIO_STATUSES_AUDIO_ID` (on `audio_id`)
-- `IDX_USER_AUDIO_STATUSES_USER_ID` (on `user_id`)
+- `IDX_AUDIO_USER_STATUSES_AUDIO_ID` (on `audio_id`)
+- `IDX_AUDIO_USER_STATUSES_USER_ID` (on `user_id`)
 
 **Foreign Keys**:
 - `user_id` → `users.id` (CASCADE delete)
@@ -1137,7 +1137,7 @@ interface AudioActivityMeta {
                                                       │
                                                       ▼
                                             ┌─────────────────┐
-                                            │audio_metadata2  │
+                                            │audio_metadata  │
                                             │                 │
                                             │ - sku (PK)      │
                                             │ - title         │
