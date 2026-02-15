@@ -208,28 +208,11 @@ export class UserAudioService {
       return;
     }
 
-    const company = await this.companyRepository.findOne({
-      select: ['available_credits'],
-      where: { id: user.company_id },
-    });
-
-    if (!company) {
-      throw new NotFoundException(
-        `Company with ID ${user.company_id} not found`,
-      );
-    }
-
-    if (company.available_credits >= credit) {
-      await this.companyRepository.decrement(
-        { id: user.company_id },
-        'available_credits',
-        credit,
-      );
-    } else {
-      throw new BadRequestException(
-        `Insufficient credits. Available credits: ${company.available_credits}`,
-      );
-    }
+    await this.companyRepository.decrement(
+      { id: user.company_id },
+      'available_credits',
+      credit,
+    );
   }
 
   async queueAudio(audioId: string, user: User) {

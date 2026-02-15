@@ -151,15 +151,10 @@ export class VideoUserStatusService {
         return { message: 'Video removed from queue successfully' };
 
       case 'rent':
-        // Check if user has enough credits
         const rentalCost = parseInt(
           appConfigs.video_rental_credit_cost || '1',
           10,
         );
-
-        if (company.available_credits < rentalCost) {
-          throw new BadRequestException('Insufficient credits to rent video');
-        }
 
         // Ensure user exists in Avilar system before renting
         try {
@@ -281,14 +276,10 @@ export class VideoUserStatusService {
           throw new BadRequestException('Video is not currently rented');
         }
 
-        // Check credits for renewal
         const renewalCost = parseInt(
           appConfigs.video_rental_credit_cost || '1',
           10,
         );
-        if (company.available_credits < renewalCost) {
-          throw new BadRequestException('Insufficient credits to renew video');
-        }
 
         const renewNow = new Date();
 
