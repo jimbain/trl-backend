@@ -1023,7 +1023,7 @@ export class AudioService {
           (
             SELECT jsonb_agg(elem)
             FROM jsonb_array_elements(categories) AS elem
-            WHERE elem != '"${category.id}"'
+            WHERE elem::text != '"${category.id}"'
           )
         `,
       })
