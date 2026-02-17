@@ -400,6 +400,13 @@ export class AdminAudioService {
     ]);
 
     await this.audioElasticsearchSyncService.syncAudioById(id);
+
+    // Wait for Elasticsearch indexing to complete before returning response
+    const responseDelay =
+      this.audioElasticsearchSyncService.getResponseDelayMs();
+    if (responseDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, responseDelay));
+    }
   }
 
   async bulkUpdate(payload: AdminBulkUpdateAudioDto) {
@@ -440,5 +447,12 @@ export class AdminAudioService {
     await Promise.all(
       ids.map((id) => this.audioElasticsearchSyncService.syncAudioById(id)),
     );
+
+    // Wait for Elasticsearch indexing to complete before returning response
+    const responseDelay =
+      this.audioElasticsearchSyncService.getResponseDelayMs();
+    if (responseDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, responseDelay));
+    }
   }
 }

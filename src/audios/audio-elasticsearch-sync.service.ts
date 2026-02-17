@@ -138,6 +138,7 @@ export class AudioElasticsearchSyncService {
   private readonly concurrency: number;
   private readonly batchDelayMs: number;
   private readonly queryTimeout: number;
+  private readonly responseDelayMs: number;
 
   constructor(
     @InjectRepository(Audio)
@@ -165,12 +166,22 @@ export class AudioElasticsearchSyncService {
         '30000',
       10,
     );
+    this.responseDelayMs = parseInt(
+      this.configService.get<string>('ELASTICSEARCH_SYNC_RESPONSE_DELAY_MS') ||
+        '2000',
+      10,
+    );
 
     this.logger.log(`Elasticsearch Sync Configuration:`);
     this.logger.log(`  - Batch Size: ${this.batchSize}`);
     this.logger.log(`  - Concurrency: ${this.concurrency}`);
     this.logger.log(`  - Batch Delay: ${this.batchDelayMs}ms`);
     this.logger.log(`  - Query Timeout: ${this.queryTimeout}ms`);
+    this.logger.log(`  - Response Delay: ${this.responseDelayMs}ms`);
+  }
+
+  getResponseDelayMs(): number {
+    return this.responseDelayMs;
   }
 
   private buildBaseAudioQuery(id?: string) {

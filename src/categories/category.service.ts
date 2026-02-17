@@ -293,12 +293,13 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.assignCategory(category, mediaIds);
-      // Sync all audios with this category in background
-      this.audioElasticsearchSyncService
-        .syncAudiosByCategoryId(id)
-        .catch((error) =>
-          this.logger.error('Failed to sync audios by category', error),
-        );
+      // Sync all audios with this category and wait for completion
+      try {
+        await this.audioElasticsearchSyncService.syncAudiosByCategoryId(id);
+      } catch (error) {
+        this.logger.error('Failed to sync audios by category', error);
+        throw error;
+      }
     }
 
     if (catalog.media_type === MEDIA.PHARMA) {
@@ -307,6 +308,13 @@ export class CategoryService {
 
     await this.cacheService.delete(id);
     await this.findByIdWithCache(id);
+
+    // Wait for Elasticsearch indexing to complete before returning response
+    const responseDelay =
+      this.audioElasticsearchSyncService.getResponseDelayMs();
+    if (responseDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, responseDelay));
+    }
   }
 
   async deassign(id: string, mediaIds: string[]) {
@@ -315,12 +323,13 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.deassignCategory(category, mediaIds);
-      // Sync all audios with this category in background
-      this.audioElasticsearchSyncService
-        .syncAudiosByCategoryId(id)
-        .catch((error) =>
-          this.logger.error('Failed to sync audios by category', error),
-        );
+      // Sync all audios with this category and wait for completion
+      try {
+        await this.audioElasticsearchSyncService.syncAudiosByCategoryId(id);
+      } catch (error) {
+        this.logger.error('Failed to sync audios by category', error);
+        throw error;
+      }
     }
 
     if (catalog.media_type === MEDIA.PHARMA) {
@@ -329,6 +338,13 @@ export class CategoryService {
 
     await this.cacheService.delete(id);
     await this.findByIdWithCache(id);
+
+    // Wait for Elasticsearch indexing to complete before returning response
+    const responseDelay =
+      this.audioElasticsearchSyncService.getResponseDelayMs();
+    if (responseDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, responseDelay));
+    }
   }
 
   async getTotalTitleCounts(
