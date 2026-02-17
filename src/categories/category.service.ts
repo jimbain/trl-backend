@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotAcceptableException,
   NotFoundException,
   forwardRef,
@@ -27,6 +28,8 @@ import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elas
 
 @Injectable()
 export class CategoryService {
+  private readonly logger = new Logger(CategoryService.name);
+
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
@@ -248,6 +251,25 @@ export class CategoryService {
         this.findByIdWithCache(newCategory.id),
       ]);
 
+      // Sync audios for both old and new categories in background
+      this.audioElasticsearchSyncService
+        .syncAudiosByCategoryId(id)
+        .catch((error) =>
+          this.logger.error(
+            `Failed to sync audios for old category ${id}`,
+            error,
+          ),
+        );
+
+      this.audioElasticsearchSyncService
+        .syncAudiosByCategoryId(newCategory.id)
+        .catch((error) =>
+          this.logger.error(
+            `Failed to sync audios for new category ${newCategory.id}`,
+            error,
+          ),
+        );
+
       return plainToInstance(CategoryDto, newCategory, {
         excludeExtraneousValues: true,
       });
@@ -271,11 +293,12 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.assignCategory(category, mediaIds);
-      await Promise.all(
-        mediaIds.map((id) =>
-          this.audioElasticsearchSyncService.syncAudioById(id),
-        ),
-      );
+      // Sync all audios with this category in background
+      this.audioElasticsearchSyncService
+        .syncAudiosByCategoryId(id)
+        .catch((error) =>
+          this.logger.error('Failed to sync audios by category', error),
+        );
     }
 
     if (catalog.media_type === MEDIA.PHARMA) {
@@ -292,11 +315,12 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.deassignCategory(category, mediaIds);
-      await Promise.all(
-        mediaIds.map((id) =>
-          this.audioElasticsearchSyncService.syncAudioById(id),
-        ),
-      );
+      // Sync all audios with this category in background
+      this.audioElasticsearchSyncService
+        .syncAudiosByCategoryId(id)
+        .catch((error) =>
+          this.logger.error('Failed to sync audios by category', error),
+        );
     }
 
     if (catalog.media_type === MEDIA.PHARMA) {

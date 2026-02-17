@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
+import { ConfigService } from '@nestjs/config';
 import { MappingProperty } from '@elastic/elasticsearch/lib/api/types';
 import { Audio } from './entities/audio.entity';
 
@@ -131,15 +132,46 @@ interface AudioTransformed {
 export class AudioElasticsearchSyncService {
   private readonly logger = new Logger(AudioElasticsearchSyncService.name);
   private readonly index = 'es_audios';
-  private readonly batchSize = 500; // Increased for better throughput with optimized queries
-  private readonly concurrency = 2; // Increased with better connection pool
+
+  // PostgreSQL-optimized batch configuration
+  private readonly batchSize: number;
+  private readonly concurrency: number;
+  private readonly batchDelayMs: number;
+  private readonly queryTimeout: number;
 
   constructor(
     @InjectRepository(Audio)
     private readonly audioRepo: Repository<Audio>,
 
     private readonly appElasticsearchService: AppElasticsearchService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    // Load configuration from ConfigService
+    this.batchSize = parseInt(
+      this.configService.get<string>('ELASTICSEARCH_SYNC_BATCH_SIZE') || '100',
+      10,
+    );
+    this.concurrency = parseInt(
+      this.configService.get<string>('ELASTICSEARCH_SYNC_CONCURRENCY') || '1',
+      10,
+    );
+    this.batchDelayMs = parseInt(
+      this.configService.get<string>('ELASTICSEARCH_SYNC_BATCH_DELAY_MS') ||
+        '3000',
+      10,
+    );
+    this.queryTimeout = parseInt(
+      this.configService.get<string>('ELASTICSEARCH_SYNC_QUERY_TIMEOUT_MS') ||
+        '30000',
+      10,
+    );
+
+    this.logger.log(`Elasticsearch Sync Configuration:`);
+    this.logger.log(`  - Batch Size: ${this.batchSize}`);
+    this.logger.log(`  - Concurrency: ${this.concurrency}`);
+    this.logger.log(`  - Batch Delay: ${this.batchDelayMs}ms`);
+    this.logger.log(`  - Query Timeout: ${this.queryTimeout}ms`);
+  }
 
   private buildBaseAudioQuery(id?: string) {
     const query = this.audioRepo
@@ -207,25 +239,34 @@ export class AudioElasticsearchSyncService {
     if (audioIds.length === 0) return new Map<string, CategoryResult>();
 
     const audioTableName = this.audioRepo.metadata.tableName;
+
+    // PostgreSQL-optimized query: Remove DISTINCT from json_agg to avoid equality operator error
+    // Use DISTINCT in the CTE instead to eliminate duplicates before aggregation
     const query = `
-      SELECT
-        audio.id as audio_id,
-        array_agg(DISTINCT jsonb_build_object('id', category.id, 'name', category.name)) as default_categories,
-        MIN(category.name) as primary_category
-      FROM ${audioTableName} audio
-      JOIN categories category ON category.id = ANY(
-        SELECT jsonb_array_elements_text(audio.categories)
+      WITH audio_categories AS (
+        SELECT DISTINCT
+          audio.id as audio_id,
+          jsonb_array_elements_text(audio.categories) as category_id
+        FROM ${audioTableName} audio
+        WHERE audio.id = ANY($1)
+          AND audio.categories IS NOT NULL
+          AND jsonb_array_length(audio.categories) > 0
       )
-      WHERE audio.id = ANY($1)
-        AND audio.categories IS NOT NULL
-        AND jsonb_array_length(audio.categories) > 0
-        AND category.type = $2
-      GROUP BY audio.id
+      SELECT
+        ac.audio_id,
+        json_agg(json_build_object('id', category.id, 'name', category.name)) as default_categories,
+        MIN(category.name) as primary_category
+      FROM audio_categories ac
+      INNER JOIN categories category ON category.id = ac.category_id
+      WHERE category.type = $2
+        AND category.id::text <> $3
+      GROUP BY ac.audio_id
     `;
 
     const result: CategoryQueryResult[] = await this.audioRepo.query(query, [
       audioIds,
       'default',
+      'category_0',
     ]);
 
     const categoriesMap = new Map<string, CategoryResult>();
@@ -246,18 +287,25 @@ export class AudioElasticsearchSyncService {
       return new Map<string, { id: string; sku: string }[]>();
 
     const audioTableName = this.audioRepo.metadata.tableName;
+
+    // PostgreSQL-optimized query: Remove DISTINCT from json_agg to avoid equality operator error
+    // Use DISTINCT in the CTE instead to eliminate duplicates before aggregation
     const query = `
-      SELECT
-        audio.id as audio_id,
-        array_agg(DISTINCT jsonb_build_object('id', suggested_audio.id, 'sku', suggested_audio.sku)) as suggestions
-      FROM ${audioTableName} audio
-      JOIN ${audioTableName} suggested_audio ON suggested_audio.id = ANY(
-        SELECT jsonb_array_elements_text(audio.suggestions)
+      WITH audio_suggestions AS (
+        SELECT DISTINCT
+          audio.id as audio_id,
+          jsonb_array_elements_text(audio.suggestions) as suggestion_id
+        FROM ${audioTableName} audio
+        WHERE audio.id = ANY($1)
+          AND audio.suggestions IS NOT NULL
+          AND jsonb_array_length(audio.suggestions) > 0
       )
-      WHERE audio.id = ANY($1)
-        AND audio.suggestions IS NOT NULL
-        AND jsonb_array_length(audio.suggestions) > 0
-      GROUP BY audio.id
+      SELECT
+        asug.audio_id,
+        json_agg(json_build_object('id', suggested_audio.id, 'sku', suggested_audio.sku)) as suggestions
+      FROM audio_suggestions asug
+      INNER JOIN ${audioTableName} suggested_audio ON suggested_audio.id = asug.suggestion_id
+      GROUP BY asug.audio_id
     `;
 
     const result: SuggestionQueryResult[] = await this.audioRepo.query(query, [
@@ -753,5 +801,256 @@ export class AudioElasticsearchSyncService {
     } catch (error) {
       this.logger.error(`Failed to sync audio ID ${id}`, error);
     }
+  }
+
+  async syncAudiosByCategoryId(
+    categoryId: string,
+    options?: { onlyActive?: boolean },
+  ) {
+    const onlyActive = options?.onlyActive ?? false;
+
+    this.logger.log(
+      `Starting bulk sync for category: ${categoryId} (active only: ${onlyActive})`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Brief wait
+
+    // Test Elasticsearch connection first
+    this.logger.log('Testing Elasticsearch connection...');
+    const isConnected = await this.appElasticsearchService.ping();
+    if (!isConnected) {
+      this.logger.error('Elasticsearch connection failed!');
+      throw new Error('Unable to connect to Elasticsearch');
+    }
+
+    try {
+      const health = await this.appElasticsearchService.getClusterHealth();
+      this.logger.log(`Elasticsearch cluster health: ${health.status}`);
+    } catch (error) {
+      this.logger.warn('Unable to get cluster health:', error.message);
+    }
+
+    // Get total count of audios with this category
+    let countQuery = this.audioRepo
+      .createQueryBuilder('audio')
+      .where('audio.categories @> :categoryId', {
+        categoryId: JSON.stringify([categoryId]),
+      });
+
+    if (onlyActive) {
+      countQuery = countQuery.andWhere('audio.is_active = :isActive', {
+        isActive: true,
+      });
+    }
+
+    const total = await countQuery.getCount();
+    this.logger.log(
+      `Found ${total} audios with category ${categoryId}${onlyActive ? ' (active only)' : ''}`,
+    );
+
+    if (total === 0) {
+      this.logger.log('No audios found for this category. Skipping sync.');
+      return;
+    }
+
+    const totalPages = Math.ceil(total / this.batchSize);
+    let completedBatches = 0;
+    let lastId: string | undefined;
+
+    for (let page = 0; page < totalPages; page++) {
+      // Add throttle delay between batches
+      if (page > 0 && this.batchDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.batchDelayMs));
+        this.logger.log(
+          `Applied ${this.batchDelayMs}ms throttle delay before batch ${page + 1}`,
+        );
+      }
+
+      const batchStartTime = Date.now();
+
+      try {
+        this.logger.log(
+          `Starting batch ${page + 1}/${totalPages} (lastId: ${lastId || 'beginning'})`,
+        );
+
+        // Set PostgreSQL statement timeout for this query
+        await this.audioRepo.query(
+          `SET statement_timeout = '${this.queryTimeout}'`,
+        );
+
+        // Retry logic for database connection issues
+        let audios: RawAudioQueryResult[] = [];
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+          try {
+            let batchQuery = this.audioRepo
+              .createQueryBuilder('audio')
+              .innerJoin('audio.metadata', 'metadata')
+              .select([
+                'audio.id AS id',
+                'audio.sku AS sku',
+                'audio.display_title AS display_title',
+                'audio.display_description AS display_description',
+                'audio.display_short_description AS display_short_description',
+                'audio.display_authors AS display_authors',
+                'audio.is_excluded AS is_excluded',
+                'audio.is_featured AS is_featured',
+                'audio.is_active AS is_active',
+                'audio.is_only_for_purchase AS is_only_for_purchase',
+                'audio.categories AS category_ids',
+                'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+                'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+                'audio.total_rented AS total_rented',
+                'audio.display_copyright AS display_copyright',
+                'audio.avg_rating AS avg_rating',
+                'audio.suggestions AS suggestion_ids',
+                'EXTRACT(EPOCH FROM audio.activated_at)::BIGINT AS activated_at',
+                'EXTRACT(EPOCH FROM audio.curated_at)::BIGINT AS curated_at',
+                'metadata.metadata_signature AS metadata_signature',
+                'metadata.title AS title',
+                'metadata.description AS description',
+                'metadata.authors AS authors',
+                'metadata.product_id AS product_id',
+                'metadata.retail_product_id AS retail_product_id',
+                'metadata.findaway_price AS fa_price',
+                'metadata.findaway_retail_price AS fa_retail_price',
+                'metadata.findaway_content_cost AS fa_content_cost',
+                'metadata.findaway_retail_content_cost AS fa_retail_content_cost',
+                'metadata.publisher AS publisher',
+                'metadata.language AS language',
+                'metadata.bisac_codes AS bisac_codes',
+                'metadata.abridgement AS abridgement',
+                'metadata.narrators AS narrators',
+                'metadata.actual_size AS actual_size',
+                'metadata.runtime AS runtime',
+                'metadata.is_for_sale AS is_for_sale',
+                'metadata.cover_url AS cover_url',
+                'metadata.available_for AS available_for',
+                'metadata.copyright AS copyright',
+                'metadata.isbn AS isbn',
+                'metadata.sample_url AS sample_url',
+                'metadata.sales_locations AS sales_locations',
+                'metadata.retail_sales_locations AS retail_sales_locations',
+                'metadata.purchased_rental_licenses AS purchased_rental_licenses',
+                'EXTRACT(EPOCH FROM metadata.street_date)::BIGINT AS street_date',
+              ])
+              .where('audio.categories @> :categoryId', {
+                categoryId: JSON.stringify([categoryId]),
+              })
+              .orderBy('audio.id', 'ASC')
+              .limit(this.batchSize);
+
+            if (lastId) {
+              batchQuery = batchQuery.andWhere('audio.id > :lastId', {
+                lastId,
+              });
+            }
+
+            if (onlyActive) {
+              batchQuery = batchQuery.andWhere('audio.is_active = :isActive', {
+                isActive: true,
+              });
+            }
+
+            audios = await batchQuery.getRawMany();
+            break; // Success
+          } catch (error) {
+            retryCount++;
+            if (
+              error.message?.includes('remaining connection slots') ||
+              error.message?.includes('statement timeout')
+            ) {
+              this.logger.warn(
+                `Database issue on batch ${page + 1} (${error.message}), retry ${retryCount}/${maxRetries}`,
+              );
+              if (retryCount < maxRetries) {
+                const delay = Math.pow(2, retryCount) * 2000;
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                continue;
+              }
+            }
+            throw error;
+          }
+        }
+
+        this.logger.log(
+          `Fetched ${audios.length} audios for batch ${page + 1}`,
+        );
+
+        if (audios.length === 0) {
+          this.logger.log(`No more audios to sync at batch ${page + 1}`);
+          break;
+        }
+
+        // Update lastId for next batch
+        lastId = audios[audios.length - 1].id;
+
+        // Fetch categories and suggestions
+        const audioIds = audios.map((a) => a.id);
+        const [categoriesMap, suggestionsMap] = await Promise.all([
+          this.getCategoriesForAudios(audioIds),
+          this.getSuggestionsForAudios(audioIds),
+        ]);
+
+        const enrichedAudios = audios.map((audio) => ({
+          ...audio,
+          default_categories:
+            categoriesMap.get(audio.id)?.default_categories || [],
+          primary_category: categoriesMap.get(audio.id)?.primary_category || '',
+          suggestions: suggestionsMap.get(audio.id) || [],
+        }));
+
+        const transformed = enrichedAudios.map((audio) =>
+          this.transformAudio(audio as RawAudioQueryResult),
+        );
+
+        if (transformed.length > 0) {
+          const bulkBody = transformed.flatMap((doc) => [
+            { update: { _index: this.index, _id: doc.id } },
+            { doc: doc, doc_as_upsert: true },
+          ]);
+
+          const bulkResponse = await this.appElasticsearchService.bulk({
+            operations: bulkBody,
+            refresh: false,
+            timeout: '2m',
+          });
+
+          if (bulkResponse.errors) {
+            this.logger.error(
+              `Errors occurred syncing batch ${page + 1}:`,
+              bulkResponse.errors,
+            );
+          } else {
+            completedBatches++;
+            const batchTotalTime = Date.now() - batchStartTime;
+            const progress = ((completedBatches / totalPages) * 100).toFixed(2);
+            this.logger.log(
+              `✅ Successfully synced batch ${page + 1}/${totalPages} (${transformed.length} audios) in ${batchTotalTime}ms - Progress: ${progress}%`,
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to process batch ${page + 1} for category ${categoryId}:`,
+          error,
+        );
+        throw error;
+      }
+    }
+
+    // Refresh index once at the end
+    try {
+      await this.appElasticsearchService.refreshIndex(this.index);
+    } catch {
+      this.logger.warn(
+        'Failed to refresh index, but sync completed successfully',
+      );
+    }
+
+    this.logger.log(
+      `✅ Completed syncing ${total} audios for category ${categoryId} to Elasticsearch`,
+    );
   }
 }

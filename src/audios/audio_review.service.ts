@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { AudioReview } from './entities/audio_review.entity';
@@ -8,9 +8,12 @@ import { plainToInstance } from 'class-transformer';
 import { AudioReviewDto } from './dto/audio_review.dto';
 import { Audio } from './entities/audio.entity';
 import { AudioService } from './audio.service';
+import { AudioElasticsearchSyncService } from './audio-elasticsearch-sync.service';
 
 @Injectable()
 export class AudioReviewService {
+  private readonly logger = new Logger(AudioReviewService.name);
+
   constructor(
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
@@ -19,6 +22,7 @@ export class AudioReviewService {
     private readonly audioReviewRepository: Repository<AudioReview>,
 
     private readonly audioService: AudioService,
+    private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
   ) {}
 
   async findAudioReviews(
@@ -99,6 +103,16 @@ export class AudioReviewService {
     audio.avg_rating = avgRating;
 
     await this.audioRepository.save(audio);
+
+    // Sync updated audio to Elasticsearch
+    this.audioElasticsearchSyncService
+      .syncAudioById(audio.id)
+      .catch((error) =>
+        this.logger.error(
+          `Failed to sync audio ${audio.id} after rating update`,
+          error,
+        ),
+      );
 
     return avgRating;
   }

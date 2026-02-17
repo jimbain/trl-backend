@@ -29,7 +29,8 @@
     "db:seed": "node dist/database/seeders/seed.js",
     "fresh-migrate-seed": "npm run db:clean && npm run migration:run && npm run db:seed",
     "prepare": "husky install",
-    "elastic:sync-audios": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios.js"
+    "elastic:sync-audios": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios.js",
+    "elastic:sync-by-category": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios-by-category.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
