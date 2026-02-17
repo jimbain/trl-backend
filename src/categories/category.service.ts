@@ -293,11 +293,15 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.assignCategory(category, mediaIds);
-      // Sync all audios with this category and wait for completion
+      // Sync individual assigned audios to Elasticsearch
       try {
-        await this.audioElasticsearchSyncService.syncAudiosByCategoryId(id);
+        await Promise.all(
+          mediaIds.map((audioId) =>
+            this.audioElasticsearchSyncService.syncAudioById(audioId),
+          ),
+        );
       } catch (error) {
-        this.logger.error('Failed to sync audios by category', error);
+        this.logger.error('Failed to sync audios after assign', error);
         throw error;
       }
     }
@@ -323,11 +327,16 @@ export class CategoryService {
 
     if (catalog.media_type === MEDIA.AUDIO) {
       await this.audioService.deassignCategory(category, mediaIds);
-      // Sync all audios with this category and wait for completion
+      // Sync individual deassigned audios to Elasticsearch
+      // Note: Can't use syncAudiosByCategoryId after deassign because audios no longer contain this category
       try {
-        await this.audioElasticsearchSyncService.syncAudiosByCategoryId(id);
+        await Promise.all(
+          mediaIds.map((audioId) =>
+            this.audioElasticsearchSyncService.syncAudioById(audioId),
+          ),
+        );
       } catch (error) {
-        this.logger.error('Failed to sync audios by category', error);
+        this.logger.error('Failed to sync audios after deassign', error);
         throw error;
       }
     }
