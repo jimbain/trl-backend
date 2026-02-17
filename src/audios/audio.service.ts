@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,6 +39,8 @@ import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 
 @Injectable()
 export class AudioService {
+  private readonly logger = new Logger(AudioService.name);
+
   @InjectRepository(Audio)
   private readonly audioRepository: Repository<Audio>;
 
@@ -1015,29 +1018,33 @@ export class AudioService {
   async deassignCategory(category: Category, ids: string[]) {
     if (!ids.length) return;
 
-    // Use raw SQL for direct JSONB array element removal
+    // Use raw SQL with proper JSONB comparison
     // Ignore audios where categories is NULL or empty array []
     const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
+
+    // Build the category value as a JSONB string to match how assign adds it
+    const categoryJsonbValue = `'"${category.id}"'::jsonb`;
+
     const sql = `
       UPDATE audios
       SET categories = (
         SELECT jsonb_agg(elem)
         FROM jsonb_array_elements(categories) AS elem
-        WHERE elem::text != $1
+        WHERE elem <> ${categoryJsonbValue}
       )
       WHERE id IN (${placeholders})
         AND categories IS NOT NULL
         AND categories <> '[]'::jsonb
-        AND categories @> $${ids.length + 2}::jsonb
+        AND categories @> $1::jsonb
     `;
 
-    const params = [
-      JSON.stringify(category.id),
-      ...ids,
-      JSON.stringify([category.id]),
-    ];
+    const params = [JSON.stringify([category.id]), ...ids];
 
-    await this.audioRepository.query(sql, params);
+    this.logger.debug(`Deassign SQL: ${sql}`);
+    this.logger.debug(`Deassign Params: ${JSON.stringify(params)}`);
+
+    const result = await this.audioRepository.query(sql, params);
+    this.logger.log(`Deassign result: ${JSON.stringify(result)}`);
   }
 
   async incrementTotalPlayedOfAudio(id: string) {
