@@ -1015,21 +1015,29 @@ export class AudioService {
   async deassignCategory(category: Category, ids: string[]) {
     if (!ids.length) return;
 
-    // Remove category from JSONB array by filtering out the matching element
-    await this.audioRepository
-      .createQueryBuilder()
-      .update(Audio)
-      .set({
-        categories: () => `
-          (
-            SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
-            FROM jsonb_array_elements(categories) AS elem
-            WHERE elem <> '"${category.id}"'::jsonb
-          )
-        `,
-      })
-      .where('id IN (:...ids)', { ids })
-      .execute();
+    // Use raw SQL for direct JSONB array element removal
+    // Ignore audios where categories is NULL or empty array []
+    const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
+    const sql = `
+      UPDATE audios
+      SET categories = (
+        SELECT jsonb_agg(elem)
+        FROM jsonb_array_elements(categories) AS elem
+        WHERE elem::text != $1
+      )
+      WHERE id IN (${placeholders})
+        AND categories IS NOT NULL
+        AND categories <> '[]'::jsonb
+        AND categories @> $${ids.length + 2}::jsonb
+    `;
+
+    const params = [
+      JSON.stringify(category.id),
+      ...ids,
+      JSON.stringify([category.id]),
+    ];
+
+    await this.audioRepository.query(sql, params);
   }
 
   async incrementTotalPlayedOfAudio(id: string) {
