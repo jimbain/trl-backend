@@ -1015,12 +1015,18 @@ export class AudioService {
   async deassignCategory(category: Category, ids: string[]) {
     if (!ids.length) return;
 
-    // Remove category from JSONB array using array removal
+    // Remove category from JSONB array by filtering out the matching element
     await this.audioRepository
       .createQueryBuilder()
       .update(Audio)
       .set({
-        categories: () => `categories - '${category.id}'`,
+        categories: () => `
+          (
+            SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+            FROM jsonb_array_elements(categories) AS elem
+            WHERE elem <> '"${category.id}"'::jsonb
+          )
+        `,
       })
       .where('id IN (:...ids)', { ids })
       .execute();
