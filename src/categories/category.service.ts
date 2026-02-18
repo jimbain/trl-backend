@@ -25,6 +25,7 @@ import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaService } from 'src/pharma/services/pharma.service';
 import { Video } from 'src/video/entities/video.entity';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
+import { CompanyService } from 'src/companies/company.service';
 
 @Injectable()
 export class CategoryService {
@@ -48,7 +49,31 @@ export class CategoryService {
     private readonly cacheService: CacheService,
     private readonly pharmaService: PharmaService,
     private readonly appElasticsearchService: AppElasticsearchService,
+    private readonly companyService: CompanyService,
   ) {}
+
+  /**
+   * Find all company IDs whose assigned catalogs include the given category ID,
+   * then invalidate their company cache so the next request rebuilds with
+   * the current active-category filter.
+   * Delegates to CompanyService which queries the DB directly via JSONB containment.
+   */
+  private async invalidateCompanyCacheForCategory(
+    categoryId: string,
+  ): Promise<void> {
+    try {
+      const companyIds =
+        await this.companyService.findCompanyIdsByCategoryId(categoryId);
+      await Promise.all(
+        companyIds.map((id) => this.companyService.removeFromCacheById(id)),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to invalidate company cache for category ${categoryId}`,
+        error,
+      );
+    }
+  }
 
   async findAll(): Promise<Category[]> {
     return this.categoryRepository.find();
@@ -278,6 +303,16 @@ export class CategoryService {
     Object.assign(category, payload);
     await this.categoryRepository.save(category);
 
+    // If is_active changed, invalidate company caches that reference this category
+    if ('is_active' in payload) {
+      this.invalidateCompanyCacheForCategory(id).catch((error) =>
+        this.logger.error(
+          `Background company cache invalidation failed for category ${id}`,
+          error,
+        ),
+      );
+    }
+
     return plainToInstance(CategoryDto, category, {
       excludeExtraneousValues: true,
     });
@@ -313,6 +348,14 @@ export class CategoryService {
     await this.cacheService.delete(id);
     await this.findByIdWithCache(id);
 
+    // Invalidate company caches so category ID changes are reflected immediately
+    this.invalidateCompanyCacheForCategory(id).catch((error) =>
+      this.logger.error(
+        `Background company cache invalidation failed after assign for category ${id}`,
+        error,
+      ),
+    );
+
     // Wait for Elasticsearch indexing to complete before returning response
     const responseDelay =
       this.audioElasticsearchSyncService.getResponseDelayMs();
@@ -347,6 +390,14 @@ export class CategoryService {
 
     await this.cacheService.delete(id);
     await this.findByIdWithCache(id);
+
+    // Invalidate company caches so category ID changes are reflected immediately
+    this.invalidateCompanyCacheForCategory(id).catch((error) =>
+      this.logger.error(
+        `Background company cache invalidation failed after deassign for category ${id}`,
+        error,
+      ),
+    );
 
     // Wait for Elasticsearch indexing to complete before returning response
     const responseDelay =

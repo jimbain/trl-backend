@@ -88,6 +88,15 @@ export class PharmaUserStatusService {
   }
 
   async queue(id: string, user: User) {
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
     const [pharma, pharmaUser, nextListOrder] = await Promise.all([
       this.pharmaService.findById(id),
       this.pharmaUserStatusRepository.findOne({
@@ -147,6 +156,12 @@ export class PharmaUserStatusService {
     const company = await this.companyService.findByIdWithCache(
       user.company.id,
     );
+
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
 
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,
@@ -227,6 +242,12 @@ export class PharmaUserStatusService {
     const company = await this.companyService.findByIdWithCache(
       user.company.id,
     );
+
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
 
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,

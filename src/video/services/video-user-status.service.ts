@@ -109,6 +109,14 @@ export class VideoUserStatusService {
     const company: CachedCompany = await this.companyService.findByIdWithCache(
       user.company_id,
     );
+
+    // Block write actions when company is inactive; allow dequeue and return
+    if (!company.is_active && ['queue', 'rent', 'renew'].includes(action)) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,
     );

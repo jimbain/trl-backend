@@ -5,11 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { Category } from 'src/categories/entities/category.entity';
+import { Catalog } from 'src/catalog/entities/catalog.entity';
 import {
   instanceToPlain,
   plainToClass,
@@ -35,6 +37,12 @@ export class CompanyService {
 
     @InjectRepository(CompanyCreditLog)
     private readonly companyCreditLogRepository: Repository<CompanyCreditLog>,
+
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
+
+    @InjectRepository(Catalog)
+    private readonly catalogRepository: Repository<Catalog>,
 
     private readonly catalogService: CatalogService,
     private readonly fileManagerService: FileManagerService,
@@ -194,6 +202,7 @@ export class CompanyService {
     const data: CachedCompany = {
       id: company.id,
       name: company.name,
+      is_active: company.is_active,
       logo_url: logoUrl,
       domain: company.domain,
       description: company.description,
@@ -216,17 +225,24 @@ export class CompanyService {
       app_configs: company.app_configs,
     };
 
-    const catalogs = await this.catalogService.findEntitiesByIds(
-      company.catalogs,
-    );
+    // Only include active catalogs (findMany filters is_active = true)
+    const catalogs = await this.catalogService.findMany(company.catalogs);
 
     for (const catalog of catalogs) {
       if (catalog.media_type in data.category_ids) {
-        data.category_ids[catalog.media_type] = catalog.categories ?? [];
+        // Only include active category IDs for this catalog
+        const activeCategories = await this.categoryRepository.find({
+          where: { id: In(catalog.categories ?? []), is_active: true },
+          select: ['id'],
+        });
+        data.category_ids[catalog.media_type] = activeCategories.map(
+          (c) => c.id,
+        );
       }
     }
 
-    await this.cacheService.set(id, data);
+    // Cache for 1 hour
+    await this.cacheService.set(id, data, 3600);
 
     return data;
   }
@@ -359,6 +375,50 @@ export class CompanyService {
 
   removeFromCacheById(id: string) {
     return this.cacheService.delete(id);
+  }
+
+  /**
+   * Find IDs of companies whose catalogs JSONB array contains the given catalog ID.
+   * Uses a direct DB query instead of loading all companies into memory.
+   */
+  async findCompanyIdsByCatalogId(catalogId: number): Promise<string[]> {
+    const companies = await this.companyRepository
+      .createQueryBuilder('company')
+      .where('company.catalogs @> :catalogId::jsonb', {
+        catalogId: JSON.stringify([catalogId]),
+      })
+      .select('company.id')
+      .getMany();
+
+    return companies.map((c) => c.id);
+  }
+
+  /**
+   * Find IDs of companies whose assigned catalogs contain the given category ID.
+   * Step 1: Find catalog IDs where categories JSONB contains the category ID.
+   * Step 2: For each catalog, find companies that have it assigned.
+   */
+  async findCompanyIdsByCategoryId(categoryId: string): Promise<string[]> {
+    const catalogs = await this.catalogRepository
+      .createQueryBuilder('catalog')
+      .where('catalog.categories @> :categoryId::jsonb', {
+        categoryId: JSON.stringify([categoryId]),
+      })
+      .select('catalog.id')
+      .getMany();
+
+    if (!catalogs.length) return [];
+
+    const companyIdSet = new Set<string>();
+
+    await Promise.all(
+      catalogs.map(async (catalog) => {
+        const ids = await this.findCompanyIdsByCatalogId(catalog.id);
+        ids.forEach((id) => companyIdSet.add(id));
+      }),
+    );
+
+    return [...companyIdSet];
   }
 
   async createCreditLog(createCompanyCreditLogDto: CreateCompanyCreditLogDto) {

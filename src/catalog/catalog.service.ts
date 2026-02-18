@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Repository, In, Raw } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
@@ -11,9 +11,12 @@ import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { Video } from 'src/video/entities/video.entity';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
+import { CompanyService } from 'src/companies/company.service';
 
 @Injectable()
 export class CatalogService {
+  private readonly logger = new Logger(CatalogService.name);
+
   constructor(
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
@@ -28,7 +31,29 @@ export class CatalogService {
     private readonly videoRepository: Repository<Video>,
 
     private readonly appElasticsearchService: AppElasticsearchService,
+    private readonly companyService: CompanyService,
   ) {}
+
+  /**
+   * Invalidate company caches for all companies that have this catalog assigned.
+   * Delegates to CompanyService which queries the DB directly via JSONB containment.
+   */
+  private async invalidateCompanyCacheForCatalog(
+    catalogId: number,
+  ): Promise<void> {
+    try {
+      const companyIds =
+        await this.companyService.findCompanyIdsByCatalogId(catalogId);
+      await Promise.all(
+        companyIds.map((id) => this.companyService.removeFromCacheById(id)),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to invalidate company cache for catalog ${catalogId}`,
+        error,
+      );
+    }
+  }
 
   async findAll(): Promise<Catalog[]> {
     return this.catalogRepository.find();
@@ -127,6 +152,17 @@ export class CatalogService {
   async update(id: number, data: UpdateCatalogDto): Promise<Catalog> {
     await this.findOne(id); // Ensure catalog exists
     await this.catalogRepository.update(id, data);
+
+    // If is_active changed, invalidate company caches that reference this catalog
+    if ('is_active' in data) {
+      this.invalidateCompanyCacheForCatalog(id).catch((error) =>
+        this.logger.error(
+          `Background company cache invalidation failed for catalog ${id}`,
+          error,
+        ),
+      );
+    }
+
     return this.findOne(id); // Return updated catalog
   }
 

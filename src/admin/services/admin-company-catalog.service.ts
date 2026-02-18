@@ -134,5 +134,8 @@ export class AdminCompanyCatalogService {
       catalogId === id ? updatedCatalogId : catalogId,
     );
     await this.companyService.save(company);
+
+    // Invalidate company cache so the next request rebuilds with updated catalog/category data
+    await this.companyService.removeFromCacheById(companyId);
   }
 }

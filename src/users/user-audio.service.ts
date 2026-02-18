@@ -216,6 +216,15 @@ export class UserAudioService {
   }
 
   async queueAudio(audioId: string, user: User) {
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
     const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
       this.userAudioStatusRepository.findOne({
@@ -279,6 +288,12 @@ export class UserAudioService {
     const company = await this.companyService.findByIdWithCache(
       user.company.id,
     );
+
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
 
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,
@@ -418,6 +433,12 @@ export class UserAudioService {
       user.company.id,
     );
 
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
@@ -514,6 +535,12 @@ export class UserAudioService {
     const company = await this.companyService.findByIdWithCache(
       user.company.id,
     );
+
+    if (!company.is_active) {
+      throw new BadRequestException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
 
     const [audio, appConfigs, userAudio] = await Promise.all([
       this.audioService.findById(audioId, ['metadata']),

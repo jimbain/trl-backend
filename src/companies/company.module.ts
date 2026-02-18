@@ -6,10 +6,11 @@ import { CatalogModule } from 'src/catalog/catalog.module';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CompanyCreditLog } from './entities/company_credit_log.entity';
 import { CommonModule } from 'src/common/common.module';
+import { Category } from 'src/categories/entities/category.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Catalog, Company, CompanyCreditLog]),
+    TypeOrmModule.forFeature([Catalog, Company, CompanyCreditLog, Category]),
     forwardRef(() => CatalogModule),
     forwardRef(() => CommonModule),
   ],

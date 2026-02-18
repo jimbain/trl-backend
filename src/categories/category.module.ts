@@ -11,6 +11,7 @@ import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { PharmaModule } from 'src/pharma/pharma.module';
 import { Video } from 'src/video/entities/video.entity';
 import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
+import { CompanyModule } from 'src/companies/company.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     forwardRef(() => PharmaModule),
     forwardRef(() => CommonModule),
     forwardRef(() => AppElasticsearchModule),
+    forwardRef(() => CompanyModule),
   ],
   controllers: [CategoryController],
   providers: [CategoryService],

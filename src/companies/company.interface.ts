@@ -18,6 +18,7 @@ export interface SsoConfig {
 export interface CachedCompany {
   id: string;
   name: string;
+  is_active: boolean;
   logo_url: string | null;
   domain: string | null;
   description: string | null;
