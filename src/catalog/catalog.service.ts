@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { Repository, In, Raw } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
@@ -31,6 +37,8 @@ export class CatalogService {
     private readonly videoRepository: Repository<Video>,
 
     private readonly appElasticsearchService: AppElasticsearchService,
+
+    @Inject(forwardRef(() => CompanyService))
     private readonly companyService: CompanyService,
   ) {}
 

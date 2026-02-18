@@ -49,6 +49,8 @@ export class CategoryService {
     private readonly cacheService: CacheService,
     private readonly pharmaService: PharmaService,
     private readonly appElasticsearchService: AppElasticsearchService,
+
+    @Inject(forwardRef(() => CompanyService))
     private readonly companyService: CompanyService,
   ) {}
 
