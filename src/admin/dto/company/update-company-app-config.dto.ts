@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -79,4 +80,9 @@ export class UpdateCompanyAppConfigDto {
   @IsString()
   @IsOptional()
   new_user_default_password: string;
+
+  @IsString()
+  @IsIn(['both', 'rent', 'bookshelf'])
+  @IsOptional()
+  available_audio_title_user_action?: string;
 }

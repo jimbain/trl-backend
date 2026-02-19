@@ -36,6 +36,7 @@ import { QueryAudioDto } from './dto/query-audio.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import { AudioChapter } from './entities/audio_metadata.entity';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
+import { CacheKeys } from 'src/common/constants/cache-keys.constant';
 
 @Injectable()
 export class AudioService {
@@ -488,6 +489,13 @@ export class AudioService {
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
+    const cacheKey = CacheKeys.audioCategoriesByCompany(companyId);
+    const cachedCategories = await this.cacheService.get(cacheKey);
+
+    if (cachedCategories) {
+      return cachedCategories;
+    }
+
     const company = await this.companyService.findById(companyId);
     const catalogs = await this.catalogService.findMany(company.catalogs);
     const audioCatalog =
@@ -497,9 +505,19 @@ export class AudioService {
       audioCatalog.categories,
     );
 
-    return plainToInstance(AudioCategoryDto, categories, {
+    // Sort categories alphabetically by name
+    const sortedCategories = categories.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+
+    const result = plainToInstance(AudioCategoryDto, sortedCategories, {
       excludeExtraneousValues: true,
     });
+
+    // Cache for 1 hour (3600 seconds)
+    await this.cacheService.set(cacheKey, result, 3600);
+
+    return result;
   }
 
   async getHomeList(user: User) {

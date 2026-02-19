@@ -26,6 +26,7 @@ import { PharmaService } from 'src/pharma/services/pharma.service';
 import { Video } from 'src/video/entities/video.entity';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 import { CompanyService } from 'src/companies/company.service';
+import { CacheKeys } from 'src/common/constants/cache-keys.constant';
 
 @Injectable()
 export class CategoryService {
@@ -58,6 +59,7 @@ export class CategoryService {
    * Find all company IDs whose assigned catalogs include the given category ID,
    * then invalidate their company cache so the next request rebuilds with
    * the current active-category filter.
+   * Also invalidates audio categories cache for affected companies.
    * Delegates to CompanyService which queries the DB directly via JSONB containment.
    */
   private async invalidateCompanyCacheForCategory(
@@ -66,8 +68,11 @@ export class CategoryService {
     try {
       const companyIds =
         await this.companyService.findCompanyIdsByCategoryId(categoryId);
-      await Promise.all(
-        companyIds.map((id) => this.companyService.removeFromCacheById(id)),
+
+      // Invalidate both company cache and audio categories cache
+      await CacheKeys.invalidateCompanyRelatedCaches(
+        this.cacheService,
+        companyIds,
       );
     } catch (error) {
       this.logger.error(

@@ -1,4 +1,4 @@
-import { Expose, Transform, Type } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 
 export class UserListDto {
   @Expose()
@@ -54,4 +54,8 @@ export class UserDto {
   @Expose()
   @Transform(({ obj }) => obj?.company?.description || null)
   banner_text: string | null;
+
+  @Expose()
+  @Transform(({ obj }) => obj?.company?.available_medias || [])
+  available_medias: string[];
 }

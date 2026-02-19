@@ -258,6 +258,7 @@ export class CompanyService {
         (qb) =>
           qb.where('activeUsers.is_active = :isActive', { isActive: true }),
       )
+      .loadRelationCountAndMap('company.totalUserCount', 'company.users')
       .where('company.id = :id', { id })
       .getOne();
 

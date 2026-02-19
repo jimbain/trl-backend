@@ -6,6 +6,8 @@ import { AdminCompanyCatalogDto } from '../dto/catalog/admin-company-catalog.dto
 import { CategoryService } from 'src/categories/category.service';
 import { UpdateCatalogDto } from 'src/catalog/dto/update-catalog.dto';
 import { CATALOG_CATEGORY_TYPE } from 'src/constants';
+import { CacheService } from 'src/common/services/cache.service';
+import { CacheKeys } from 'src/common/constants/cache-keys.constant';
 
 @Injectable()
 export class AdminCompanyCatalogService {
@@ -13,6 +15,7 @@ export class AdminCompanyCatalogService {
     private readonly companyService: CompanyService,
     private readonly catalogService: CatalogService,
     private readonly categoryService: CategoryService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll(id: string, query: any = {}) {
@@ -135,7 +138,9 @@ export class AdminCompanyCatalogService {
     );
     await this.companyService.save(company);
 
-    // Invalidate company cache so the next request rebuilds with updated catalog/category data
-    await this.companyService.removeFromCacheById(companyId);
+    // Invalidate company cache and audio categories cache so the next request rebuilds with updated catalog/category data
+    await CacheKeys.invalidateCompanyRelatedCaches(this.cacheService, [
+      companyId,
+    ]);
   }
 }

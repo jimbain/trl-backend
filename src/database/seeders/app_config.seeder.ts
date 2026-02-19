@@ -28,6 +28,7 @@ export class AppConfigSeeder {
       notification_for_noactivity_in_last_x_days: 30,
       notification_for_new_audio_expiring_in_d_days: 1,
       new_user_default_password: 'TRL@2025!@',
+      available_audio_title_user_action: 'both',
     };
 
     for (const [key, value] of Object.entries(appConfig)) {

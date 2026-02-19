@@ -18,6 +18,8 @@ import { Pharma } from 'src/pharma/entities/pharma.entity';
 import { Video } from 'src/video/entities/video.entity';
 import { AppElasticsearchService } from 'src/app-elasticsearch/services/app-elasticsearch.service';
 import { CompanyService } from 'src/companies/company.service';
+import { CacheKeys } from 'src/common/constants/cache-keys.constant';
+import { CacheService } from 'src/common/services/cache.service';
 
 @Injectable()
 export class CatalogService {
@@ -40,10 +42,13 @@ export class CatalogService {
 
     @Inject(forwardRef(() => CompanyService))
     private readonly companyService: CompanyService,
+
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
    * Invalidate company caches for all companies that have this catalog assigned.
+   * Also invalidates audio categories cache for affected companies.
    * Delegates to CompanyService which queries the DB directly via JSONB containment.
    */
   private async invalidateCompanyCacheForCatalog(
@@ -52,8 +57,11 @@ export class CatalogService {
     try {
       const companyIds =
         await this.companyService.findCompanyIdsByCatalogId(catalogId);
-      await Promise.all(
-        companyIds.map((id) => this.companyService.removeFromCacheById(id)),
+
+      // Invalidate both company cache and audio categories cache
+      await CacheKeys.invalidateCompanyRelatedCaches(
+        this.cacheService,
+        companyIds,
       );
     } catch (error) {
       this.logger.error(

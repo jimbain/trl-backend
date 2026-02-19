@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class UpdateAppConfigDto {
   @Transform(({ value }) => parseInt(value, 10))
@@ -60,4 +67,9 @@ export class UpdateAppConfigDto {
   @IsString()
   @IsOptional()
   new_user_default_password: string;
+
+  @IsString()
+  @IsIn(['both', 'rent', 'bookshelf'])
+  @IsOptional()
+  available_audio_title_user_action: string;
 }
