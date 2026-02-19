@@ -336,4 +336,23 @@ export class AuthService {
 
     return { success: true };
   }
+
+  async getCurrentUser(userId: string) {
+    const user = await this.userService.findById(userId, ['company']);
+
+    if (!user) {
+      throw new HttpException(
+        {
+          errors: {
+            user: ['User not found'],
+          },
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return {
+      user: plainToInstance(UserDto, user, { excludeExtraneousValues: true }),
+    };
+  }
 }

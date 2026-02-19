@@ -197,4 +197,11 @@ export class AuthController {
     await this.authService.resetPassword(payload.token, payload.password);
     return;
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @HttpCode(200)
+  async getCurrentUser(@Request() req) {
+    return this.authService.getCurrentUser(req.user.id);
+  }
 }
