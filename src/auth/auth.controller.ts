@@ -93,16 +93,16 @@ export class AuthController {
     }
 
     // Validate user and company are active
-    try {
-      this.authService.validateUserAndCompanyActive(user);
-    } catch (error) {
-      const errorMessage =
-        error.response?.errors?.email?.[0] ||
-        'Authentication failed. Please contact your administrator.';
-      return res.redirect(
-        `/api/v1/auth/sso/callback/${companyId}/error?message=${errorMessage}`,
-      );
-    }
+    // try {
+    //   this.authService.validateUserAndCompanyActive(user);
+    // } catch (error) {
+    //   const errorMessage =
+    //     error.response?.errors?.email?.[0] ||
+    //     'Authentication failed. Please contact your administrator.';
+    //   return res.redirect(
+    //     `/api/v1/auth/sso/callback/${companyId}/error?message=${errorMessage}`,
+    //   );
+    // }
 
     const tokens = await this.authService.login(user);
     res.redirect(

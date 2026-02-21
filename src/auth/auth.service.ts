@@ -109,7 +109,7 @@ export class AuthService {
     ]);
 
     // Validate user and company are active
-    this.validateUserAndCompanyActive(user);
+    // this.validateUserAndCompanyActive(user);
 
     const configs = await this.appConfigRepository.find({
       where: {
@@ -179,7 +179,7 @@ export class AuthService {
     }
 
     // Validate user and company are active
-    this.validateUserAndCompanyActive(user);
+    // this.validateUserAndCompanyActive(user);
 
     const isSsoLogin = user.company.login_type === COMPANY_LOGIN_TYPE.SSO;
 
