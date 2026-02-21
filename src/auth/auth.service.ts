@@ -55,7 +55,7 @@ export class AuthService {
             ],
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
 
@@ -68,7 +68,7 @@ export class AuthService {
             ],
           },
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
   }
