@@ -22,8 +22,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     console.log('user', payload);
     const user = await this.userService.findById(payload.id, ['company']);
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('User not found');
     }
+
+    // Check if user is active
+    if (!user.is_active) {
+      throw new UnauthorizedException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
+
+    // Check if company is active
+    if (user.company && !user.company.is_active) {
+      throw new UnauthorizedException(
+        'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
     return user;
   }
 }
