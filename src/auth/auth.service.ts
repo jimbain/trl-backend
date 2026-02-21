@@ -41,6 +41,38 @@ export class AuthService {
     private readonly companyService: CompanyService,
   ) {}
 
+  /**
+   * Validates if user and their company are active
+   * @throws HttpException with 401 if user or company is inactive
+   */
+  validateUserAndCompanyActive(user: User): void {
+    if (!user.is_active) {
+      throw new HttpException(
+        {
+          errors: {
+            email: [
+              'Your account is inactive. Please contact your administrator.',
+            ],
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (user.company && !user.company.is_active) {
+      throw new HttpException(
+        {
+          errors: {
+            email: [
+              'Your company account is inactive. Please contact your administrator.',
+            ],
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+  }
+
   async signup(registerPayload: RegisterDto) {
     // Find company by name
     const company = await this.companyService.findByName(
@@ -75,6 +107,9 @@ export class AuthService {
     const user = await this.userService.findByEmail(loginPayload.email, [
       'company',
     ]);
+
+    // Validate user and company are active
+    this.validateUserAndCompanyActive(user);
 
     const configs = await this.appConfigRepository.find({
       where: {
@@ -122,8 +157,6 @@ export class AuthService {
         },
       );
 
-      console.log('userInfo', userInfo);
-
       // Process user info, e.g., create a new user or return an existing user
       // Here, you can integrate the Okta user info with your backend logic (e.g., creating a user in DB)
       return userInfo.data;
@@ -133,9 +166,7 @@ export class AuthService {
   }
 
   async checkUser(email: string): Promise<any> {
-    console.log('Checking user for email:', email);
     const user = await this.userService.findByEmail(email, ['company']);
-    console.log('Found user:', user);
     if (!user) {
       throw new HttpException(
         {
@@ -146,6 +177,9 @@ export class AuthService {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
+
+    // Validate user and company are active
+    this.validateUserAndCompanyActive(user);
 
     const isSsoLogin = user.company.login_type === COMPANY_LOGIN_TYPE.SSO;
 

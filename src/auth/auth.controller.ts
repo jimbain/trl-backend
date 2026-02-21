@@ -68,14 +68,10 @@ export class AuthController {
     @Request() req,
     @Res() res,
   ) {
-    console.log('Req:', req);
-    console.log('companyId:', companyId);
-    console.log('req.user:', req.user);
     const user = await this.userService.findByEmail(
       req.user.email ?? req.user.id,
       ['company'],
     );
-    console.log('User:', user);
 
     if (!user) {
       return res.redirect(
@@ -93,6 +89,18 @@ export class AuthController {
     if (user.company.login_type !== COMPANY_LOGIN_TYPE.SSO) {
       return res.redirect(
         `/api/v1/auth/sso/callback/${companyId}/error?message=Company does not have SSO login enabled`,
+      );
+    }
+
+    // Validate user and company are active
+    try {
+      this.authService.validateUserAndCompanyActive(user);
+    } catch (error) {
+      const errorMessage =
+        error.response?.errors?.email?.[0] ||
+        'Authentication failed. Please contact your administrator.';
+      return res.redirect(
+        `/api/v1/auth/sso/callback/${companyId}/error?message=${errorMessage}`,
       );
     }
 
