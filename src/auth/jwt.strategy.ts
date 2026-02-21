@@ -25,18 +25,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Check if user is active
-    if (!user.is_active) {
-      throw new UnauthorizedException(
-        'Your account is inactive. Please contact your administrator.',
-      );
-    }
+    // if (!user.is_active) {
+    //   throw new UnauthorizedException(
+    //     'Your account is inactive. Please contact your administrator.',
+    //   );
+    // }
 
     // Check if company is active
-    if (user.company && !user.company.is_active) {
-      throw new UnauthorizedException(
-        'Your company account is inactive. Please contact your administrator.',
-      );
-    }
+    // if (user.company && !user.company.is_active) {
+    //   throw new UnauthorizedException(
+    //     'Your company account is inactive. Please contact your administrator.',
+    //   );
+    // }
 
     return user;
   }
