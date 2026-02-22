@@ -16,7 +16,11 @@ import {
 } from 'typeorm';
 import { Audio } from './entities/audio.entity';
 import { plainToInstance } from 'class-transformer';
-import { AudioDto, AudioListDto } from './dto/audio.dto';
+import {
+  AudioDto,
+  AudioListDto,
+  applyConfigRestriction,
+} from './dto/audio.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
@@ -64,6 +68,40 @@ export class AudioService {
     private readonly cacheService: CacheService,
   ) {}
 
+  /**
+   * Adds a WHERE clause to filter audios based on company config restriction.
+   * Only includes audios where the intersection of metadata.available_for and config is not null.
+   *
+   * @param queryBuilder - The query builder to modify
+   * @param configAction - The company config value: 'rent' | 'bookshelf' | 'both'
+   * @param metadataAlias - The alias for the metadata table in the query (default: 'metadata')
+   */
+  private addConfigRestrictionFilter(
+    queryBuilder: any,
+    configAction: 'rent' | 'bookshelf' | 'both' | undefined,
+    metadataAlias: string = 'metadata',
+  ): void {
+    // If no config restriction or config is 'both', no filtering needed
+    if (!configAction || configAction === 'both') {
+      return;
+    }
+
+    // If config is 'rent': only allow rental or both
+    if (configAction === 'rent') {
+      queryBuilder.andWhere(
+        `${metadataAlias}.available_for IN (:...allowedFor)`,
+        { allowedFor: ['rental', 'both'] },
+      );
+    }
+    // If config is 'bookshelf': only allow purchasable or both
+    else if (configAction === 'bookshelf') {
+      queryBuilder.andWhere(
+        `${metadataAlias}.available_for IN (:...allowedFor)`,
+        { allowedFor: ['purchasable', 'both'] },
+      );
+    }
+  }
+
   async findAll(
     user: User,
     query: QueryAudioDto = {},
@@ -95,25 +133,36 @@ export class AudioService {
         'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
         { userId: user.id },
       )
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .select([
-        'audio.id AS id',
-        'audio.display_title AS title',
-        'audio.display_authors AS authors',
-        'metadata.cover_url AS image_url',
-        'audio.avg_rating AS avg_rating',
-        'audio.total_rented AS total_rented',
-        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
-        'audio.is_only_for_purchase AS is_only_for_purchase',
-        'metadata.available_for as available_for',
-        'metadata.chapters AS chapters',
-        'userAudioStatus.updated_at AS updated_at',
-        'userAudioStatus.status AS status',
-        'userAudioStatus.rental_expire_at AS rental_expires_at',
-        'userAudioStatus.audio_id AS audio_id',
-        'userAudioStatus.list_order AS list_order',
-      ]);
+      .andWhere('audio.is_active = :isActive', { isActive: true });
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    queryBuilder.select([
+      'audio.id AS id',
+      'audio.display_title AS title',
+      'audio.display_authors AS authors',
+      'metadata.cover_url AS image_url',
+      'audio.avg_rating AS avg_rating',
+      'audio.total_rented AS total_rented',
+      'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+      'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+      'audio.is_only_for_purchase AS is_only_for_purchase',
+      'metadata.available_for as available_for',
+      'metadata.chapters AS chapters',
+      'userAudioStatus.updated_at AS updated_at',
+      'userAudioStatus.status AS status',
+      'userAudioStatus.rental_expire_at AS rental_expires_at',
+      'userAudioStatus.audio_id AS audio_id',
+      'userAudioStatus.list_order AS list_order',
+    ]);
 
     if (ids?.length > 0) {
       queryBuilder.andWhere('audio.id IN (:...audioIds)', {
@@ -126,7 +175,12 @@ export class AudioService {
     paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        {
+          ...audio,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
+        },
         { excludeExtraneousValues: true },
       ),
     );
@@ -219,20 +273,31 @@ export class AudioService {
         { categoryIds: categoryIds },
       )
       .andWhere('audio.is_featured = :isFeatured', { isFeatured: true })
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .select([
-        'audio.id AS id',
-        'audio.display_title AS title',
-        'audio.display_authors AS authors',
-        'metadata.cover_url AS image_url',
-        'audio.avg_rating AS avg_rating',
-        'audio.total_rented AS total_rented',
-        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
-        'audio.is_only_for_purchase AS is_only_for_purchase',
-        'metadata.available_for as available_for',
-        'metadata.chapters AS chapters',
-      ]);
+      .andWhere('audio.is_active = :isActive', { isActive: true });
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    queryBuilder.select([
+      'audio.id AS id',
+      'audio.display_title AS title',
+      'audio.display_authors AS authors',
+      'metadata.cover_url AS image_url',
+      'audio.avg_rating AS avg_rating',
+      'audio.total_rented AS total_rented',
+      'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+      'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+      'audio.is_only_for_purchase AS is_only_for_purchase',
+      'metadata.available_for as available_for',
+      'metadata.chapters AS chapters',
+    ]);
 
     if (audioIds.length > 0) {
       queryBuilder.andWhere('audio.id NOT IN (:...audioIds)', { audioIds });
@@ -243,7 +308,12 @@ export class AudioService {
     paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        {
+          ...audio,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
+        },
         { excludeExtraneousValues: true },
       ),
     );
@@ -257,8 +327,11 @@ export class AudioService {
     }
 
     const categoryIds = company.category_ids.audio;
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
 
-    const audios = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
       .leftJoinAndMapOne(
@@ -273,7 +346,19 @@ export class AudioService {
         { categoryIds: categoryIds },
       )
       .andWhere('audio.total_played > 0')
-      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('audio.is_active = :isActive', { isActive: true });
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    const audios = await queryBuilder
       .select([
         'audio.id',
         'audio.display_title',
@@ -297,9 +382,18 @@ export class AudioService {
       .limit(10)
       .getMany();
 
-    return plainToInstance(AudioListDto, audios, {
-      excludeExtraneousValues: true,
-    });
+    return plainToInstance(
+      AudioListDto,
+      audios.map((audio) => ({
+        ...audio,
+        rental_credit_cost: appConfigs.audio_rental_credit_cost,
+        available_audio_title_user_action:
+          appConfigs.available_audio_title_user_action,
+      })),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
   }
 
   async findByIds(
@@ -453,7 +547,19 @@ export class AudioService {
       .andWhere(
         `(userAudioStatus.status != 'rented' OR userAudioStatus.rental_expire_at >= :currentDate)`,
         { currentDate: new Date() },
-      )
+      );
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    queryBuilder
       .select([
         'audio.id AS id',
         'audio.display_title AS title',
@@ -482,7 +588,12 @@ export class AudioService {
     return audios.map((audio) =>
       plainToInstance(
         AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        {
+          ...audio,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
+        },
         { excludeExtraneousValues: true },
       ),
     );
@@ -616,7 +727,19 @@ export class AudioService {
         `array(SELECT jsonb_array_elements_text(audio.categories)) && :categoryIds`,
         { categoryIds: categoryIds },
       )
-      .andWhere('audio.is_active = :isActive', { isActive: true })
+      .andWhere('audio.is_active = :isActive', { isActive: true });
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    queryBuilder
       .select([
         'audio.id AS id',
         'audio.display_title AS title',
@@ -641,7 +764,12 @@ export class AudioService {
     paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        {
+          ...audio,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
+        },
         { excludeExtraneousValues: true },
       ),
     );
@@ -697,7 +825,19 @@ export class AudioService {
             );
         }),
         { query: `%${query}%` },
-      )
+      );
+
+    // Add config-based filtering
+    this.addConfigRestrictionFilter(
+      queryBuilder,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    queryBuilder
       .select([
         'audio.id AS id',
         'audio.display_title AS title',
@@ -722,7 +862,12 @@ export class AudioService {
     paginatedData.data = paginatedData.data.map((audio) =>
       plainToInstance(
         AudioListDto,
-        { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
+        {
+          ...audio,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
+        },
         { excludeExtraneousValues: true },
       ),
     );
@@ -731,6 +876,13 @@ export class AudioService {
   }
 
   async findAudioById(id: string, user: User | null): Promise<AudioDto> {
+    const company = await this.companyService.findByIdWithCache(
+      user.company_id,
+    );
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
+
     const [audio, userAudio] = await Promise.all([
       this.findByIdWithCache(id),
       this.userAudioStatusRepository.findOne({
@@ -738,6 +890,22 @@ export class AudioService {
         select: ['status', 'rental_expire_at'],
       }),
     ]);
+
+    // Check if audio is available based on config restriction
+    const availableAfterRestriction = applyConfigRestriction(
+      audio.metadata?.available_for,
+      appConfigs.available_audio_title_user_action as
+        | 'rent'
+        | 'bookshelf'
+        | 'both'
+        | undefined,
+    );
+
+    if (availableAfterRestriction === null) {
+      throw new NotFoundException(
+        `Audio with ID ${id} is not available for your company.`,
+      );
+    }
 
     let status = userAudio?.status ?? null;
     let rentalExpiresAt = userAudio?.rental_expire_at ?? null;
@@ -754,6 +922,9 @@ export class AudioService {
         ...{
           status: status,
           rental_expires_at: rentalExpiresAt,
+          rental_credit_cost: appConfigs.audio_rental_credit_cost,
+          available_audio_title_user_action:
+            appConfigs.available_audio_title_user_action,
         },
       },
       { excludeExtraneousValues: true },

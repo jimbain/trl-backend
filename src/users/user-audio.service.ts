@@ -72,6 +72,62 @@ export class UserAudioService {
     );
   }
 
+  /**
+   * Checks if an action (rent or bookshelf) is allowed for an audio based on
+   * the company's available_audio_title_user_action config and metadata's available_for value.
+   *
+   * Uses intersection logic: the final result is the most restrictive combination.
+   *
+   * @param audio - The audio entity with metadata
+   * @param configAction - Company config: 'rent' | 'bookshelf' | 'both'
+   * @param requestedAction - The requested action: 'rent' | 'bookshelf'
+   * @returns boolean - true if action is allowed, false otherwise
+   */
+  private isActionAllowed(
+    audio: Audio,
+    configAction: 'rent' | 'bookshelf' | 'both' | undefined,
+    requestedAction: 'rent' | 'bookshelf',
+  ): boolean {
+    const metadataAvailableFor = audio.metadata?.available_for;
+
+    if (!metadataAvailableFor) {
+      return false;
+    }
+
+    // If no config restriction, check metadata only
+    if (!configAction) {
+      if (requestedAction === 'rent') {
+        return (
+          metadataAvailableFor === 'rental' || metadataAvailableFor === 'both'
+        );
+      } else {
+        return (
+          metadataAvailableFor === 'purchasable' ||
+          metadataAvailableFor === 'both'
+        );
+      }
+    }
+
+    // Check if config allows the action
+    const configAllows =
+      configAction === 'both' ||
+      (configAction === 'rent' && requestedAction === 'rent') ||
+      (configAction === 'bookshelf' && requestedAction === 'bookshelf');
+
+    if (!configAllows) {
+      return false;
+    }
+
+    // Check if metadata allows the action
+    const metadataAllows =
+      metadataAvailableFor === 'both' ||
+      (metadataAvailableFor === 'rental' && requestedAction === 'rent') ||
+      (metadataAvailableFor === 'purchasable' &&
+        requestedAction === 'bookshelf');
+
+    return metadataAllows;
+  }
+
   async purchaseLicenseOfAudio(
     id: string,
     quantity: number = 1,
@@ -330,6 +386,23 @@ export class UserAudioService {
         }),
       ]);
 
+    // Check if rent action is allowed based on company config
+    if (
+      !this.isActionAllowed(
+        audio,
+        appConfigs.available_audio_title_user_action as
+          | 'rent'
+          | 'bookshelf'
+          | 'both'
+          | undefined,
+        'rent',
+      )
+    ) {
+      throw new BadRequestException(
+        'Renting is not available for this audio due to company policy.',
+      );
+    }
+
     if (audio.total_rented >= audio.purchased_rental_license_limit) {
       throw new BadRequestException(
         `You can't rent a book. Please talk to admin.`,
@@ -459,6 +532,23 @@ export class UserAudioService {
         this.appConfigService.getCompanyConfig(company.app_configs),
       ]);
 
+    // Check if bookshelf action is allowed based on company config
+    if (
+      !this.isActionAllowed(
+        audio,
+        appConfigs.available_audio_title_user_action as
+          | 'rent'
+          | 'bookshelf'
+          | 'both'
+          | undefined,
+        'bookshelf',
+      )
+    ) {
+      throw new BadRequestException(
+        'Adding to bookshelf is not available for this audio due to company policy.',
+      );
+    }
+
     if (userAudio && userAudio.status === 'bookshelved') {
       throw new BadRequestException(`Status unchanged`);
     }
@@ -553,6 +643,23 @@ export class UserAudioService {
         },
       }),
     ]);
+
+    // Check if rent action is allowed based on company config (renew is part of rent action)
+    if (
+      !this.isActionAllowed(
+        audio,
+        appConfigs.available_audio_title_user_action as
+          | 'rent'
+          | 'bookshelf'
+          | 'both'
+          | undefined,
+        'rent',
+      )
+    ) {
+      throw new BadRequestException(
+        'Renewing is not available due to company policy.',
+      );
+    }
 
     if (!userAudio) {
       throw new BadRequestException(
