@@ -225,6 +225,12 @@ export class UserAudioService {
       );
     }
 
+    if (!user.is_active) {
+      throw new BadRequestException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
+
     const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
       this.userAudioStatusRepository.findOne({
@@ -292,6 +298,12 @@ export class UserAudioService {
     if (!company.is_active) {
       throw new BadRequestException(
         'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
+    if (!user.is_active) {
+      throw new BadRequestException(
+        'Your account is inactive. Please contact your administrator.',
       );
     }
 
@@ -439,6 +451,12 @@ export class UserAudioService {
       );
     }
 
+    if (!user.is_active) {
+      throw new BadRequestException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
+
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
@@ -539,6 +557,12 @@ export class UserAudioService {
     if (!company.is_active) {
       throw new BadRequestException(
         'Your company account is inactive. Please contact your administrator.',
+      );
+    }
+
+    if (!user.is_active) {
+      throw new BadRequestException(
+        'Your account is inactive. Please contact your administrator.',
       );
     }
 
