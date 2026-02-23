@@ -80,17 +80,37 @@ export class AudioService {
     queryBuilder: any,
     configAction: 'rent' | 'bookshelf' | 'both' | undefined,
     metadataAlias: string = 'metadata',
+    audioAlias: string = 'audio',
   ): void {
-    // If no config restriction or config is 'both', no filtering needed
-    if (!configAction || configAction === 'both') {
+    // If no config restriction, no filtering needed
+    if (!configAction) {
       return;
     }
 
-    // If config is 'rent': only allow rental or both
+    // If config is 'both': filter out books where metadata = 'rental' AND no licenses available
+    if (configAction === 'both') {
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where(`${metadataAlias}.available_for != :rental`, {
+            rental: 'rental',
+          }).orWhere(
+            `${audioAlias}.total_rented < ${audioAlias}.purchased_rental_license_limit`,
+          );
+        }),
+      );
+      return;
+    }
+
+    // If config is 'rent': only allow rental or both, AND must have available licenses
     if (configAction === 'rent') {
       queryBuilder.andWhere(
-        `${metadataAlias}.available_for IN (:...allowedFor)`,
-        { allowedFor: ['rental', 'both'] },
+        new Brackets((qb) => {
+          qb.where(`${metadataAlias}.available_for IN (:...allowedFor)`, {
+            allowedFor: ['rental', 'both'],
+          }).andWhere(
+            `${audioAlias}.total_rented < ${audioAlias}.purchased_rental_license_limit`,
+          );
+        }),
       );
     }
     // If config is 'bookshelf': only allow purchasable or both
