@@ -219,15 +219,10 @@ export class UserAudioService {
     const company = await this.companyService.findByIdWithCache(
       user.company_id,
     );
-    if (!company.is_active) {
-      throw new BadRequestException(
-        'Your company account is inactive. Please contact your administrator.',
-      );
-    }
 
-    if (!user.is_active) {
+    if (!company.is_active || !user.is_active) {
       throw new BadRequestException(
-        'Your account is inactive. Please contact your administrator.',
+        'Your account is inactive. That option is not available.',
       );
     }
 
@@ -295,15 +290,9 @@ export class UserAudioService {
       user.company.id,
     );
 
-    if (!company.is_active) {
+    if (!company.is_active || !user.is_active) {
       throw new BadRequestException(
-        'Your company account is inactive. Please contact your administrator.',
-      );
-    }
-
-    if (!user.is_active) {
-      throw new BadRequestException(
-        'Your account is inactive. Please contact your administrator.',
+        'Your account is inactive. That option is not available.',
       );
     }
 
@@ -445,15 +434,9 @@ export class UserAudioService {
       user.company.id,
     );
 
-    if (!company.is_active) {
+    if (!company.is_active || !user.is_active) {
       throw new BadRequestException(
-        'Your company account is inactive. Please contact your administrator.',
-      );
-    }
-
-    if (!user.is_active) {
-      throw new BadRequestException(
-        'Your account is inactive. Please contact your administrator.',
+        'Your account is inactive. That option is not available.',
       );
     }
 
@@ -554,15 +537,9 @@ export class UserAudioService {
       user.company.id,
     );
 
-    if (!company.is_active) {
+    if (!company.is_active || !user.is_active) {
       throw new BadRequestException(
-        'Your company account is inactive. Please contact your administrator.',
-      );
-    }
-
-    if (!user.is_active) {
-      throw new BadRequestException(
-        'Your account is inactive. Please contact your administrator.',
+        'Your account is inactive. That option is not available.',
       );
     }
 
