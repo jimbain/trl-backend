@@ -248,20 +248,6 @@ export class AudioService {
     data: AudioListDto[];
     meta: PaginationMeta;
   }> {
-    if (!user.is_active) {
-      return {
-        data: [],
-        meta: {
-          current_page: 1,
-          from: 0,
-          last_page: 1,
-          per_page: limit,
-          to: 0,
-          total: 0,
-        },
-      };
-    }
-
     const categoryIds = company.category_ids.audio;
 
     const [appConfigs, userAudios] = await Promise.all([
@@ -342,10 +328,6 @@ export class AudioService {
   }
 
   async getPopularAudios(company: any, user: User): Promise<AudioListDto[]> {
-    if (!user.is_active) {
-      return [];
-    }
-
     const categoryIds = company.category_ids.audio;
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,
@@ -542,10 +524,6 @@ export class AudioService {
     status: 'queued' | 'bookshelved' | 'rented',
     limit: number = null,
   ): Promise<AudioListDto[]> {
-    if (!user.is_active && (status === 'queued' || status === 'rented')) {
-      return [];
-    }
-
     const appConfigs = await this.appConfigService.getCompanyConfig(
       company.app_configs,
     );
