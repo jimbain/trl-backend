@@ -131,9 +131,31 @@ export class AudioDto {
   avg_rating: number;
 
   @Expose()
+  @Transform(({ obj }) => {
+    // Return null if rental has expired
+    if (
+      obj?.status === 'rented' &&
+      obj?.rental_expires_at &&
+      obj.rental_expires_at <= new Date()
+    ) {
+      return null;
+    }
+    return obj?.status ?? null;
+  })
   status: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    // Return null if rental has expired
+    if (
+      obj?.status === 'rented' &&
+      obj?.rental_expires_at &&
+      obj.rental_expires_at <= new Date()
+    ) {
+      return null;
+    }
+    return obj?.rental_expires_at ?? null;
+  })
   rental_expires_at: Date;
 
   @Expose()
@@ -167,9 +189,31 @@ export class AudioListDto {
   updated_at?: Date;
 
   @Expose()
+  @Transform(({ obj }) => {
+    // Return null if rental has expired
+    if (
+      obj?.status === 'rented' &&
+      obj?.rental_expires_at &&
+      obj.rental_expires_at <= new Date()
+    ) {
+      return null;
+    }
+    return obj?.status ?? null;
+  })
   status?: string;
 
   @Expose()
+  @Transform(({ obj }) => {
+    // Return null if rental has expired
+    if (
+      obj?.status === 'rented' &&
+      obj?.rental_expires_at &&
+      obj.rental_expires_at <= new Date()
+    ) {
+      return null;
+    }
+    return obj?.rental_expires_at ?? null;
+  })
   rental_expires_at?: Date;
 
   @Expose()
