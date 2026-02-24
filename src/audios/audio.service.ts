@@ -123,13 +123,18 @@ export class AudioService {
 
     const paginatedData = await paginate(queryBuilder, page, per_page);
 
-    paginatedData.data = paginatedData.data.map((audio) =>
-      plainToInstance(
+    paginatedData.data = paginatedData.data.map((audio) => {
+      // Check if rental has expired
+      if (audio.status === 'rented' && audio.rental_expires_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expires_at = null;
+      }
+      return plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
 
     return paginatedData;
   }
@@ -226,13 +231,18 @@ export class AudioService {
 
     const paginatedData = await paginate(queryBuilder, page, limit);
 
-    paginatedData.data = paginatedData.data.map((audio) =>
-      plainToInstance(
+    paginatedData.data = paginatedData.data.map((audio) => {
+      // Check if rental has expired
+      if (audio.status === 'rented' && audio.rental_expires_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expires_at = null;
+      }
+      return plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
 
     return paginatedData;
   }
@@ -279,7 +289,16 @@ export class AudioService {
       .limit(10)
       .getMany();
 
-    return plainToInstance(AudioListDto, audios, {
+    // Check if rentals have expired
+    const processedAudios = audios.map((audio) => {
+      if (audio.status === 'rented' && audio.rental_expire_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expire_at = null;
+      }
+      return audio;
+    });
+
+    return plainToInstance(AudioListDto, processedAudios, {
       excludeExtraneousValues: true,
     });
   }
@@ -393,6 +412,11 @@ export class AudioService {
 
     const sortedAudios = audioIds.map((id) => {
       const media = audios.find((audio) => audio.id === id);
+      // Check if rental has expired
+      if (media.status === 'rented' && media.rental_expires_at <= new Date()) {
+        media.status = null;
+        media.rental_expires_at = null;
+      }
       return {
         ...media,
         rental_credit_cost: appConfigs.audio_rental_credit_cost,
@@ -457,13 +481,18 @@ export class AudioService {
 
     const audios = await queryBuilder.getRawMany();
 
-    return audios.map((audio) =>
-      plainToInstance(
+    return audios.map((audio) => {
+      // Check if rental has expired
+      if (audio.status === 'rented' && audio.rental_expires_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expires_at = null;
+      }
+      return plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
   }
 
   async findAllAudioCategoriesForCompany(companyId: string) {
@@ -616,13 +645,18 @@ export class AudioService {
 
     const paginatedData = await paginate(queryBuilder, page, limit);
 
-    paginatedData.data = paginatedData.data.map((audio) =>
-      plainToInstance(
+    paginatedData.data = paginatedData.data.map((audio) => {
+      // Check if rental has expired
+      if (audio.status === 'rented' && audio.rental_expires_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expires_at = null;
+      }
+      return plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
 
     return {
       category: {
@@ -697,13 +731,18 @@ export class AudioService {
 
     const paginatedData = await paginate(queryBuilder, page, limit);
 
-    paginatedData.data = paginatedData.data.map((audio) =>
-      plainToInstance(
+    paginatedData.data = paginatedData.data.map((audio) => {
+      // Check if rental has expired
+      if (audio.status === 'rented' && audio.rental_expires_at <= new Date()) {
+        audio.status = null;
+        audio.rental_expires_at = null;
+      }
+      return plainToInstance(
         AudioListDto,
         { ...audio, rental_credit_cost: appConfigs.audio_rental_credit_cost },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
 
     return paginatedData;
   }
