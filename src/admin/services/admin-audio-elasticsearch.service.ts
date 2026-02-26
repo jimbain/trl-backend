@@ -147,7 +147,7 @@ export class AdminAudioElasticsearchService {
     // 3. Search Query
     // ------------------------------
     if (search_text) {
-      const fullTextFields = ['title', 'description', 'publisher']; // text fields
+      const fullTextFields = ['title', 'description', 'publisher', 'sku']; // text fields
       const arrayFields = ['authors', 'bisac_codes']; // array fields
 
       const searchWords = search_text.split(/\s+/).filter((w) => !!w);
