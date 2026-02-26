@@ -428,7 +428,11 @@ export class UserAudioService {
       );
     }
 
-    if (userAudio && userAudio.status === 'rented') {
+    if (
+      userAudio &&
+      userAudio.status === 'rented' &&
+      userAudio.rental_expire_at > new Date()
+    ) {
       throw new BadRequestException(`Status unchanged`);
     }
 
