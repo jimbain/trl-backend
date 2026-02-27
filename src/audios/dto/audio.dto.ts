@@ -70,11 +70,9 @@ export function getAvailableFor(
   audio: any,
   configAction?: 'rent' | 'bookshelf' | 'both',
 ): 'rent' | 'bookshelf' | 'both' | null {
-  const rentalCost = Number(audio.rental_credit_cost || 0);
-  const canRent = audio.total_rented < audio.purchased_rental_license_limit;
   const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
 
-  // First, apply config restriction to get the allowed actions
+  // Apply config restriction to get the allowed actions
   const configRestricted = applyConfigRestriction(availableFor, configAction);
 
   // If config restriction resulted in null, no actions available
@@ -82,32 +80,15 @@ export function getAvailableFor(
     return null;
   }
 
-  switch (configRestricted) {
-    case 'rent':
-      return canRent ? 'rent' : null;
-
-    case 'bookshelf':
-      return audio.is_only_for_purchase ? 'bookshelf' : 'bookshelf';
-
-    case 'both':
-      if (canRent && rentalCost <= audio.bookshelf_credit_cost) {
-        return 'both';
-      } else {
-        return 'bookshelf';
-      }
-
-    default:
-      return null;
-  }
+  // Return the config-restricted availability without filtering by license limits
+  // License limit validation will be handled at the actual rent/bookshelf action level
+  return configRestricted;
 }
 
 export function getAvailableForMessage(
   audio: any,
   configAction?: 'rent' | 'bookshelf' | 'both',
 ): string | null {
-  const canRent = audio.total_rented < audio.purchased_rental_license_limit;
-  const rentalCost = Number(audio.rental_credit_cost || 0);
-  const bookshelfCost = audio.bookshelf_credit_cost;
   const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
 
   // Apply config restriction first
@@ -119,19 +100,13 @@ export function getAvailableForMessage(
 
   switch (configRestricted) {
     case 'bookshelf':
-      return audio.is_only_for_purchase
-        ? 'This book will be added to your bookshelf and does not need to be checked back in.'
-        : 'This book will be added to your bookshelf and does not need to be checked back in.';
+      return 'This book will be added to your bookshelf and does not need to be checked back in.';
 
     case 'rent':
-      return canRent ? 'This book will be available for two weeks.' : null;
+      return 'This book will be available for two weeks.';
 
     case 'both':
-      if (canRent && rentalCost <= bookshelfCost) {
-        return 'This book can be rented for two weeks or added to your bookshelf and not checked back in.';
-      } else {
-        return 'This book will be added to your bookshelf and does not need to be checked back in.';
-      }
+      return 'This book can be rented for two weeks or added to your bookshelf and not checked back in.';
 
     default:
       return null;
