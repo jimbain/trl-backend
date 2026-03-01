@@ -53,6 +53,7 @@ import { VideoModule } from 'src/video/video.module';
 import { AdminStorageController } from './controllers/admin-storage.controller';
 import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
+import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audio-categories.validator';
 
 @Module({
   imports: [
@@ -128,6 +129,7 @@ import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity'
     AdminAudioElasticsearchService,
     AdminPharmaService,
     AdminVideoService,
+    IsDefaultAudioCategoriesConstraint,
   ],
   exports: [],
 })

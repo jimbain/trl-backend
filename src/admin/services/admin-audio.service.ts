@@ -14,6 +14,9 @@ import { paginate } from 'src/common/helpers/pagination.helper';
 import { AdminBulkUpdateAudioDto } from '../dto/audio/admin-bulk-update-audio.dto';
 import { Readable } from 'stream';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
+import { CategoryService } from 'src/categories/category.service';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { CATALOG_CATEGORY_TYPE, MEDIA } from 'src/constants';
 
 @Injectable()
 export class AdminAudioService {
@@ -23,6 +26,8 @@ export class AdminAudioService {
   constructor(
     private readonly audioElasticsearchSyncService: AudioElasticsearchSyncService,
     private readonly cacheService: CacheService,
+    private readonly categoryService: CategoryService,
+    private readonly catalogService: CatalogService,
   ) {}
 
   async findAll(query: QueryAdminAudioDto = {}) {
@@ -372,6 +377,29 @@ export class AdminAudioService {
       throw new NotFoundException(`Audio with ID ${id} not found`);
     }
 
+    // Filter categories to only include default type categories
+    if (audio.categories && audio.categories.length > 0) {
+      const categoryEntities = await this.categoryService.findEntitiesByIds(
+        audio.categories,
+      );
+
+      // Get the default audio catalog
+      const defaultAudioCatalog = await this.catalogService.findDefaultByType(
+        MEDIA.AUDIO,
+      );
+
+      // Filter to only default type categories that are in the default audio catalog
+      const defaultCategoryIds = categoryEntities
+        .filter(
+          (cat) =>
+            cat.type === CATALOG_CATEGORY_TYPE.DEFAULT &&
+            defaultAudioCatalog.categories.includes(cat.id),
+        )
+        .map((cat) => cat.id);
+
+      audio.categories = defaultCategoryIds;
+    }
+
     return plainToInstance(AdminAudioDto, audio, {
       excludeExtraneousValues: true,
     });
@@ -381,6 +409,29 @@ export class AdminAudioService {
     const audio = await this.audioRepository.findOne({
       where: { id: id },
     });
+
+    // Handle categories update separately to preserve custom categories
+    if (payload.categories !== undefined) {
+      // Fetch current category entities to identify custom ones
+      const currentCategoryEntities =
+        await this.categoryService.findEntitiesByIds(audio.categories || []);
+
+      // Extract custom category IDs (those not of type 'default')
+      const customCategoryIds = currentCategoryEntities
+        .filter((cat) => cat.type === CATALOG_CATEGORY_TYPE.CUSTOM)
+        .map((cat) => cat.id);
+
+      // Merge custom categories with new default categories
+      const mergedCategories = [
+        ...new Set([...customCategoryIds, ...payload.categories]),
+      ];
+
+      // Update audio categories with merged array
+      audio.categories = mergedCategories;
+
+      // Remove categories from payload to prevent Object.assign from overwriting
+      delete payload.categories;
+    }
 
     const justActivated =
       !audio.is_active && payload.is_active && !audio.activated_at;

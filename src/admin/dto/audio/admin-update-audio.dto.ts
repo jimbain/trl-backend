@@ -6,6 +6,7 @@ import {
   IsString,
   IsArray,
 } from 'class-validator';
+import { IsDefaultAudioCategories } from 'src/admin/validators/is-default-audio-categories.validator';
 
 export class AdminUpdateAudioDto {
   @IsOptional()
@@ -63,4 +64,10 @@ export class AdminUpdateAudioDto {
   @IsOptional()
   @IsInt()
   purchased_rental_license_limit?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @IsDefaultAudioCategories()
+  categories?: string[];
 }
