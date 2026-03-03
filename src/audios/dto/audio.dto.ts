@@ -239,6 +239,9 @@ export class AudioListDto {
   authors?: string[];
 
   @Expose()
+  @Transform(({ obj }) => {
+    return obj?.image_url ?? obj?.metadata?.cover_url ?? null;
+  })
   image_url?: string;
 
   @Expose()
