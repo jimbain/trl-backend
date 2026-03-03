@@ -497,8 +497,8 @@ export class AdminAudioElasticsearchService {
             });
           } else {
             const qto = item.purchased_rental_license_limit ?? 0;
-            const qoh = item.total_rented ?? 0;
-            const qic = qto - qoh;
+            const qic = item.total_rented ?? 0;
+            const qoh = qto - qic;
 
             csvStream.write({
               AudioAPI: 'AudioAPI',

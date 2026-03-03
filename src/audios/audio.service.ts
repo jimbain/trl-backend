@@ -93,6 +93,7 @@ export class AudioService {
     }
 
     // If config is 'rent': only allow rental or both
+    // AND only if purchased_rental_license_limit > 0
     if (configAction === 'rent') {
       queryBuilder.andWhere(
         `${metadataAlias}.available_for IN (:...allowedFor)`,
@@ -100,6 +101,7 @@ export class AudioService {
           allowedFor: ['rental', 'both'],
         },
       );
+      queryBuilder.andWhere('audio.purchased_rental_license_limit > 0');
     }
     // If config is 'bookshelf': only allow purchasable or both
     else if (configAction === 'bookshelf') {

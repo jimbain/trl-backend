@@ -348,6 +348,15 @@ export class CompanyService {
       company.created_at = new Date(updateCompanyDto.created_at);
     }
 
+    // Handle available_audio_title_user_action - merge into app_configs
+    if (updateCompanyDto.available_audio_title_user_action) {
+      company.app_configs = {
+        ...company.app_configs,
+        available_audio_title_user_action:
+          updateCompanyDto.available_audio_title_user_action,
+      };
+    }
+
     company.available_credits = newAvailableCredit;
 
     await Promise.all([
