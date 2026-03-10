@@ -26,7 +26,8 @@ export class CreateUserDto {
   email: string;
 
   @IsString()
-  password: string;
+  @IsOptional()
+  password?: string;
 
   @IsBoolean()
   is_active: boolean;

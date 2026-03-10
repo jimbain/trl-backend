@@ -175,6 +175,25 @@ export class UserService {
   }
 
   async store(payload: CreateUserDto): Promise<UserDto> {
+    // If password is not provided or empty, use company's default password
+    if (!payload.password || payload.password.trim() === '') {
+      const company = await this.companyService.findByIdWithCache(
+        payload.company_id,
+      );
+      const appConfigs = await this.appConfigService.getCompanyConfig(
+        company.app_configs,
+      );
+      const defaultPassword = appConfigs.new_user_default_password || null;
+
+      if (!defaultPassword) {
+        throw new BadRequestException(
+          'Password is required. Either provide a password or configure a default password for the company.',
+        );
+      }
+
+      payload.password = defaultPassword;
+    }
+
     const user = this.userRepository.create(payload);
     await this.userRepository.save(user);
 
@@ -225,6 +244,11 @@ export class UserService {
       throw new NotFoundException(
         `User with ID ${id} not found for the company.`,
       );
+    }
+
+    // Only update password if it's provided and not empty
+    if (!payload.password || payload.password.trim() === '') {
+      delete payload.password;
     }
 
     Object.assign(user, payload);
