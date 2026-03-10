@@ -25,7 +25,6 @@ export class CreateUserDto {
   @IsUnique(User, 'email')
   email: string;
 
-  @IsString()
   @IsOptional()
   password?: string;
 
