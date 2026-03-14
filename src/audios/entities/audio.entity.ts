@@ -57,8 +57,8 @@ export class Audio extends BaseEntity {
   @Column({ type: 'float', default: 0 })
   avg_rating: number;
 
-  @Column({ type: 'text', nullable: true })
-  deep_link: string;
+  @Column({ type: 'jsonb', nullable: true })
+  deep_link: Record<string, string>; // { "biz.therentallibrary.com": "https://trl.app.link/xxx", ... }
 
   @Column({ type: 'boolean', default: true })
   is_only_for_purchase: boolean;

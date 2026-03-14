@@ -7,6 +7,7 @@ import { FileManagerService } from './services/file-manager.service';
 import { CsvService } from './services/csv.service';
 import { AudioEngineService } from './services/audio_engine.service';
 import { CacheService } from './services/cache.service';
+import { BranchService } from './services/branch.service';
 
 @Module({
   imports: [HttpModule],
@@ -18,6 +19,7 @@ import { CacheService } from './services/cache.service';
     FileManagerService,
     CsvService,
     CacheService,
+    BranchService,
   ],
   exports: [
     AudioEngineService,
@@ -27,6 +29,7 @@ import { CacheService } from './services/cache.service';
     FileManagerService,
     CsvService,
     CacheService,
+    BranchService,
   ],
 })
 export class CommonModule {}
