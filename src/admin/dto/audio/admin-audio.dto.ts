@@ -222,6 +222,9 @@ export class AdminAudioDto {
   suggestions: any[];
 
   @Expose()
+  deep_link?: Record<string, string> | null;
+
+  @Expose()
   @Type(() => MetadataDto)
   metadata?: MetadataDto;
 }
