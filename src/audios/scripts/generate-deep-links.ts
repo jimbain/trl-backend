@@ -167,13 +167,23 @@ async function bootstrap() {
 
         for (const currentAudioId of batchIds) {
           try {
-            // Generate deep links for this audio across all domains
-            const deepLinks = await branchService.createDeepLinksForAudio(
-              currentAudioId,
-              domainArray,
-            );
+            // Fetch existing deep links (if any) to skip regenerating
+            const audioForLinks = await dataSource
+              .getRepository(Audio)
+              .findOne({
+                where: { id: currentAudioId },
+                select: ['id', 'deep_link'],
+              });
 
-            // Only update if we have at least one successful deep link
+            // Generate deep links, skipping domains that already have one
+            const deepLinks =
+              await branchService.createOrUpdateDeepLinksForAudio(
+                currentAudioId,
+                domainArray,
+                audioForLinks?.deep_link,
+              );
+
+            // Only update if we have at least one deep link
             if (Object.keys(deepLinks).length > 0) {
               await dataSource
                 .getRepository(Audio)
