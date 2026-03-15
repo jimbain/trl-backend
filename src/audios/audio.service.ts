@@ -112,6 +112,65 @@ export class AudioService {
     }
   }
 
+  /**
+   * Adds a WHERE clause to filter audios based on active status OR user ownership.
+   *
+   * When statusFilter is provided (e.g., 'queued', 'bookshelved', 'rented'):
+   * - Shows active audios with that status OR
+   * - Shows inactive audios if user has that specific status
+   * (Used by getAudiosOfUserBasedOnStatus to maintain status-based filtering)
+   *
+   * When statusFilter is NOT provided:
+   * - Shows all active audios OR
+   * - Shows inactive audios if user has bookshelved them OR
+   * - Shows inactive audios if user has an active rental
+   * (Used by getContinueListeningAudiosOfUser and findAudioPlaylist)
+   *
+   * @param queryBuilder - The query builder to modify
+   * @param userId - The user ID to check ownership
+   * @param statusFilter - Optional: specific status to filter by. If provided, only allows that status for inactive audios
+   * @param userAudioStatusAlias - The alias for the UserAudioStatus table in the query (default: 'userAudioStatus')
+   */
+  private addIsActiveOrUserOwnsFilter(
+    queryBuilder: any,
+    userId: string,
+    statusFilter?: 'queued' | 'bookshelved' | 'rented',
+    userAudioStatusAlias: string = 'userAudioStatus',
+  ): void {
+    queryBuilder.andWhere(
+      new Brackets((qb) => {
+        qb.where('audio.is_active = :isActive', { isActive: true });
+
+        if (statusFilter) {
+          // When filtering by a specific status, only show inactive audios with that status
+          qb.orWhere(
+            `(${userAudioStatusAlias}.user_id = :userId AND ${userAudioStatusAlias}.status = :statusFilter)`,
+            {
+              userId,
+              statusFilter,
+            },
+          );
+        } else {
+          // When no status filter, allow all owned content (bookshelved or active rentals)
+          qb.orWhere(
+            `(${userAudioStatusAlias}.user_id = :userId AND ${userAudioStatusAlias}.status = :bookshelvedStatus)`,
+            {
+              userId,
+              bookshelvedStatus: USER_MEDIA_STATUS.BOOKSHELVED,
+            },
+          ).orWhere(
+            `(${userAudioStatusAlias}.user_id = :userId AND ${userAudioStatusAlias}.status = :rentedStatus AND ${userAudioStatusAlias}.rental_expire_at >= :currentDate)`,
+            {
+              userId,
+              rentedStatus: USER_MEDIA_STATUS.RENTED,
+              currentDate: new Date(),
+            },
+          );
+        }
+      }),
+    );
+  }
+
   async findAll(
     user: User,
     query: QueryAudioDto = {},
@@ -201,11 +260,55 @@ export class AudioService {
   async findById(
     id: string,
     relations: string[] = [],
+    userId?: string,
   ): Promise<Audio | undefined> {
-    const audio = await this.audioRepository.findOne({
-      where: { id: id, is_active: true },
-      relations: relations.length ? relations : undefined,
-    });
+    let query = this.audioRepository
+      .createQueryBuilder('audio')
+      .where('audio.id = :id', { id });
+
+    // If no userId provided, only show active audios
+    // If userId provided, also allow inactive audios if user owns them (bookshelved or active rental)
+    if (!userId) {
+      query = query.andWhere('audio.is_active = :isActive', { isActive: true });
+    } else {
+      // Show active audios OR audios user has bookshelved OR audios user has active rental for
+      query = query
+        .leftJoinAndMapOne(
+          'audio.userAudioStatus',
+          UserAudioStatus,
+          'userAudioStatus',
+          'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+          { userId },
+        )
+        .andWhere(
+          new Brackets((qb) => {
+            qb.where('audio.is_active = :isActive', { isActive: true })
+              .orWhere(
+                '(userAudioStatus.user_id = :userId AND userAudioStatus.status = :bookshelvedStatus)',
+                {
+                  userId,
+                  bookshelvedStatus: USER_MEDIA_STATUS.BOOKSHELVED,
+                },
+              )
+              .orWhere(
+                '(userAudioStatus.user_id = :userId AND userAudioStatus.status = :rentedStatus AND userAudioStatus.rental_expire_at >= :currentDate)',
+                {
+                  userId,
+                  rentedStatus: USER_MEDIA_STATUS.RENTED,
+                  currentDate: new Date(),
+                },
+              );
+          }),
+        );
+    }
+
+    if (relations.length) {
+      relations.forEach((relation) => {
+        query = query.leftJoinAndSelect(`audio.${relation}`, relation);
+      });
+    }
+
+    const audio = await query.getOne();
 
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found`);
@@ -214,13 +317,21 @@ export class AudioService {
     return audio;
   }
 
-  async findByIdWithCache(id: string) {
-    const cachedAudio = await this.cacheService.get(id);
-    if (cachedAudio) return cachedAudio;
+  async findByIdWithCache(id: string, userId?: string) {
+    // Only use cache for active audios (no user-specific access)
+    // User-specific access (owned deactivated audios) skips cache
+    if (!userId) {
+      const cachedAudio = await this.cacheService.get(id);
+      if (cachedAudio) return cachedAudio;
+    }
 
-    const audio = await this.findById(id, ['metadata']);
+    const audio = await this.findById(id, ['metadata'], userId);
 
-    await this.cacheService.set(id, audio);
+    // Only cache if no user-specific access
+    if (!userId) {
+      await this.cacheService.set(id, audio);
+    }
+
     return audio;
   }
 
@@ -469,25 +580,28 @@ export class AudioService {
         'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
         { userId: user.id },
       )
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .andWhere('audio.id IN (:...audioIds)', { audioIds })
-      .select([
-        'audio.id AS id',
-        'audio.display_title AS title',
-        'audio.display_authors AS authors',
-        'metadata.cover_url AS image_url',
-        'audio.avg_rating AS avg_rating',
-        'audio.total_rented AS total_rented',
-        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
-        'audio.is_only_for_purchase AS is_only_for_purchase',
-        'metadata.available_for as available_for',
-        'metadata.chapters AS chapters',
-        'userAudioStatus.updated_at AS updated_at',
-        'userAudioStatus.status AS status',
-        'userAudioStatus.rental_expire_at AS rental_expires_at',
-        'userAudioStatus.list_order AS list_order',
-      ]);
+      .andWhere('audio.id IN (:...audioIds)', { audioIds });
+
+    // Allow viewing deactivated audios if user has active rental or bookshelf
+    this.addIsActiveOrUserOwnsFilter(queryBuilder, user.id);
+
+    queryBuilder.select([
+      'audio.id AS id',
+      'audio.display_title AS title',
+      'audio.display_authors AS authors',
+      'metadata.cover_url AS image_url',
+      'audio.avg_rating AS avg_rating',
+      'audio.total_rented AS total_rented',
+      'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+      'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+      'audio.is_only_for_purchase AS is_only_for_purchase',
+      'metadata.available_for as available_for',
+      'metadata.chapters AS chapters',
+      'userAudioStatus.updated_at AS updated_at',
+      'userAudioStatus.status AS status',
+      'userAudioStatus.rental_expire_at AS rental_expires_at',
+      'userAudioStatus.list_order AS list_order',
+    ]);
 
     if (limit) {
       queryBuilder.take(limit);
@@ -530,12 +644,15 @@ export class AudioService {
           userId: user.id,
         },
       )
-      .andWhere('audio.is_active = :isActive', { isActive: true })
       .andWhere('userAudioStatus.status = :status', { status })
       .andWhere(
         `(userAudioStatus.status != 'rented' OR userAudioStatus.rental_expire_at >= :currentDate)`,
         { currentDate: new Date() },
       );
+
+    // Allow viewing deactivated audios if user has that specific status
+    // Pass the status to ensure only that status is shown for inactive audios
+    this.addIsActiveOrUserOwnsFilter(queryBuilder, user.id, status);
 
     // Add config-based filtering
     this.addConfigRestrictionFilter(
@@ -872,7 +989,8 @@ export class AudioService {
     );
 
     const [audio, userAudio] = await Promise.all([
-      this.findByIdWithCache(id),
+      // Pass userId to allow viewing user's owned deactivated audios
+      this.findByIdWithCache(id, user.id),
       this.userAudioStatusRepository.findOne({
         where: { user_id: user.id, audio_id: id },
         select: ['status', 'rental_expire_at'],
@@ -920,12 +1038,22 @@ export class AudioService {
   }
 
   async findAudioPlaylist(audioId: string, user: User) {
-    const audio = await this.audioRepository
+    const queryBuilder = this.audioRepository
       .createQueryBuilder('audio')
       .leftJoinAndSelect('audio.metadata', 'metadata')
-      .where('audio.id = :id', { id: audioId })
-      .andWhere('audio.is_active = :isActive', { isActive: true })
-      .getOne();
+      .leftJoinAndMapOne(
+        'audio.userAudioStatus',
+        UserAudioStatus,
+        'userAudioStatus',
+        'userAudioStatus.audio_id = audio.id AND userAudioStatus.user_id = :userId',
+        { userId: user.id },
+      )
+      .where('audio.id = :id', { id: audioId });
+
+    // Allow access to deactivated audios if user has active rental or bookshelf
+    this.addIsActiveOrUserOwnsFilter(queryBuilder, user.id);
+
+    const audio = await queryBuilder.getOne();
 
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${audioId} not found`);
@@ -979,7 +1107,8 @@ export class AudioService {
     payload: TriggerAudioPlayerEventDto,
     user: User,
   ) {
-    const audio = await this.findByIdWithCache(audioId);
+    // Pass userId to allow triggering events on user's owned deactivated audios
+    const audio = await this.findByIdWithCache(audioId, user.id);
 
     // Validate chapter existence and payload
     const chapter = audio.metadata.chapters.find(
