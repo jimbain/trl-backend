@@ -48,8 +48,11 @@ export class DomainValidationService {
       return;
     }
 
+    // Normalize domain by removing protocol if present
+    const normalizedDomain = this.normalizeDomain(user.company.domain);
+
     // Check if domain matches
-    const isDomainMatch = requestHost === user.company.domain;
+    const isDomainMatch = requestHost === normalizedDomain;
 
     if (!isDomainMatch) {
       const errorMessage = `Access denied. This account is registered for domain: ${user.company.domain}`;
@@ -92,5 +95,24 @@ export class DomainValidationService {
    */
   public isStrict(): boolean {
     return this.getAction() === 'RESTRICT';
+  }
+
+  /**
+   * Normalizes domain by removing protocol (http://, https://)
+   * @param domain - Domain with or without protocol
+   * @returns Normalized domain without protocol
+   * @example
+   * normalizeDomain('https://example.com') → 'example.com'
+   * normalizeDomain('example.com') → 'example.com'
+   */
+  private normalizeDomain(domain: string): string {
+    if (!domain) {
+      return domain;
+    }
+
+    // Remove protocol if present (http:// or https://)
+    return domain
+      .replace(/^https?:\/\//, '') // Remove http:// or https://
+      .replace(/\/$/, ''); // Remove trailing slash
   }
 }
