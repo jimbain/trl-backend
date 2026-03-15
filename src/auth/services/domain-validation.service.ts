@@ -42,21 +42,27 @@ export class DomainValidationService {
     }
 
     // Get origin from request (where the request comes FROM)
-    // Priority: Origin header > Referer header > Host header
-    let requestOrigin =
-      req.get('origin') || req.get('referer') || req.get('host');
+    // Priority: Origin header > Referer header
+    // Note: Do NOT use Host header as fallback (it's always the API domain)
+    let requestOrigin = req.get('origin') || req.get('referer');
+
+    // If no Origin or Referer header (e.g., Postman, curl, mobile apps without CORS)
+    // Allow the request - these tools don't support Origin header
+    if (!requestOrigin) {
+      return;
+    }
 
     // If we got referer, extract just the origin part (remove path)
-    if (requestOrigin && requestOrigin.includes('/')) {
+    if (requestOrigin.includes('/')) {
       requestOrigin = requestOrigin.split('/').slice(0, 3).join('/'); // Get scheme://host:port
     }
 
     // Allow localhost and 127.0.0.1 for development
     if (
-      requestOrigin?.startsWith('localhost') ||
-      requestOrigin?.startsWith('127.0.0.1') ||
-      requestOrigin?.includes('localhost') ||
-      requestOrigin?.includes('127.0.0.1')
+      requestOrigin.startsWith('localhost') ||
+      requestOrigin.startsWith('127.0.0.1') ||
+      requestOrigin.includes('localhost') ||
+      requestOrigin.includes('127.0.0.1')
     ) {
       return;
     }
