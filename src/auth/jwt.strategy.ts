@@ -41,9 +41,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     //   );
     // }
 
-    // Domain Validation
-    const requestHost = req.get('host');
-    this.domainValidationService.validateDomain(requestHost, user);
+    // Domain Validation (pass entire request for Origin header access)
+    this.domainValidationService.validateDomain(req, user);
 
     return user;
   }

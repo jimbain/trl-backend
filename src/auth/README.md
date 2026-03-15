@@ -720,7 +720,11 @@ if (!data.user.domain) {
 ### Domain Validation Feature
 
 **What It Does:**
-- Validates that requests come from the user's company's registered domain
+- Validates that requests come from the user's company's registered website domain
+- Checks the **Origin header** (where the request comes FROM), not the API endpoint
+- Perfect for multi-domain architectures:
+  - **Centralized API**: `https://api.therentallibrary.com` (single endpoint)
+  - **Multiple Company Websites**: `https://biz.therentallibrary.com`, `https://other.com` (each has own domain)
 - Applied to BOTH public auth routes AND protected endpoints:
   - **Auth Routes**: login, signup, check-user, forgot-password, reset-password, change-password
   - **Protected Routes**: Any endpoint with JwtAuthGuard (/auth/me, /profile, etc.)
@@ -728,6 +732,22 @@ if (!data.user.domain) {
 - Three configurable actions: `DISABLE` (default), `LOG` (audit), `RESTRICT` (enforce)
 - Automatically bypasses validation for localhost (development-friendly)
 - Skips validation if company has no domain set
+
+**How It Works:**
+
+```
+Frontend Browser at: https://biz.therentallibrary.com
+         ↓ (sends Origin header: https://biz.therentallibrary.com)
+API Endpoint: https://api.therentallibrary.com/auth/login
+         ↓ (validates Origin header matches company.domain)
+Database: company.domain = "https://biz.therentallibrary.com"
+         ↓
+✅ MATCH = Request Allowed
+```
+
+**Key Difference:**
+- **Request Host** = Where API is located (always `api.therentallibrary.com`)
+- **Origin Header** = Where request comes FROM (varies per company: `biz.therentallibrary.com`, etc.)
 
 **Validation Actions:**
 
@@ -739,12 +759,19 @@ if (!data.user.domain) {
 
 **When Domain Validation is Applied:**
 
-| Scenario | DISABLE | LOG | RESTRICT |
+| Origin Header | DISABLE | LOG | RESTRICT |
 |----------|---------|-----|----------|
-| No company domain set | ✅ Allowed | ✅ Allowed | ✅ Allowed |
-| Request from localhost | ✅ Allowed | ✅ Allowed | ✅ Allowed |
-| Request from correct domain | ✅ Allowed | ✅ Allowed | ✅ Allowed |
-| Request from wrong domain | ✅ Allowed | ⚠️ Allowed (logged) | ❌ Blocked (401) |
+| `https://biz.therentallibrary.com` (matches) | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| `http://localhost:3000` (development) | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| `http://127.0.0.1:3000` (development) | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| No Origin header (Postman) | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| `https://other-domain.com` (wrong domain) | ✅ Allowed | ⚠️ Allowed (logged) | ❌ Blocked (401) |
+
+**Postman Support:**
+✅ Postman works even in RESTRICT mode because:
+- Postman doesn't send Origin header (uses Host header fallback)
+- Fallback: Uses Referer or Host header if Origin not present
+- localhost is always allowed
 
 **Error Response When RESTRICT Action Blocks Request:**
 ```json

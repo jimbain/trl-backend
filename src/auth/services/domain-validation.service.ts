@@ -15,11 +15,12 @@ export class DomainValidationService {
 
   /**
    * Validates if a request is allowed based on domain configuration
-   * @param requestHost - Request host from req.get('host')
+   * Checks the Origin header (where request comes FROM) against company domain
+   * @param req - Express request object with headers
    * @param user - User object with company information
    * @throws UnauthorizedException if validation fails with RESTRICT action
    */
-  public validateDomain(requestHost: string, user?: any): void {
+  public validateDomain(req: any, user?: any): void {
     // Get domain validation action from environment
     const domainValidationAction = (
       this.configService.get<string>('DOMAIN_VALIDATION_ACTION') || 'DISABLE'
@@ -40,19 +41,32 @@ export class DomainValidationService {
       return;
     }
 
+    // Get origin from request (where the request comes FROM)
+    // Priority: Origin header > Referer header > Host header
+    let requestOrigin =
+      req.get('origin') || req.get('referer') || req.get('host');
+
+    // If we got referer, extract just the origin part (remove path)
+    if (requestOrigin && requestOrigin.includes('/')) {
+      requestOrigin = requestOrigin.split('/').slice(0, 3).join('/'); // Get scheme://host:port
+    }
+
     // Allow localhost and 127.0.0.1 for development
     if (
-      requestHost.startsWith('localhost') ||
-      requestHost.startsWith('127.0.0.1')
+      requestOrigin?.startsWith('localhost') ||
+      requestOrigin?.startsWith('127.0.0.1') ||
+      requestOrigin?.includes('localhost') ||
+      requestOrigin?.includes('127.0.0.1')
     ) {
       return;
     }
 
-    // Normalize domain by removing protocol if present
-    const normalizedDomain = this.normalizeDomain(user.company.domain);
+    // Normalize both domains for comparison (remove protocol, trailing slash, port)
+    const normalizedCompanyDomain = this.normalizeDomain(user.company.domain);
+    const normalizedRequestOrigin = this.normalizeDomain(requestOrigin);
 
     // Check if domain matches
-    const isDomainMatch = requestHost === normalizedDomain;
+    const isDomainMatch = normalizedRequestOrigin === normalizedCompanyDomain;
 
     if (!isDomainMatch) {
       const errorMessage = `Access denied. This account is registered for domain: ${user.company.domain}`;
@@ -60,7 +74,7 @@ export class DomainValidationService {
       if (domainValidationAction === 'LOG') {
         // Log the mismatch but allow access
         this.logger.warn(
-          `[Domain Validation] ${errorMessage} | Request from: ${requestHost} | User: ${user.email}`,
+          `[Domain Validation] ${errorMessage} | Request from: ${requestOrigin} | User: ${user.email}`,
         );
         return;
       } else if (domainValidationAction === 'RESTRICT') {
@@ -98,12 +112,13 @@ export class DomainValidationService {
   }
 
   /**
-   * Normalizes domain by removing protocol (http://, https://)
+   * Normalizes domain by removing protocol and trailing slashes
    * @param domain - Domain with or without protocol
-   * @returns Normalized domain without protocol
+   * @returns Normalized domain without protocol and trailing slash
    * @example
    * normalizeDomain('https://example.com') → 'example.com'
-   * normalizeDomain('example.com') → 'example.com'
+   * normalizeDomain('https://example.com:3000') → 'example.com:3000'
+   * normalizeDomain('example.com/') → 'example.com'
    */
   private normalizeDomain(domain: string): string {
     if (!domain) {
@@ -111,8 +126,11 @@ export class DomainValidationService {
     }
 
     // Remove protocol if present (http:// or https://)
-    return domain
-      .replace(/^https?:\/\//, '') // Remove http:// or https://
-      .replace(/\/$/, ''); // Remove trailing slash
+    let normalized = domain.replace(/^https?:\/\//, '');
+
+    // Remove trailing slash
+    normalized = normalized.replace(/\/$/, '');
+
+    return normalized.toLowerCase();
   }
 }

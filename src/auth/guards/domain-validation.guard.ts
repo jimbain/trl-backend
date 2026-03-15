@@ -26,7 +26,6 @@ export class DomainValidationGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const requestHost = request.get('host');
 
     // Skip if domain validation is disabled
     if (!this.domainValidationService.isEnabled()) {
@@ -49,8 +48,8 @@ export class DomainValidationGuard implements CanActivate {
       return true;
     }
 
-    // Validate domain
-    this.domainValidationService.validateDomain(requestHost, user);
+    // Validate domain (pass entire request for Origin header access)
+    this.domainValidationService.validateDomain(request, user);
 
     return true;
   }
