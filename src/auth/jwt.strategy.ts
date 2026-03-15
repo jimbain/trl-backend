@@ -4,21 +4,24 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ExtractJwt } from 'passport-jwt';
 import { UserService } from 'src/users/user.service';
 import { ConfigService } from '@nestjs/config';
+import { DomainValidationService } from './services/domain-validation.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly userService: UserService,
-    private readonly config: ConfigService,
+    private readonly configService: ConfigService,
+    private readonly domainValidationService: DomainValidationService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>('JWT_SECRET'),
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: any) {
+  async validate(req: any, payload: any) {
     const user = await this.userService.findById(payload.id, ['company']);
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -37,6 +40,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     //     'Your company account is inactive. Please contact your administrator.',
     //   );
     // }
+
+    // Domain Validation
+    const requestHost = req.get('host');
+    this.domainValidationService.validateDomain(requestHost, user);
 
     return user;
   }

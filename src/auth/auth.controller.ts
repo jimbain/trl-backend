@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { DomainValidationGuard } from './guards/domain-validation.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -35,18 +36,21 @@ export class AuthController {
     private readonly companyService: CompanyService,
   ) {}
 
+  @UseGuards(DomainValidationGuard)
   @Post('signup')
   @HttpCode(200)
   async signup(@Body() registerPayload: RegisterDto) {
     return this.authService.signup(registerPayload);
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('check-user')
   @HttpCode(200)
   async checkUser(@Body() checkUserDto: CheckUserDto) {
     return this.authService.checkUser(checkUserDto.email);
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('login')
   @HttpCode(200)
   async login(@Body() loginPayload: LoginDto) {
@@ -171,12 +175,14 @@ export class AuthController {
     };
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('forgot-password/send-otp')
   @HttpCode(200)
   async forgotPassword(@Body() payload: ForgotPasswordDto) {
     return await this.authService.sendForgotPasswordOtp(payload.email);
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('forgot-password/verify-otp')
   @HttpCode(200)
   async verifyForgotPasswordOtp(@Body() payload: ForgotPasswordOtpVerifyDto) {
@@ -188,6 +194,7 @@ export class AuthController {
     };
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('change-password/verify-current-password')
   @HttpCode(200)
   async verifyCurrentPassword(@Body() payload: VerifyCurrentPasswordDto) {
@@ -199,6 +206,7 @@ export class AuthController {
     };
   }
 
+  @UseGuards(DomainValidationGuard)
   @Post('reset-password')
   @HttpCode(200)
   async resetPassword(@Body() payload: ResetPasswordDto) {

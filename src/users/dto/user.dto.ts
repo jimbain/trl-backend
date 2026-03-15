@@ -58,4 +58,8 @@ export class UserDto {
   @Expose()
   @Transform(({ obj }) => obj?.company?.available_medias || [])
   available_medias: string[];
+
+  @Expose()
+  @Transform(({ obj }) => obj?.company?.domain || null)
+  domain: string | null;
 }

@@ -13,6 +13,8 @@ import { AppConfig } from 'src/app-config/entities/app-config.entity';
 import { HttpModule } from '@nestjs/axios';
 import { DynamicSamlStrategy } from './dynamic-saml.strategy';
 import { CompanyModule } from 'src/companies/company.module';
+import { DomainValidationService } from './services/domain-validation.service';
+import { DomainValidationGuard } from './guards/domain-validation.guard';
 
 @Module({
   imports: [
@@ -39,6 +41,12 @@ import { CompanyModule } from 'src/companies/company.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, DynamicSamlStrategy, JwtStrategy],
+  providers: [
+    AuthService,
+    DynamicSamlStrategy,
+    JwtStrategy,
+    DomainValidationService,
+    DomainValidationGuard,
+  ],
 })
 export class AuthModule {}
