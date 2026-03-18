@@ -17,13 +17,29 @@ export class MailgunService {
     });
   }
 
-  async sendEmail(to: string, subject: string, html: string) {
-    const data = {
+  async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    cc?: string,
+    bcc?: string,
+  ) {
+    const data: any = {
       from: this.config.getOrThrow<string>('MAILGUN_FROM_ADDRESS'),
       to,
       subject,
       html: html,
     };
+
+    // Add CC if provided
+    if (cc) {
+      data.cc = cc;
+    }
+
+    // Add BCC if provided
+    if (bcc) {
+      data.bcc = bcc;
+    }
 
     try {
       const response = await this.mg.messages.create(
