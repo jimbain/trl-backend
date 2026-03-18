@@ -23,6 +23,7 @@ import * as bcrypt from 'bcryptjs';
 import { CreateUserRegistrationLogDto } from './dto/create-user-registration-log.dto';
 import { UserRegistrationLog } from './entities/user_registration_log.entity';
 import { QueryUserDto } from './dto/query-user.dto';
+import { ExportUserDto } from './dto/export-user.dto';
 import { paginate } from 'src/common/helpers/pagination.helper';
 import pLimit from 'p-limit';
 import { format } from '@fast-csv/format';
@@ -76,6 +77,54 @@ export class UserService {
       where: { id },
       relations: relations.length ? relations : undefined,
     });
+  }
+
+  /**
+   * Private helper method to apply user filters to a query builder
+   * Used by both findAll and exportUsers to maintain consistent filtering logic
+   */
+  private applyUserFilters(
+    queryBuilder: any,
+    filters: {
+      name?: string;
+      email?: string;
+      status?: string;
+      sort_column?: string;
+      sort_order?: string;
+    },
+  ): void {
+    const { name, email, status, sort_column, sort_order } = filters;
+
+    if (name) {
+      queryBuilder.andWhere(
+        '(user.first_name ILIKE :name OR user.last_name ILIKE :name)',
+        {
+          name: `%${name}%`,
+        },
+      );
+    }
+
+    if (email) {
+      queryBuilder.andWhere('user.email ILIKE :email', {
+        email: `%${email}%`,
+      });
+    }
+
+    if (status === 'active') {
+      queryBuilder.andWhere('user.is_active = :status', { status: true });
+    } else if (status === 'inactive') {
+      queryBuilder.andWhere('user.is_active = :status', { status: false });
+    }
+
+    if (sort_column === 'is_active') {
+      // Handle boolean field sorting: CASE expression to convert boolean to sortable values
+      queryBuilder.orderBy(
+        `CASE WHEN user.${sort_column} = true THEN 1 ELSE 0 END`,
+        sort_order,
+      );
+    } else if (sort_column) {
+      queryBuilder.orderBy(`user.${sort_column}`, sort_order);
+    }
   }
 
   async findAll(
@@ -132,36 +181,14 @@ export class UserService {
       });
     }
 
-    if (name) {
-      queryBuilder.andWhere(
-        '(user.first_name ILIKE :name OR user.last_name ILIKE :name)',
-        {
-          name: `%${name}%`,
-        },
-      );
-    }
-
-    if (email) {
-      queryBuilder.andWhere('user.email ILIKE :email', {
-        email: `%${email}%`,
-      });
-    }
-
-    if (status === 'active') {
-      queryBuilder.andWhere('user.is_active = :status', { status: true });
-    } else if (status === 'inactive') {
-      queryBuilder.andWhere('user.is_active = :status', { status: false });
-    }
-
-    if (sort_column === 'is_active') {
-      // Handle boolean field sorting: CASE expression to convert boolean to sortable values
-      queryBuilder.orderBy(
-        `CASE WHEN user.${sort_column} = true THEN 1 ELSE 0 END`,
-        sort_order,
-      );
-    } else {
-      queryBuilder.orderBy(`user.${sort_column}`, sort_order);
-    }
+    // Apply common filters
+    this.applyUserFilters(queryBuilder, {
+      name,
+      email,
+      status,
+      sort_column,
+      sort_order,
+    });
 
     return paginate(queryBuilder, page, per_page, UserListDto);
   }
@@ -588,7 +615,10 @@ export class UserService {
     };
   }
 
-  async exportUsers(companyId: string): Promise<StreamableFile> {
+  async exportUsers(
+    companyId: string,
+    filters?: Partial<ExportUserDto>,
+  ): Promise<StreamableFile> {
     // Stream users from database to avoid loading all into memory
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
@@ -600,10 +630,17 @@ export class UserService {
       ])
       .where('user.company_id = :companyId', { companyId });
 
+    // Apply filters if provided
+    if (filters) {
+      this.applyUserFilters(queryBuilder, filters);
+    }
+
     // Check if any users exist
     const count = await queryBuilder.getCount();
     if (count === 0) {
-      throw new NotFoundException('No users found for this company.');
+      throw new NotFoundException(
+        'No users found for this company matching the specified filters.',
+      );
     }
 
     // Create CSV formatter stream

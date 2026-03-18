@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import multer from 'multer';
 import { Response } from 'express';
 import { QueryUserDto } from 'src/users/dto/query-user.dto';
+import { ExportUserDto } from 'src/users/dto/export-user.dto';
 
 @UseGuards(JwtAdminAuthGuard)
 @Controller('admin/companies')
@@ -77,8 +78,12 @@ export class AdminCompanyUserController {
 
   @Post(':id/export-user')
   @HttpCode(200)
-  async exportUsers(@Param('id') id: string, @Res() res: Response) {
-    const fileStream = await this.userService.exportUsers(id);
+  async exportUsers(
+    @Param('id') id: string,
+    @Body() query: ExportUserDto,
+    @Res() res: Response,
+  ) {
+    const fileStream = await this.userService.exportUsers(id, query);
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
