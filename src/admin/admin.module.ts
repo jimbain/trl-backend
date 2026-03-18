@@ -64,7 +64,7 @@ import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audi
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: configService.getOrThrow<string>(
-            'JWT_ACCESS_TOKEN_EXPIRES_IN',
+            'JWT_ADMIN_ACCESS_TOKEN_EXPIRES_IN',
           ),
           algorithm: 'HS384',
         },

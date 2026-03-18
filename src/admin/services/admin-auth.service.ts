@@ -68,11 +68,15 @@ export class AdminAuthService {
     };
 
     const accessToken = this.jwtService.sign(accessPayload, {
-      expiresIn: this.config.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRES_IN'),
+      expiresIn: this.config.getOrThrow<string>(
+        'JWT_ADMIN_ACCESS_TOKEN_EXPIRES_IN',
+      ),
     });
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
-      expiresIn: this.config.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
+      expiresIn: this.config.getOrThrow<string>(
+        'JWT_ADMIN_REFRESH_TOKEN_EXPIRES_IN',
+      ),
     });
 
     return {
