@@ -7,6 +7,7 @@ import {
   UseGuards,
   Request,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 import { AudioService } from './audio.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -137,6 +138,7 @@ export class AudioController {
   }
 
   @Post('audios/:id/trigger-event/:eventType?')
+  @HttpCode(200)
   triggerAudioPlayerEvent(
     @Request() req,
     @Body() payload: TriggerAudioPlayerEventDto,
