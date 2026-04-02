@@ -38,7 +38,7 @@ export class AppErrorLogService {
         'log.summary AS summary',
         'log.stack_trace AS stack_trace',
         'log.meta AS meta',
-        "TO_CHAR(log.created_at, 'MM-DD-YYYY') AS created_at",
+        "TO_CHAR(log.created_at, 'MM/DD/YYYY HH12:MI AM') AS created_at",
         'user.email AS user_email',
         'company.name AS company_name',
       ])
