@@ -18,11 +18,22 @@ export class IsExistConstraint implements ValidatorConstraintInterface {
     const repository = this.entityManager.getRepository(entityClass);
 
     // Check if any entity exists with the given value in the column
-    const entity = await repository.findOne({
-      where: {
-        [fieldName]: fieldName === 'email' ? value.toLowerCase() : value,
-      },
-    });
+    let entity: any;
+    if (fieldName === 'email') {
+      // Use case-insensitive comparison for email field using LOWER()
+      entity = await repository
+        .createQueryBuilder('entity')
+        .where('LOWER(entity.email) = LOWER(:email)', {
+          email: value,
+        })
+        .getOne();
+    } else {
+      entity = await repository.findOne({
+        where: {
+          [fieldName]: value,
+        },
+      });
+    }
     return !!entity; // Return true if the value exists, false otherwise
   }
 
