@@ -31,6 +31,12 @@ export class AppErrorLog {
   @Column({ type: 'jsonb', nullable: true })
   meta: Record<string, any> | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  item_type: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  item_id: string | null;
+
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 

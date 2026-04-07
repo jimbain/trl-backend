@@ -31,7 +31,8 @@
     "prepare": "husky install",
     "elastic:sync-audios": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios.js",
     "elastic:sync-by-category": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/sync-audios-by-category.js",
-    "deep-links:generate": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/generate-deep-links.js"
+    "deep-links:generate": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/generate-deep-links.js",
+    "error-logs:populate-item-info": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/app-error-log/scripts/populate-item-info.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
