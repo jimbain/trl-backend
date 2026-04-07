@@ -143,13 +143,14 @@ export class AdminReportService {
           SELECT COALESCE(SUM((sub_log.meta->>'total_time_played')::bigint), 0) AS total_time_played_sum_ms
           FROM user_activity_logs sub_log
           WHERE sub_log.action = 'play'
+          AND sub_log.user_id = log.user_id
           AND sub_log.item_id = log.item_id
           AND sub_log.item_type = log.item_type
           AND (
-            CASE 
+            CASE
               WHEN log.action IN ('rent', 'renew') THEN
-                sub_log.created_at BETWEEN 
-                  (log.meta->>'start_time')::timestamp AND 
+                sub_log.created_at BETWEEN
+                  (log.meta->>'start_time')::timestamp AND
                   (log.meta->>'end_time')::timestamp
               WHEN log.action = 'keep' THEN
                 sub_log.created_at > (log.meta->>'keep_at')::timestamp
