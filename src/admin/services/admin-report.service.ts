@@ -140,19 +140,31 @@ export class AdminReportService {
         'pharma.title AS pharma_title',
         'pharma.runtime AS pharma_runtime',
         `(
-          SELECT COALESCE(SUM((sub_log.meta->>'total_time_played')::bigint), 0) AS total_time_played_sum_ms
+          SELECT COALESCE(
+            SUM(
+              CASE
+                WHEN sub_log.action = 'play' THEN
+                  (sub_log.meta->>'total_time_played')::numeric * 1000
+                WHEN sub_log.action = 'video_player_event' AND sub_log.meta->>'event' = 'play' THEN
+                  (sub_log.meta->>'play_position')::numeric * 1000
+                ELSE 0
+              END
+            ), 0
+          ) AS total_time_played_sum_ms
           FROM user_activity_logs sub_log
-          WHERE sub_log.action = 'play'
+          WHERE sub_log.user_id = log.user_id
           AND sub_log.item_id = log.item_id
           AND sub_log.item_type = log.item_type
+          AND sub_log.action IN ('play', 'video_player_event')
           AND (
-            CASE 
+            CASE
               WHEN log.action IN ('rent', 'renew') THEN
-                sub_log.created_at BETWEEN 
-                  (log.meta->>'start_time')::timestamp AND 
-                  (log.meta->>'end_time')::timestamp
+                sub_log.created_at >= COALESCE(
+                  (log.meta->>'start_time')::timestamp,
+                  log.created_at
+                )
               WHEN log.action = 'keep' THEN
-                sub_log.created_at > (log.meta->>'keep_at')::timestamp
+                sub_log.created_at >= (log.meta->>'keep_at')::timestamp
               ELSE FALSE
             END
           )
