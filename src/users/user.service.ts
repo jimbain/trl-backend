@@ -7,7 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from 'src/users/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
@@ -242,14 +242,14 @@ export class UserService {
   }
 
   async update(id: string, payload: any) {
-    const isEmailExist = await this.userRepository.count({
-      where: {
-        email: payload.email,
-        id: Not(id),
-      },
-    });
+    // Case-insensitive email uniqueness check
+    const isEmailExist = await this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email: payload.email })
+      .andWhere('user.id != :id', { id })
+      .getCount();
 
-    if (isEmailExist) {
+    if (isEmailExist > 0) {
       throw new HttpException(
         {
           errors: {
@@ -386,14 +386,16 @@ export class UserService {
       );
     }
 
+    // Normalize emails to lowercase for case-insensitive comparison
     const emails = parsedData
-      .map((user: any) => user.email)
+      .map((user: any) => user.email?.toLowerCase())
       .filter((email: any) => email);
 
-    // VALIDATION: Check for duplicates within CSV file itself
+    // VALIDATION: Check for duplicates within CSV file itself (case-insensitive)
     const emailCounts = new Map<string, number>();
     for (const email of emails) {
-      emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+      const lowerEmail = email.toLowerCase();
+      emailCounts.set(lowerEmail, (emailCounts.get(lowerEmail) || 0) + 1);
     }
 
     const csvDuplicates = Array.from(emailCounts.entries())
@@ -415,14 +417,17 @@ export class UserService {
       { is_active: false },
     );
 
-    // Fetch existing users in this company in one query
-    const existingUsers = await this.userRepository.find({
-      where: { company_id: company.id, email: In(emails) },
-      select: ['id', 'email', 'first_name', 'last_name'],
-    });
+    // Fetch existing users in this company case-insensitively
+    const existingUsers = await this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.first_name', 'user.last_name'])
+      .where('user.company_id = :companyId', { companyId: company.id })
+      .andWhere('LOWER(user.email) IN (:...emails)', { emails })
+      .getMany();
 
+    // Create map with lowercase email keys for case-insensitive lookup
     const existingUserMap = new Map(
-      existingUsers.map((user) => [user.email, user]),
+      existingUsers.map((user) => [user.email.toLowerCase(), user]),
     );
 
     const usersToUpdate = [];
@@ -431,12 +436,14 @@ export class UserService {
     for (const user of parsedData) {
       if (!user.email) continue;
 
-      const existingUser = existingUserMap.get(user.email);
+      // Use lowercase email for case-insensitive lookup
+      const lowerEmail = user.email.toLowerCase();
+      const existingUser = existingUserMap.get(lowerEmail);
 
       if (existingUser) {
         const userUpdateObject: any = {
           id: existingUser.id,
-          email: user.email,
+          email: lowerEmail, // Store normalized lowercase email
           first_name: user.first_name,
           last_name: user.last_name,
           is_active: true,
@@ -452,7 +459,7 @@ export class UserService {
         usersToInsert.push({
           first_name: user.first_name ?? null,
           last_name: user.last_name ?? null,
-          email: user.email ?? null,
+          email: lowerEmail ?? null, // Store normalized lowercase email
           password: user.password || defaultPassword || null,
           company_id: company.id,
           is_active: true,
@@ -503,15 +510,16 @@ export class UserService {
 
     // Insert New Users
     if (usersToInsert.length) {
-      // PRIORITY 1: Check if any emails exist in other companies (reject immediately)
+      // PRIORITY 1: Check if any emails exist in other companies (reject immediately) - case-insensitive
       const emailsToInsert = usersToInsert.map((user) => user.email);
-      const existingEmailsInOtherCompanies = await this.userRepository.find({
-        where: {
-          email: In(emailsToInsert),
-          company_id: Not(company.id),
-        },
-        select: ['email'],
-      });
+      const existingEmailsInOtherCompanies = await this.userRepository
+        .createQueryBuilder('user')
+        .select(['user.email'])
+        .where('user.company_id != :companyId', { companyId: company.id })
+        .andWhere('LOWER(user.email) IN (:...emails)', {
+          emails: emailsToInsert,
+        })
+        .getMany();
 
       if (existingEmailsInOtherCompanies.length > 0) {
         const duplicateEmails = existingEmailsInOtherCompanies.map(
@@ -656,7 +664,7 @@ export class UserService {
       csvStream.write({
         'First Name': user.user_first_name || '',
         'Last Name': user.user_last_name || '',
-        Email: user.user_email || '',
+        Email: user.user_email?.toLowerCase() || '',
         Status: user.user_is_active ? 'Active' : 'Inactive',
         Password: '', // Empty password field for export
       });
