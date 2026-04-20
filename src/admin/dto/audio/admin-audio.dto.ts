@@ -53,6 +53,10 @@ export class AdminAudioListDto {
 
   @Expose()
   @Transform(({ value }) => (value ? parseInt(value) : 0))
+  purchased_rental_licenses: number;
+
+  @Expose()
+  @Transform(({ value }) => (value ? parseInt(value) : 0))
   total_rented: number;
 
   @Expose()

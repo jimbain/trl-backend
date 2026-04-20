@@ -496,7 +496,7 @@ export class AdminAudioElasticsearchService {
               Copyright: item.copyright ?? '',
             });
           } else {
-            const qto = item.purchased_rental_license_limit ?? 0;
+            const qto = item.purchased_rental_licenses ?? 0;
             const qic = item.total_rented ?? 0;
             const qoh = qto - qic;
 
