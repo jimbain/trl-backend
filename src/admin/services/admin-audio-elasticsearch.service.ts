@@ -51,6 +51,8 @@ export class AdminAudioElasticsearchService {
       retail_content_cost_max,
       purchased_rental_license_limit_min,
       purchased_rental_license_limit_max,
+      purchased_rental_licenses_min,
+      purchased_rental_licenses_max,
       is_for_sale,
       is_featured,
       is_excluded,
@@ -119,6 +121,24 @@ export class AdminAudioElasticsearchService {
         range: {
           purchased_rental_license_limit: {
             lte: purchased_rental_license_limit_max,
+          },
+        },
+      });
+    }
+    if (purchased_rental_licenses_min !== undefined) {
+      filter.push({
+        range: {
+          purchased_rental_licenses: {
+            gte: purchased_rental_licenses_min,
+          },
+        },
+      });
+    }
+    if (purchased_rental_licenses_max !== undefined) {
+      filter.push({
+        range: {
+          purchased_rental_licenses: {
+            lte: purchased_rental_licenses_max,
           },
         },
       });

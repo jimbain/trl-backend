@@ -110,6 +110,16 @@ export class QueryAdminAudioDto {
   purchased_rental_license_limit_max?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  purchased_rental_licenses_min?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  purchased_rental_licenses_max?: number;
+
+  @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === '1')
   is_for_sale?: boolean;
