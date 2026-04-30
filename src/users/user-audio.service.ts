@@ -404,9 +404,14 @@ export class UserAudioService {
       );
     }
 
-    if (audio.total_rented >= audio.purchased_rental_license_limit) {
+    const rentalLimit = audio.metadata.is_for_sale
+      ? audio.metadata.purchased_rental_licenses +
+        audio.purchased_rental_license_limit
+      : audio.metadata.purchased_rental_licenses;
+
+    if (audio.total_rented >= rentalLimit) {
       throw new BadRequestException(
-        `You can't rent a book. Please talk to admin.`,
+        'All current copies of this title are on loan. Please check back later.',
       );
     }
 
@@ -436,7 +441,10 @@ export class UserAudioService {
       throw new BadRequestException(`Status unchanged`);
     }
 
-    if (audio.total_rented >= audio.metadata.purchased_rental_licenses) {
+    if (
+      audio.metadata.is_for_sale &&
+      audio.total_rented >= audio.metadata.purchased_rental_licenses
+    ) {
       await this.purchaseLicenseOfAudio(
         audio.sku,
         1,
