@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { UserAudioStatus } from './entities/user_audio_status.entity';
 import { UserActivityLog } from './entities/user_activity_log.entity';
 import { Company } from 'src/companies/entities/company.entity';
@@ -45,6 +47,7 @@ interface AudioFindawayworldLicense {
 
 @Injectable()
 export class UserAudioService {
+  private readonly logger = new Logger(UserAudioService.name);
   private readonly audioEngineAccountId: string;
 
   constructor(
@@ -53,6 +56,9 @@ export class UserAudioService {
 
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
+
+    @InjectRepository(AudioMetadata)
+    private readonly audioMetadataRepository: Repository<AudioMetadata>,
 
     @InjectRepository(UserActivityLog)
     private readonly userActivityLogRepository: Repository<UserActivityLog>,
@@ -404,12 +410,30 @@ export class UserAudioService {
       );
     }
 
-    const rentalLimit = audio.metadata.is_for_sale
-      ? audio.metadata.purchased_rental_licenses +
-        audio.purchased_rental_license_limit
+    // Check if title is purchase-only
+    if (audio.is_only_for_purchase) {
+      throw new BadRequestException(
+        'This title is only available for purchase, not for rental.',
+      );
+    }
+
+    // Check if rental credit cost exceeds purchase credit cost
+    const rentalCreditCost =
+      parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1;
+    if (rentalCreditCost >= audio.bookshelf_credit_cost) {
+      throw new BadRequestException(
+        'This title is available for purchase at a better value than rental. Please consider purchasing instead.',
+      );
+    }
+
+    const purchasedRentalLicenseLimit =
+      audio.purchased_rental_license_limit ??
+      audio.metadata.purchased_rental_licenses;
+    const maxPossibleRentals = audio.metadata.is_for_sale
+      ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
 
-    if (audio.total_rented >= rentalLimit) {
+    if (audio.total_rented >= maxPossibleRentals) {
       throw new BadRequestException(
         'All current copies of this title are on loan. Please check back later.',
       );
@@ -443,15 +467,79 @@ export class UserAudioService {
 
     if (
       audio.metadata.is_for_sale &&
-      audio.total_rented >= audio.metadata.purchased_rental_licenses
+      audio.total_rented >= audio.metadata.purchased_rental_licenses &&
+      audio.metadata.purchased_rental_licenses < purchasedRentalLicenseLimit
     ) {
-      await this.purchaseLicenseOfAudio(
-        audio.sku,
-        1,
-        audio.metadata.product_id,
-        audio.metadata.findaway_price,
-        'US',
-      );
+      // Use transaction to prevent race condition during auto-purchase
+      const queryRunner =
+        this.audioMetadataRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Lock the audio_metadata row to prevent concurrent modifications
+        const lockedMetadata = await queryRunner.manager
+          .createQueryBuilder(AudioMetadata, 'metadata')
+          .setLock('pessimistic_write')
+          .where('metadata.sku = :sku', { sku: audio.sku })
+          .getOne();
+
+        // Re-check condition after acquiring lock (double-check pattern)
+        // Another concurrent request may have already purchased the license
+        if (
+          lockedMetadata &&
+          lockedMetadata.purchased_rental_licenses >=
+            purchasedRentalLicenseLimit
+        ) {
+          // Limit reached by concurrent request, abort auto-purchase
+          await queryRunner.commitTransaction();
+          throw new BadRequestException(
+            'All current copies of this title are on loan. Please check back later.',
+          );
+        }
+
+        // Purchase license from audio engine (inside transaction)
+        await this.purchaseLicenseOfAudio(
+          audio.sku,
+          1,
+          audio.metadata.product_id,
+          audio.metadata.findaway_price,
+          'US',
+        );
+
+        // Update DB within transaction (atomic with purchase)
+        await queryRunner.manager.update(
+          AudioMetadata,
+          { sku: audio.sku },
+          {
+            purchased_rental_licenses:
+              lockedMetadata.purchased_rental_licenses + 1,
+          },
+        );
+
+        // Commit transaction
+        await queryRunner.commitTransaction();
+
+        // Update local object only after successful commit
+        audio.metadata.purchased_rental_licenses =
+          lockedMetadata.purchased_rental_licenses + 1;
+
+        this.logger.log(
+          `Auto-purchased license for audio ${audio.sku}, new count: ${audio.metadata.purchased_rental_licenses}`,
+        );
+      } catch (error) {
+        // Rollback on any failure (purchase API error OR DB error)
+        await queryRunner.rollbackTransaction();
+        this.logger.error(
+          `Auto-purchase failed for audio ${audio.sku}: ${error.message}`,
+          error.stack,
+        );
+        throw new BadRequestException(
+          'Unable to process rental at this time. Please try again.',
+        );
+      } finally {
+        await queryRunner.release();
+      }
     }
 
     const rentalPeriodInDays =

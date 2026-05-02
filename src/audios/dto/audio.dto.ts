@@ -73,16 +73,39 @@ export function getAvailableFor(
   const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
 
   // Apply config restriction to get the allowed actions
-  const configRestricted = applyConfigRestriction(availableFor, configAction);
+  let result = applyConfigRestriction(availableFor, configAction);
 
   // If config restriction resulted in null, no actions available
-  if (configRestricted === null) {
+  if (result === null) {
     return null;
   }
 
-  // Return the config-restricted availability without filtering by license limits
-  // License limit validation will be handled at the actual rent/bookshelf action level
-  return configRestricted;
+  // Filter 1: Check if title is purchase-only (is_only_for_purchase = true)
+  // If rental action is not explicitly allowed on this title, remove it from available actions
+  if (audio?.is_only_for_purchase === true) {
+    if (result === 'both') {
+      result = 'bookshelf';
+    } else if (result === 'rent') {
+      result = null;
+    }
+    // 'bookshelf' stays as is
+  }
+
+  // Filter 2: Check if rental is economically viable
+  // If rental_credit_cost >= bookshelf_credit_cost, recommend purchase instead (only if both available)
+  // bookshelf_credit_cost always exists in DB (default: 0), so only check rental_credit_cost
+  if (
+    audio?.rental_credit_cost !== undefined &&
+    audio.rental_credit_cost >= (audio?.bookshelf_credit_cost ?? 0)
+  ) {
+    // Only filter if 'both' are available; don't remove 'rent' if it's the only option
+    if (result === 'both') {
+      result = 'bookshelf';
+    }
+    // 'rent' and 'bookshelf' stay as is
+  }
+
+  return result;
 }
 
 export function getAvailableForMessage(

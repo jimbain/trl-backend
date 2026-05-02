@@ -5,6 +5,7 @@ import { User } from 'src/users/entities/user.entity';
 import { UserAudioController } from './user-audio.controller';
 import { UserAudioService } from './user-audio.service';
 import { Audio } from 'src/audios/entities/audio.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { UserAudioStatus } from './entities/user_audio_status.entity';
 import { ProfileController } from './profile.controller';
 import { ContactUsController } from './contact-us.controller';
@@ -28,6 +29,7 @@ import { UserRegistrationLog } from './entities/user_registration_log.entity';
       UserRegistrationLog,
       UserDevice,
       Audio,
+      AudioMetadata,
       UserAudioStatus,
       UserActivityLog,
       AppConfig,
