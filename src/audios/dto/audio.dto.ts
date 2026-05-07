@@ -112,25 +112,13 @@ export function getAvailableForMessage(
   audio: any,
   configAction?: 'rent' | 'bookshelf' | 'both',
 ): string | null {
-  const availableFor = audio?.available_for ?? audio?.metadata?.available_for;
-
-  // Apply config restriction first
-  const configRestricted = applyConfigRestriction(availableFor, configAction);
-
-  if (configRestricted === null) {
-    return null;
-  }
-
-  switch (configRestricted) {
+  switch (getAvailableFor(audio, configAction)) {
     case 'bookshelf':
       return 'This book will be added to your bookshelf and does not need to be checked back in.';
-
     case 'rent':
       return 'This book will be available for two weeks.';
-
     case 'both':
       return 'This book can be rented for two weeks or added to your bookshelf and not checked back in.';
-
     default:
       return null;
   }
