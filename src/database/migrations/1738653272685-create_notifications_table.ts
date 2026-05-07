@@ -80,7 +80,7 @@ export class CreateNotificationsTable1738653272685
       new TableIndex({
         name: 'idx_notifications_event_type_sent_expire',
         columnNames: ['event_type', 'sent_at', 'expire_at'],
-        where: 'sent_at IS NULL AND expire_at > NOW()',
+        where: 'sent_at IS NULL',
       }),
     );
 
