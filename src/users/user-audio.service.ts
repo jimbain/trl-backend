@@ -214,12 +214,9 @@ export class UserAudioService {
   }
 
   async checkInLicenseOfAudio(checkoutId: string) {
-    // Inaudio expects '%Y-%m-%dT%H:%M:%SZ' (Zulu, no fractional seconds).
-    const checkinDate = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-
     const data: any = await this.audioEngineService.put(
       `/accounts/${this.audioEngineAccountId}/checkouts/${checkoutId}`,
-      { date: checkinDate },
+      {},
     );
 
     return data;
@@ -892,7 +889,7 @@ export class UserAudioService {
     }
 
     const checkoutId: string | undefined =
-      userAudio.meta?.inaudio_checkout_response?.id;
+      userAudio.meta?.inaudio_checkout_response?.checkout_id;
     let checkinResponse: any = null;
 
     if (checkoutId) {
