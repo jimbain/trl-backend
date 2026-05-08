@@ -94,6 +94,13 @@ export class CreateUserAudioStatusesTable1738687426500
             isNullable: true,
             comment: 'Only for Rent',
           },
+          {
+            name: 'meta',
+            type: 'jsonb',
+            isNullable: true,
+            comment:
+              'Reference metadata (e.g. Inaudio checkout response under meta.checkout)',
+          },
         ],
       }),
     );

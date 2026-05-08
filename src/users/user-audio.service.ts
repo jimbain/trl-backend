@@ -205,7 +205,6 @@ export class UserAudioService {
       `/audiobooks/${audio.sku}/checkout`,
       payload,
     );
-    console.log('data', data);
     if (data.checkout.license_id !== license.id) {
       throw new BadRequestException(`Invalid license`);
     }
@@ -362,11 +361,11 @@ export class UserAudioService {
       company.app_configs,
     );
 
-    const rentalPeriodInHours =
-      parseInt(appConfigs['audio_rental_period_in_days'], 10) ?? 24;
+    const rentalPeriodInDays =
+      parseInt(appConfigs['audio_rental_period_in_days'], 10) || 14;
 
     const intervalStartTime = new Date(
-      Date.now() - rentalPeriodInHours * 60 * 60 * 1000,
+      Date.now() - rentalPeriodInDays * 24 * 60 * 60 * 1000,
     );
 
     const currentTime = new Date();
@@ -392,6 +391,10 @@ export class UserAudioService {
           },
         }),
       ]);
+
+    if (!audio) {
+      throw new NotFoundException(`Audio with ID ${audioId} not found.`);
+    }
 
     // Check if rent action is allowed based on company config
     if (
@@ -419,7 +422,7 @@ export class UserAudioService {
 
     // Check if rental credit cost exceeds purchase credit cost
     const rentalCreditCost =
-      parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1;
+      parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1;
     if (rentalCreditCost >= audio.bookshelf_credit_cost) {
       throw new BadRequestException(
         'This title is available for purchase at a better value than rental. Please consider purchasing instead.',
@@ -440,7 +443,7 @@ export class UserAudioService {
     }
 
     const maxRentalItemsOnHand =
-      parseInt(appConfigs['max_audio_rental_items_on_hand'], 10) ?? 1;
+      parseInt(appConfigs['max_audio_rental_items_on_hand'], 10) || 1;
 
     if (rentedAudioCount >= maxRentalItemsOnHand) {
       throw new BadRequestException(
@@ -449,12 +452,16 @@ export class UserAudioService {
     }
 
     const maxRentalItemsPerPeriodOnHand =
-      parseInt(appConfigs['max_audio_rental_items_per_period'], 10) ?? 1;
+      parseInt(appConfigs['max_audio_rental_items_per_period'], 10) || 1;
 
     if (rentedAudioPerPeriodCount >= maxRentalItemsPerPeriodOnHand) {
       throw new BadRequestException(
-        `You can't rent more than ${maxRentalItemsPerPeriodOnHand} books within ${rentalPeriodInHours} hours.`,
+        `You can't rent more than ${maxRentalItemsPerPeriodOnHand} books within ${rentalPeriodInDays} days.`,
       );
+    }
+
+    if (userAudio && userAudio.status === 'bookshelved') {
+      throw new BadRequestException(`You have already purchased this title.`);
     }
 
     if (
@@ -542,11 +549,8 @@ export class UserAudioService {
       }
     }
 
-    const rentalPeriodInDays =
-      parseInt(appConfigs['audio_rental_period_in_days'], 10) ?? 14;
-
     const rentalExpiresAt = new Date(
-      new Date().setDate(new Date().getDate() + rentalPeriodInDays),
+      Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
     );
 
     let updatedUserAudio: UserAudioStatus;
@@ -581,19 +585,35 @@ export class UserAudioService {
       rentalPeriodInDays * 1440,
     );
     updatedUserAudio.license_id = checkout.license_id;
+    updatedUserAudio.meta = {
+      ...(updatedUserAudio.meta || {}),
+      inaudio_checkout_response: checkout,
+    };
 
-    await Promise.all([
-      this.userAudioStatusRepository.save(updatedUserAudio),
-      this.audioRepository.update(
-        { id: audioId },
-        { total_rented: (audio.total_rented || 0) + 1 },
-      ),
-      this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENT, {
-        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
-        start_time: updatedUserAudio.updated_at,
-        end_time: updatedUserAudio.rental_expire_at,
-      }),
-    ]);
+    try {
+      await Promise.all([
+        this.userAudioStatusRepository.save(updatedUserAudio),
+        this.audioRepository
+          .createQueryBuilder()
+          .update(Audio)
+          .set({ total_rented: () => 'total_rented + 1' })
+          .where('id = :id', { id: audioId })
+          .execute(),
+        this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENT, {
+          credit_used: rentalCreditCost,
+          start_time: updatedUserAudio.updated_at,
+          end_time: updatedUserAudio.rental_expire_at,
+        }),
+      ]);
+    } catch (error: any) {
+      // License is checked out at Inaudio but local persistence failed.
+      // Surfacing for ops until checkin support lands.
+      this.logger.error(
+        `Inaudio checkout succeeded but local persistence failed. sku=${audio.sku} license_id=${checkout.license_id} user_id=${user.id}: ${error?.message}`,
+        error?.stack,
+      );
+      throw error;
+    }
 
     await this.audioElasticsearchSyncService.syncAudioById(audioId);
 
@@ -655,7 +675,7 @@ export class UserAudioService {
     }
 
     const maxAudioPurchaseItemsOnHand =
-      parseInt(appConfigs['max_audio_purchase_per_day'], 10) ?? 2;
+      parseInt(appConfigs['max_audio_purchase_per_day'], 10) || 2;
 
     if (bookshelvedAudioCount >= maxAudioPurchaseItemsOnHand) {
       throw new BadRequestException(
@@ -794,7 +814,7 @@ export class UserAudioService {
       ),
     );
     const rentalPeriodInDays =
-      parseInt(appConfigs.audio_rental_period_in_days, 10) ?? 14;
+      parseInt(appConfigs.audio_rental_period_in_days, 10) || 14;
     const newRentalExpireAt = userAudio.rental_expire_at
       ? new Date(
           userAudio.rental_expire_at.getTime() +
@@ -811,6 +831,10 @@ export class UserAudioService {
       rentalPeriodInDays * 1440 + remainingTimeInMinutes,
     );
     userAudio.license_id = checkout.license_id;
+    userAudio.meta = {
+      ...(userAudio.meta || {}),
+      inaudio_checkout_response: checkout,
+    };
 
     await Promise.all([
       this.userAudioStatusRepository.save(userAudio),
@@ -819,7 +843,7 @@ export class UserAudioService {
         { total_rented: (audio.total_rented || 0) + 1 },
       ),
       this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENEW, {
-        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) ?? 1,
+        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1,
         start_time: previousExpireAt,
         end_time: userAudio.rental_expire_at,
       }),
@@ -847,7 +871,19 @@ export class UserAudioService {
       );
     }
 
+    if (
+      userAudio.rental_expire_at &&
+      userAudio.rental_expire_at <= new Date()
+    ) {
+      throw new BadRequestException(
+        `The audio book with ID ${audioId} is already returned.`,
+      );
+    }
+
+    // TODO: notify Inaudio that this checkout has been checked back in.
+
     userAudio.rental_expire_at = new Date();
+    userAudio.license_id = null;
 
     const activity = await this.userActivityLogRepository.findOne({
       where: {
@@ -858,12 +894,24 @@ export class UserAudioService {
       },
     });
 
-    activity.meta.end_time = new Date();
+    if (activity) {
+      activity.meta.end_time = new Date();
+    }
 
-    const [updatedUserAudio, updatedActivity] = await Promise.all([
+    const [updatedUserAudio] = await Promise.all([
       this.userAudioStatusRepository.save(userAudio),
-      this.userActivityLogRepository.save(activity),
+      activity
+        ? this.userActivityLogRepository.save(activity)
+        : Promise.resolve(),
+      this.audioRepository
+        .createQueryBuilder()
+        .update(Audio)
+        .set({ total_rented: () => 'GREATEST(total_rented - 1, 0)' })
+        .where('id = :id', { id: audioId })
+        .execute(),
     ]);
+
+    await this.audioElasticsearchSyncService.syncAudioById(audioId);
 
     return updatedUserAudio;
   }

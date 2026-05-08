@@ -33,7 +33,7 @@ export class UserAudioStatus extends BaseEntity {
   status: MediaStatus;
 
   @Column({ nullable: true })
-  license_id: string;
+  license_id: string | null;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
@@ -47,6 +47,9 @@ export class UserAudioStatus extends BaseEntity {
     comment: 'Sequence of title in the list',
   })
   list_order: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  meta: Record<string, any> | null = null;
 
   @ManyToOne(() => User, (user) => user.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
