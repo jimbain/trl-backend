@@ -140,7 +140,10 @@ export class UserAudioService {
     productId: string,
     purchasePrice: number,
     territory: string = 'US',
-  ): Promise<AudioFindawayworldLicense[]> {
+  ): Promise<{
+    purchase: AudioFindawayworldLicensePurchase;
+    licenses: AudioFindawayworldLicense[];
+  }> {
     const purchaseData = {
       quantity: quantity,
       account_id: this.configService.getOrThrow<string>(
@@ -158,7 +161,7 @@ export class UserAudioService {
       `/audiobooks/${id}/purchase`,
       purchaseData,
     );
-    return data.licenses;
+    return data;
   }
 
   async getLicenseForCheckoutToRentAudio(
@@ -691,7 +694,7 @@ export class UserAudioService {
       );
     }
 
-    const licenses = await this.purchaseLicenseOfAudio(
+    const purchaseResponse = await this.purchaseLicenseOfAudio(
       audio.sku,
       1,
       audio.metadata.retail_product_id,
@@ -699,7 +702,7 @@ export class UserAudioService {
       'US',
     );
 
-    if (licenses.length !== 1) {
+    if (purchaseResponse.licenses.length !== 1) {
       throw new BadRequestException(
         `There is an issue while purchasing retail license.`,
       );
@@ -736,8 +739,12 @@ export class UserAudioService {
       });
     }
 
-    const license = licenses[0];
+    const license = purchaseResponse.licenses[0];
     updatedUserAudio.license_id = license.id;
+    updatedUserAudio.meta = {
+      ...(updatedUserAudio.meta || {}),
+      inaudio_purchase_response: purchaseResponse,
+    };
 
     await this.userAudioStatusRepository.save(updatedUserAudio);
     await this.storeUserActivityLog(user, audio, USER_ACTIVITY.KEEP, {
