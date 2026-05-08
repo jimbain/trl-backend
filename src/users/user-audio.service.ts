@@ -903,12 +903,12 @@ export class UserAudioService {
       activity
         ? this.userActivityLogRepository.save(activity)
         : Promise.resolve(),
-      this.audioRepository
-        .createQueryBuilder()
-        .update(Audio)
-        .set({ total_rented: () => 'GREATEST(total_rented - 1, 0)' })
-        .where('id = :id', { id: audioId })
-        .execute(),
+      // this.audioRepository
+      //   .createQueryBuilder()
+      //   .update(Audio)
+      //   .set({ total_rented: () => 'GREATEST(total_rented - 1, 0)' })
+      //   .where('id = :id', { id: audioId })
+      //   .execute(),
     ]);
 
     await this.audioElasticsearchSyncService.syncAudioById(audioId);
