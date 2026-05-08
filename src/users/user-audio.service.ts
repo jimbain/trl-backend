@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
@@ -925,12 +925,16 @@ export class UserAudioService {
         user_id: user.id,
         item_type: MEDIA.AUDIO,
         item_id: audioId,
-        action: USER_ACTIVITY.RENT,
+        action: In([USER_ACTIVITY.RENT, USER_ACTIVITY.RENEW]),
       },
+      order: { created_at: 'DESC' },
     });
 
     if (activity) {
-      activity.meta.end_time = new Date();
+      activity.meta = {
+        ...activity.meta,
+        end_time: userAudio.rental_expire_at,
+      };
     }
 
     const [updatedUserAudio] = await Promise.all([

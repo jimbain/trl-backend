@@ -1,4 +1,5 @@
 import { Expose, Type, Transform } from 'class-transformer';
+import dayjs from 'dayjs';
 import { StringHelper } from 'src/common/helpers/string.helper';
 import { DateTimeHelper } from 'src/common/helpers/datetime.helper';
 import { USER_ACTIVITY } from 'src/constants';
@@ -77,7 +78,9 @@ export class AdminReportUserActivityLogDto {
 
   @Expose({ name: 'action' })
   @Transform(({ value }) =>
-    ['rent', 'renew'].includes(value) ? 'Rent' : 'Purchase',
+    [USER_ACTIVITY.RENT, USER_ACTIVITY.RENEW].includes(value)
+      ? 'Rent'
+      : 'Purchase',
   )
   action: 'Rent' | 'Purchase';
 
@@ -94,15 +97,20 @@ export class AdminReportUserActivityLogDto {
   start_date: string;
 
   @Expose()
-  @Transform(({ obj }) =>
-    obj?.action === USER_ACTIVITY.KEEP
-      ? null
-      : DateTimeHelper.format(obj.meta?.end_time, 'MM/DD/YYYY'),
-  )
-  end_date: string;
+  @Transform(({ obj }) => {
+    if (obj?.action === USER_ACTIVITY.KEEP) return null;
+    const endTime = obj.meta?.end_time;
+    if (!endTime) return null;
+    const parsed = dayjs(endTime);
+    if (!parsed.isValid()) return null;
+    return parsed.isBefore(dayjs())
+      ? DateTimeHelper.format(endTime, 'MM/DD/YYYY')
+      : null;
+  })
+  end_date: string | null;
 
   @Expose()
-  @Transform(({ obj }) => obj.action === 'renew')
+  @Transform(({ obj }) => obj.action === USER_ACTIVITY.RENEW)
   is_renewed: boolean;
 
   @Expose()
