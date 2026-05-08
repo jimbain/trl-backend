@@ -434,11 +434,6 @@ export class UserAudioService {
     // Check if rental credit cost exceeds purchase credit cost
     const rentalCreditCost =
       parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1;
-    if (rentalCreditCost >= audio.bookshelf_credit_cost) {
-      throw new BadRequestException(
-        'This title is available for purchase at a better value than rental. Please consider purchasing instead.',
-      );
-    }
 
     const purchasedRentalLicenseLimit =
       audio.purchased_rental_license_limit ??
