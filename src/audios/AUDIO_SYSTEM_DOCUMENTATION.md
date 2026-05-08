@@ -121,7 +121,7 @@ Delete audio_user_statuses record → Return success
 **Validation Rules**:
 - Audio must be available for rental (`is_only_for_purchase` = false)
 - User's active rental count must be below `max_audio_rental_items_on_hand`
-- User's rentals in period must be below `max_audio_rental_items_per_period`
+- User's rentals in the last 24 hours must be below `max_audio_rental_items_per_day`
 - Audio must have available licenses (`total_rented` < `purchased_rental_license_limit`)
 - Company must have sufficient credits
 - If no licenses available, automatically purchases new license from Findaway
@@ -1171,7 +1171,7 @@ The audio system behavior is controlled by configuration values stored per compa
 | `audio_rental_credit_cost` | INT | 1 | Credits deducted for RENT and RENEW actions |
 | `audio_rental_period_in_days` | INT | 14 | Number of days for rental period |
 | `max_audio_rental_items_on_hand` | INT | 1 | Maximum concurrent active rentals per user |
-| `max_audio_rental_items_per_period` | INT | 1 | Maximum rentals within the period |
+| `max_audio_rental_items_per_day` | INT | 1 | Maximum rentals within a rolling 24-hour window |
 | `max_audio_purchase_per_day` | INT | 2 | Maximum bookshelf purchases per day per user |
 
 ### Credit System

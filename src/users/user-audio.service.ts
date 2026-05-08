@@ -377,13 +377,11 @@ export class UserAudioService {
     const rentalPeriodInDays =
       parseInt(appConfigs['audio_rental_period_in_days'], 10) || 14;
 
-    const intervalStartTime = new Date(
-      Date.now() - rentalPeriodInDays * 24 * 60 * 60 * 1000,
-    );
+    const intervalStartTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const currentTime = new Date();
 
-    const [audio, userAudio, rentedAudioCount, rentedAudioPerPeriodCount] =
+    const [audio, userAudio, rentedAudioCount, rentedAudioPerDayCount] =
       await Promise.all([
         this.audioService.findById(audioId, ['metadata']),
         this.userAudioStatusRepository.findOne({
@@ -464,12 +462,12 @@ export class UserAudioService {
       );
     }
 
-    const maxRentalItemsPerPeriodOnHand =
-      parseInt(appConfigs['max_audio_rental_items_per_period'], 10) || 1;
+    const maxRentalItemsPerDay =
+      parseInt(appConfigs['max_audio_rental_items_per_day'], 10) || 1;
 
-    if (rentedAudioPerPeriodCount >= maxRentalItemsPerPeriodOnHand) {
+    if (rentedAudioPerDayCount >= maxRentalItemsPerDay) {
       throw new BadRequestException(
-        `You can't rent more than ${maxRentalItemsPerPeriodOnHand} books within ${rentalPeriodInDays} days.`,
+        `You can't rent more than ${maxRentalItemsPerDay} books per day.`,
       );
     }
 

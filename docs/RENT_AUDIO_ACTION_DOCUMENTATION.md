@@ -82,13 +82,13 @@ Execute four queries in parallel for efficiency:
 - **Error Message:** `"You already have rented {maxRentalItemsOnHand} books, please return one book"`
 - **Location:** [src/users/user-audio.service.ts:434-439](src/users/user-audio.service.ts#L434-L439)
 
-### 10. Maximum Rental Items Per Period Validation
-- **Config Key:** `max_audio_rental_items_per_period` (default: 1)
-- **Time Window:** Calculated using `audio_rental_period_in_days` from configuration
-- **Check:** Verify user's rentals within the period < maximum allowed per period
+### 10. Maximum Rental Items Per Day Validation
+- **Config Key:** `max_audio_rental_items_per_day` (default: 1)
+- **Time Window:** Rolling 24-hour window from the current time
+- **Check:** Verify user's rentals in the last 24 hours < maximum allowed per day
 - **Purpose:** Rate-limits rental frequency to prevent abuse
-- **Error Message:** `"You can't rent more than {maxRentalItemsPerPeriodOnHand} books within {rentalPeriodInHours} hours."`
-- **Location:** [src/users/user-audio.service.ts:441-448](src/users/user-audio.service.ts#L441-L448)
+- **Error Message:** `"You can't rent more than {maxRentalItemsPerDay} books per day."`
+- **Location:** [src/users/user-audio.service.ts:467-473](src/users/user-audio.service.ts#L467-L473)
 
 ### 11. Duplicate Rental Prevention
 - **Check:** Verify user doesn't already have an active rental for this specific audiobook
@@ -187,9 +187,9 @@ The rental action depends on the following app configuration settings:
 
 | Configuration Key | Default Value | Purpose |
 |---|---|---|
-| `audio_rental_period_in_days` | 14 days | Defines rental duration and period window for rate limiting |
+| `audio_rental_period_in_days` | 14 days | Defines rental duration in days |
 | `max_audio_rental_items_on_hand` | 1 | Maximum concurrent rentals a user can have |
-| `max_audio_rental_items_per_period` | 1 | Maximum rentals allowed within the rental period |
+| `max_audio_rental_items_per_day` | 1 | Maximum rentals allowed within a rolling 24-hour window |
 | `audio_rental_credit_cost` | 1 | Credit cost per rental action |
 | `available_audio_title_user_action` | (varies) | Company policy for available actions: `'rent'`, `'bookshelf'`, or `'both'` |
 
