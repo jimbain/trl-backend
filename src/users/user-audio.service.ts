@@ -205,11 +205,24 @@ export class UserAudioService {
       `/audiobooks/${audio.sku}/checkout`,
       payload,
     );
+
     if (data.checkout.license_id !== license.id) {
       throw new BadRequestException(`Invalid license`);
     }
 
     return data.checkout;
+  }
+
+  async checkInLicenseOfAudio(checkoutId: string) {
+    // Inaudio expects '%Y-%m-%dT%H:%M:%SZ' (Zulu, no fractional seconds).
+    const checkinDate = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+    const data: any = await this.audioEngineService.put(
+      `/accounts/${this.audioEngineAccountId}/checkouts/${checkoutId}`,
+      { date: checkinDate },
+    );
+
+    return data;
   }
 
   async getNextListOrder(
@@ -880,10 +893,35 @@ export class UserAudioService {
       );
     }
 
-    // TODO: notify Inaudio that this checkout has been checked back in.
+    const checkoutId: string | undefined =
+      userAudio.meta?.inaudio_checkout_response?.id;
+    let checkinResponse: any = null;
+
+    if (checkoutId) {
+      try {
+        checkinResponse = await this.checkInLicenseOfAudio(checkoutId);
+      } catch (error: any) {
+        this.logger.error(
+          `Inaudio checkin failed for checkout_id=${checkoutId} user_id=${user.id}: ${error?.message}`,
+          error?.stack,
+        );
+        throw error;
+      }
+    } else {
+      // Legacy rows pre-date `meta.inaudio_checkout_response`; nothing to call.
+      this.logger.warn(
+        `Returning audio_id=${audioId} for user_id=${user.id} without a stored Inaudio checkout_id; local state only.`,
+      );
+    }
 
     userAudio.rental_expire_at = new Date();
     userAudio.license_id = null;
+    if (checkinResponse) {
+      userAudio.meta = {
+        ...(userAudio.meta || {}),
+        inaudio_checkin_response: checkinResponse,
+      };
+    }
 
     const activity = await this.userActivityLogRepository.findOne({
       where: {
@@ -903,12 +941,12 @@ export class UserAudioService {
       activity
         ? this.userActivityLogRepository.save(activity)
         : Promise.resolve(),
-      // this.audioRepository
-      //   .createQueryBuilder()
-      //   .update(Audio)
-      //   .set({ total_rented: () => 'GREATEST(total_rented - 1, 0)' })
-      //   .where('id = :id', { id: audioId })
-      //   .execute(),
+      this.audioRepository
+        .createQueryBuilder()
+        .update(Audio)
+        .set({ total_rented: () => 'GREATEST(total_rented - 1, 0)' })
+        .where('id = :id', { id: audioId })
+        .execute(),
     ]);
 
     await this.audioElasticsearchSyncService.syncAudioById(audioId);
