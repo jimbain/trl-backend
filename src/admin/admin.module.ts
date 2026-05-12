@@ -54,6 +54,8 @@ import { AdminStorageController } from './controllers/admin-storage.controller';
 import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audio-categories.validator';
+import { AdminAiRecommendationController } from './controllers/admin-ai-recommendation.controller';
+import { AiModule } from 'src/ai/ai.module';
 
 @Module({
   imports: [
@@ -99,6 +101,7 @@ import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audi
     forwardRef(() => UserModule),
     forwardRef(() => AppElasticsearchModule),
     forwardRef(() => StorageModule),
+    forwardRef(() => AiModule),
   ],
   controllers: [
     AdminAuthController,
@@ -116,6 +119,7 @@ import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audi
     AdminUserController,
     AdminAppErrorLogController,
     AdminStorageController,
+    AdminAiRecommendationController,
   ],
   providers: [
     AdminAuthService,

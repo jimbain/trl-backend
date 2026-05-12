@@ -178,30 +178,33 @@ export class AdminAudioElasticsearchService {
         word: string,
         wholeWord: boolean,
       ): QueryDslQueryContainer[] => {
-        const textFieldQueries = fullTextFields.map((field) => ({
-          match_phrase: {
-            [field]: word,
-          },
-        }));
+        const textFieldQueries = fullTextFields.map(
+          (field): QueryDslQueryContainer => ({
+            match_phrase: {
+              [field]: word,
+            },
+          }),
+        );
 
-        const arrayFieldQueries = arrayFields.map((field) =>
-          wholeWord
-            ? {
-                term: {
-                  [`${field}`]: {
-                    value: `${word.toLowerCase()}`,
-                    case_insensitive: true,
+        const arrayFieldQueries = arrayFields.map(
+          (field): QueryDslQueryContainer =>
+            wholeWord
+              ? {
+                  term: {
+                    [`${field}`]: {
+                      value: `${word.toLowerCase()}`,
+                      case_insensitive: true,
+                    },
+                  },
+                }
+              : {
+                  wildcard: {
+                    [`${field}`]: {
+                      value: `${word.toLowerCase()}*`,
+                      case_insensitive: true,
+                    },
                   },
                 },
-              }
-            : {
-                wildcard: {
-                  [`${field}`]: {
-                    value: `${word.toLowerCase()}*`,
-                    case_insensitive: true,
-                  },
-                },
-              },
         );
 
         return [...textFieldQueries, ...arrayFieldQueries];

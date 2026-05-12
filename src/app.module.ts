@@ -19,6 +19,7 @@ import { AppErrorLogModule } from './app-error-log/app-error-log.module';
 import { PharmaModule } from './pharma/pharma.module';
 import { VideoModule } from './video/video.module';
 import { StorageModule } from './storage/storage.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { StorageModule } from './storage/storage.module';
     PharmaModule,
     VideoModule,
     StorageModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
