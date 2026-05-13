@@ -63,7 +63,7 @@ All messages below originate in [`../users/user-audio.service.ts`](../users/user
 - **Scenario:** Any action (`queue`, `rent`, `bookshelf`, `renew`) when the company OR the user is inactive
 - **Status:** 400 `BadRequestException`
 - **Message:** `Your account is inactive. That option is not available.`
-- **Source:** [../users/user-audio.service.ts:299](../users/user-audio.service.ts#L299), [:369](../users/user-audio.service.ts#L369), [:637](../users/user-audio.service.ts#L637), [:761](../users/user-audio.service.ts#L761)
+- **Source:** [../users/user-audio.service.ts:467](../users/user-audio.service.ts#L467), [:537](../users/user-audio.service.ts#L537), [:679](../users/user-audio.service.ts#L679), [:803](../users/user-audio.service.ts#L803)
 
 ### Queue
 
@@ -71,7 +71,7 @@ All messages below originate in [`../users/user-audio.service.ts`](../users/user
 - **Scenario:** `POST /user-audios/:audioId/actions/queue` when the audio is already queued / rented / bookshelved for the user
 - **Status:** 400 `BadRequestException`
 - **Message:** `The audio book with ID ${audioId} is not available for queue.`
-- **Source:** [../users/user-audio.service.ts:316](../users/user-audio.service.ts#L316)
+- **Source:** [../users/user-audio.service.ts:484](../users/user-audio.service.ts#L484)
 
 ### Dequeue
 
@@ -79,63 +79,69 @@ All messages below originate in [`../users/user-audio.service.ts`](../users/user
 - **Scenario:** `POST /user-audios/:audioId/actions/dequeue` when removal succeeds
 - **Status:** 200 — returned in response body
 - **Message:** `The audio book with ID ${audioId} has been removed from your queued list.`
-- **Source:** [../users/user-audio.service.ts:358](../users/user-audio.service.ts#L358)
+- **Source:** [../users/user-audio.service.ts:526](../users/user-audio.service.ts#L526)
 
 ### Rent
 
 #### Audio not found
-- **Scenario:** `POST /user-audios/:audioId/actions/rent` with an unknown `audioId`
+- **Scenario:** `POST /user-audios/:audioId/actions/rent` (or `renew`) with an unknown `audioId`
 - **Status:** 404 `NotFoundException`
 - **Message:** `Audio with ID ${audioId} not found.`
-- **Source:** [../users/user-audio.service.ts:407](../users/user-audio.service.ts#L407)
+- **Source:** [../users/user-audio.service.ts:556](../users/user-audio.service.ts#L556), [:826](../users/user-audio.service.ts#L826)
 
 #### Renting disallowed by company policy
-- **Scenario:** Company's `available_audio_title_user_action` config does not include `rent`
+- **Scenario:** Company's `available_audio_title_user_action` config does not include `rent`. Also raised on renew with the same wording.
 - **Status:** 400 `BadRequestException`
 - **Message:** `Renting is not available for this audio due to company policy.`
-- **Source:** [../users/user-audio.service.ts:423](../users/user-audio.service.ts#L423)
+- **Source:** [../users/user-audio.service.ts:571](../users/user-audio.service.ts#L571), [:847](../users/user-audio.service.ts#L847)
 
 #### Title is purchase-only
-- **Scenario:** Audio's `availability` is `purchasable` but user attempted to rent
+- **Scenario:** Audio's `availability` is `purchasable` but user attempted to rent or renew
 - **Status:** 400 `BadRequestException`
 - **Message:** `This title is only available for purchase, not for rental.`
-- **Source:** [../users/user-audio.service.ts:430](../users/user-audio.service.ts#L430)
+- **Source:** [../users/user-audio.service.ts:577](../users/user-audio.service.ts#L577), [:853](../users/user-audio.service.ts#L853)
 
 #### No copies available
-- **Scenario:** All Inaudio licenses are currently rented (checked both before and after the auto-purchase fallback)
+- **Scenario:** All Inaudio licenses are currently rented (checked both before and after the auto-purchase fallback). Also reachable on renew when the hard cap is met by other users.
 - **Status:** 400 `BadRequestException`
 - **Message:** `All current copies of this title are on loan. Please check back later.`
-- **Source:** [../users/user-audio.service.ts:447](../users/user-audio.service.ts#L447), [:510](../users/user-audio.service.ts#L510)
+- **Source:** [../users/user-audio.service.ts:216](../users/user-audio.service.ts#L216), [:295](../users/user-audio.service.ts#L295) (raised from the shared `ensureFreeRentalLicenseAvailable` helper used by both rent and renew)
 
 #### Max concurrent rentals reached
-- **Scenario:** User already has `maxRentalItemsOnHand` active rentals
+- **Scenario:** User already has `maxRentalItemsOnHand` active rentals. On renew the user's own copy of the title being renewed is excluded from the count.
 - **Status:** 400 `BadRequestException`
 - **Message:** `You already have rented ${maxRentalItemsOnHand} books, please return one book`
-- **Source:** [../users/user-audio.service.ts:456](../users/user-audio.service.ts#L456)
+- **Source:** [../users/user-audio.service.ts:175](../users/user-audio.service.ts#L175) (raised from the shared `assertRentalLimits` helper)
 
 #### Daily rental cap reached
-- **Scenario:** User has rented `maxRentalItemsPerDay` books today
+- **Scenario:** User has rented `maxRentalItemsPerDay` books today. On renew the user's own copy of the title being renewed is excluded from the count.
 - **Status:** 400 `BadRequestException`
 - **Message:** `You can't rent more than ${maxRentalItemsPerDay} books per day.`
-- **Source:** [../users/user-audio.service.ts:465](../users/user-audio.service.ts#L465)
+- **Source:** [../users/user-audio.service.ts:183](../users/user-audio.service.ts#L183) (raised from the shared `assertRentalLimits` helper)
 
 #### Already on bookshelf
 - **Scenario:** User attempts to rent a title they already own (bookshelved)
 - **Status:** 400 `BadRequestException`
 - **Message:** `You have already purchased this title.`
-- **Source:** [../users/user-audio.service.ts:470](../users/user-audio.service.ts#L470)
+- **Source:** [../users/user-audio.service.ts:582](../users/user-audio.service.ts#L582)
 
 #### No-op rent (already rented)
 - **Scenario:** Rent / bookshelf called on an audio that is already in that exact status
 - **Status:** 400 `BadRequestException`
 - **Message:** `Status unchanged`
-- **Source:** [../users/user-audio.service.ts:478](../users/user-audio.service.ts#L478), [:680](../users/user-audio.service.ts#L680)
+- **Source:** [../users/user-audio.service.ts:590](../users/user-audio.service.ts#L590), [:721](../users/user-audio.service.ts#L721)
 
 #### Auto-purchase transaction failed
-- **Scenario:** No license available → backend tries to auto-purchase another → transaction fails
+- **Scenario:** No license available → backend tries to auto-purchase another → transaction fails. Also reachable on renew via the shared helper.
 - **Status:** 400 `BadRequestException`
 - **Message:** `Unable to process rental at this time. Please try again.`
-- **Source:** [../users/user-audio.service.ts:551](../users/user-audio.service.ts#L551)
+- **Source:** [../users/user-audio.service.ts:287](../users/user-audio.service.ts#L287)
+
+#### Audio-metadata row missing during auto-purchase
+- **Scenario:** Race / data-integrity case — `audio_metadata` row for the SKU was missing when the auto-purchase lock fired
+- **Status:** 400 `BadRequestException`
+- **Message:** `This title is temporarily unavailable. Please talk to admin.`
+- **Source:** [../users/user-audio.service.ts:300](../users/user-audio.service.ts#L300)
 
 ### Bookshelf
 
@@ -143,39 +149,41 @@ All messages below originate in [`../users/user-audio.service.ts`](../users/user
 - **Scenario:** Company's `available_audio_title_user_action` config does not include `bookshelf`
 - **Status:** 400 `BadRequestException`
 - **Message:** `Adding to bookshelf is not available for this audio due to company policy.`
-- **Source:** [../users/user-audio.service.ts:675](../users/user-audio.service.ts#L675)
+- **Source:** [../users/user-audio.service.ts:716](../users/user-audio.service.ts#L716)
 
 #### Daily purchase cap reached
 - **Scenario:** User has bookshelved `maxAudioPurchaseItemsOnHand` books today
 - **Status:** 400 `BadRequestException`
 - **Message:** `You already have purchased ${maxAudioPurchaseItemsOnHand} books. Please try purchasing tomorrow.`
-- **Source:** [../users/user-audio.service.ts:688](../users/user-audio.service.ts#L688)
+- **Source:** [../users/user-audio.service.ts:729](../users/user-audio.service.ts#L729)
 
 #### Retail license purchase glitch
 - **Scenario:** Inaudio retail license purchase returns ≠ 1 license
 - **Status:** 400 `BadRequestException`
 - **Message:** `There is an issue while purchasing retail license.`
-- **Source:** [../users/user-audio.service.ts:702](../users/user-audio.service.ts#L702)
+- **Source:** [../users/user-audio.service.ts:743](../users/user-audio.service.ts#L743)
 
 ### Renew
 
+Renew shares wording with rent. The renew flow always checks the user's existing Inaudio license back in before issuing a new checkout (logs `Inaudio checkin failed during renew …` on failure). It reuses `assertRentalLimits` (with the renewed audio excluded from the counts) and `ensureFreeRentalLicenseAvailable` (with `renewerHasActiveLicense: true` so the user's own held license doesn't count against the cap). All shared messages from the Rent section above can therefore surface from renew.
+
 #### Renewing disallowed by company policy
-- **Scenario:** Company config disallows renewals
+- **Scenario:** Company's `available_audio_title_user_action` config does not include `rent`
 - **Status:** 400 `BadRequestException`
-- **Message:** `Renewing is not available due to company policy.`
-- **Source:** [../users/user-audio.service.ts:791](../users/user-audio.service.ts#L791)
+- **Message:** `Renting is not available for this audio due to company policy.`
+- **Source:** [../users/user-audio.service.ts:847](../users/user-audio.service.ts#L847)
+
+#### Renew: title is purchase-only
+- **Scenario:** Audio is purchase-only and user attempted to renew
+- **Status:** 400 `BadRequestException`
+- **Message:** `This title is only available for purchase, not for rental.`
+- **Source:** [../users/user-audio.service.ts:853](../users/user-audio.service.ts#L853)
 
 #### Audio not in user's rented list (renew)
 - **Scenario:** Renew called for an audio the user never rented (also reused by Return)
 - **Status:** 400 `BadRequestException`
 - **Message:** `The audio book with ID ${audioId} doesn't exist in your rented list.`
-- **Source:** [../users/user-audio.service.ts:797](../users/user-audio.service.ts#L797), [:880](../users/user-audio.service.ts#L880)
-
-#### Cannot renew — at license cap
-- **Scenario:** Total active rentals already meet or exceed the license limit, so renewal would over-commit
-- **Status:** 400 `BadRequestException`
-- **Message:** `You can't renew the book. Please talk to admin.`
-- **Source:** [../users/user-audio.service.ts:803](../users/user-audio.service.ts#L803)
+- **Source:** [../users/user-audio.service.ts:831](../users/user-audio.service.ts#L831), [:955](../users/user-audio.service.ts#L955)
 
 ### Return
 
@@ -183,7 +191,7 @@ All messages below originate in [`../users/user-audio.service.ts`](../users/user
 - **Scenario:** Return called after `rental_expire_at` has elapsed
 - **Status:** 400 `BadRequestException`
 - **Message:** `The audio book with ID ${audioId} is already returned.`
-- **Source:** [../users/user-audio.service.ts:889](../users/user-audio.service.ts#L889)
+- **Source:** [../users/user-audio.service.ts:964](../users/user-audio.service.ts#L964)
 
 ### License checkout (rent flow)
 
@@ -360,7 +368,7 @@ Not returned to API clients — emitted via NestJS `Logger` for ops/support visi
 - **Source:** [../users/user-audio.service.ts:617](../users/user-audio.service.ts#L617)
 
 ### Checkin failed
-- **Scenario:** Return action — Inaudio `checkin` call failed; local return still proceeds
+- **Scenario:** Return action — Inaudio `checkin` call failed; local return still proceedssrc/audios/AUDIO_USER_MESSAGES.md
 - **Level:** `error`
 - **Message:** `Inaudio checkin failed for checkout_id=${checkoutId} user_id=${user.id}: ${error?.message}`
 - **Source:** [../users/user-audio.service.ts:902](../users/user-audio.service.ts#L902)

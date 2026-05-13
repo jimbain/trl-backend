@@ -39,7 +39,7 @@ export class UserAudioStatus extends BaseEntity {
   updated_at: Date;
 
   @Column({ type: 'timestamp', nullable: true, comment: 'Only for Rent' })
-  rental_expire_at: Date;
+  rental_expire_at: Date | null;
 
   @Column({
     type: 'int',
