@@ -303,17 +303,45 @@ export class UserAudioService {
     const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
       this.userAudioStatusRepository.findOne({
-        where: {
-          audio_id: audioId,
-          user_id: user.id,
-        },
+        where: [
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'queued',
+          },
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'rented',
+            rental_expire_at: MoreThanOrEqual(new Date()),
+          },
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'bookshelved',
+          },
+        ],
       }),
       this.getNextListOrder(user.id, 'queued'),
     ]);
 
+    if (!audio) {
+      throw new NotFoundException('Invalid audio book.');
+    }
+
     if (userAudio) {
+      if (userAudio.status === 'bookshelved') {
+        throw new BadRequestException(
+          'This audio book is already in your bookshelf.',
+        );
+      }
+      if (userAudio.status === 'rented') {
+        throw new BadRequestException(
+          'You currently have an active rental for this audio book. Please return it before adding to the queue.',
+        );
+      }
       throw new BadRequestException(
-        `The audio book with ID ${audioId} is not available for queue.`,
+        'This audio book is already in your queued list.',
       );
     }
 
