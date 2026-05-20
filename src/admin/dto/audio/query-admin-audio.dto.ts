@@ -21,7 +21,7 @@ export enum OrderBy {
   DESC = 'DESC',
 }
 
-export enum ExportType {
+export enum PageType {
   CURATION = 'curation',
   PURCHASABLE = 'purchasable',
 }
@@ -151,8 +151,8 @@ export class QueryAdminAudioDto {
 
   @IsOptional()
   @Transform(({ value }) => value?.toLowerCase())
-  @IsEnum(ExportType)
-  export_type?: ExportType;
+  @IsEnum(PageType)
+  page_type?: PageType;
 
   @IsOptional()
   @IsBoolean()

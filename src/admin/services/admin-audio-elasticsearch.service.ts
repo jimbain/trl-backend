@@ -1,6 +1,6 @@
 import { Injectable, StreamableFile } from '@nestjs/common';
 import {
-  ExportType,
+  PageType,
   QueryAdminAudioDto,
   SearchFor,
 } from '../dto/audio/query-admin-audio.dto';
@@ -58,7 +58,7 @@ export class AdminAudioElasticsearchService {
       is_excluded,
       order_by_column,
       order_by,
-      export_type,
+      page_type,
       is_export,
       search_after,
     } = query;
@@ -274,6 +274,10 @@ export class AdminAudioElasticsearchService {
       must.push(searchQuery);
     }
 
+    if (page_type === PageType.CURATION) {
+      filter.push({ term: { available_for: 'rental' } });
+    }
+
     const esQuery: QueryDslQueryContainer = {
       bool: {
         must,
@@ -282,8 +286,8 @@ export class AdminAudioElasticsearchService {
       },
     };
 
-    if (is_export && export_type) {
-      const stream = await this.export(esQuery, export_type);
+    if (is_export && page_type) {
+      const stream = await this.export(esQuery, page_type);
       return new StreamableFile(stream);
     }
 
@@ -369,7 +373,7 @@ export class AdminAudioElasticsearchService {
 
   async export(
     esQuery: QueryDslQueryContainer,
-    exportType: ExportType,
+    pageType: PageType,
   ): Promise<Readable> {
     const stream = new PassThrough({
       highWaterMark: 16 * 1024 * 1024, // 16MB buffer for faster throughput
@@ -385,7 +389,7 @@ export class AdminAudioElasticsearchService {
 
     try {
       const sourceFields =
-        exportType === ExportType.CURATION
+        pageType === PageType.CURATION
           ? [
               'sku',
               'title',
@@ -484,7 +488,7 @@ export class AdminAudioElasticsearchService {
 
         // Write rows into csvStream
         for (const item of items) {
-          if (exportType === ExportType.CURATION) {
+          if (pageType === PageType.CURATION) {
             csvStream.write({
               SKU: item.sku ?? '',
               Title: item.title ?? '',
