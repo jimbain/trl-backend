@@ -1,9 +1,13 @@
 import { HttpService } from '@nestjs/axios';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+const INAUDIO_USER_FACING_ERROR =
+  'We encountered a problem and are not able to complete that request at this time.';
 
 @Injectable()
 export class AudioEngineService {
+  private readonly logger = new Logger(AudioEngineService.name);
   private readonly apiUrl: string;
   private readonly apiKey: string;
 
@@ -25,6 +29,17 @@ export class AudioEngineService {
     };
   }
 
+  private logInaudioFailure(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    url: string,
+    error: any,
+  ) {
+    this.logger.error(
+      `Inaudio ${method} ${url} failed`,
+      error?.stack || JSON.stringify(error),
+    );
+  }
+
   async get<T>(
     endpoint: string,
     params?: Record<string, any>,
@@ -38,7 +53,8 @@ export class AudioEngineService {
       });
       return response.data;
     } catch (error) {
-      throw error;
+      this.logInaudioFailure('GET', url, error);
+      throw new BadRequestException(INAUDIO_USER_FACING_ERROR);
     }
   }
 
@@ -59,7 +75,8 @@ export class AudioEngineService {
 
       return response.data;
     } catch (error) {
-      throw new BadRequestException(`POST request failed: ${error.message}`);
+      this.logInaudioFailure('POST', url, error);
+      throw new BadRequestException(INAUDIO_USER_FACING_ERROR);
     }
   }
 
@@ -75,7 +92,8 @@ export class AudioEngineService {
       });
       return response.data;
     } catch (error) {
-      throw new BadRequestException(`PUT request failed: ${error.message}`);
+      this.logInaudioFailure('PUT', url, error);
+      throw new BadRequestException(INAUDIO_USER_FACING_ERROR);
     }
   }
 
@@ -90,7 +108,8 @@ export class AudioEngineService {
       });
       return response.data;
     } catch (error) {
-      throw new BadRequestException(`DELETE request failed: ${error.message}`);
+      this.logInaudioFailure('DELETE', url, error);
+      throw new BadRequestException(INAUDIO_USER_FACING_ERROR);
     }
   }
 

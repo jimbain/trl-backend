@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
@@ -303,17 +303,45 @@ export class UserAudioService {
     const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
       this.userAudioStatusRepository.findOne({
-        where: {
-          audio_id: audioId,
-          user_id: user.id,
-        },
+        where: [
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'queued',
+          },
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'rented',
+            rental_expire_at: MoreThanOrEqual(new Date()),
+          },
+          {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'bookshelved',
+          },
+        ],
       }),
       this.getNextListOrder(user.id, 'queued'),
     ]);
 
+    if (!audio) {
+      throw new NotFoundException('Invalid audio book.');
+    }
+
     if (userAudio) {
+      if (userAudio.status === 'bookshelved') {
+        throw new BadRequestException(
+          'This audio book is already in your bookshelf.',
+        );
+      }
+      if (userAudio.status === 'rented') {
+        throw new BadRequestException(
+          'You currently have an active rental for this audio book. Please return it before adding to the queue.',
+        );
+      }
       throw new BadRequestException(
-        `The audio book with ID ${audioId} is not available for queue.`,
+        'This audio book is already in your queued list.',
       );
     }
 
@@ -541,8 +569,12 @@ export class UserAudioService {
           `Auto-purchased license for audio ${audio.sku}, new count: ${audio.metadata.purchased_rental_licenses}`,
         );
       } catch (error) {
-        // Rollback on any failure (purchase API error OR DB error)
-        await queryRunner.rollbackTransaction();
+        // Rollback on any failure (purchase API error OR DB error). Guarded
+        // so we don't call rollback after the limit-reached path has already
+        // committed — that would throw TransactionNotActiveError.
+        if (queryRunner.isTransactionActive) {
+          await queryRunner.rollbackTransaction();
+        }
         this.logger.error(
           `Auto-purchase failed for audio ${audio.sku}: ${error.message}`,
           error.stack,
@@ -763,19 +795,57 @@ export class UserAudioService {
       );
     }
 
-    const [audio, appConfigs, userAudio] = await Promise.all([
-      this.audioService.findById(audioId, ['metadata']),
-      this.appConfigService.getCompanyConfig(company.app_configs),
-      this.userAudioStatusRepository.findOne({
-        where: {
-          audio_id: audioId,
-          user_id: user.id,
-          status: 'rented',
-        },
-      }),
-    ]);
+    const appConfigs = await this.appConfigService.getCompanyConfig(
+      company.app_configs,
+    );
 
-    // Check if rent action is allowed based on company config (renew is part of rent action)
+    const rentalPeriodInDays =
+      parseInt(appConfigs['audio_rental_period_in_days'], 10) || 14;
+
+    const intervalStartTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const currentTime = new Date();
+
+    const [audio, userAudio, rentedAudioCount, rentedAudioPerDayCount] =
+      await Promise.all([
+        this.audioService.findById(audioId, ['metadata']),
+        this.userAudioStatusRepository.findOne({
+          where: {
+            audio_id: audioId,
+            user_id: user.id,
+            status: 'rented',
+          },
+        }),
+        // On-hand count — exclude the audio being renewed so the user's own
+        // current rental doesn't trip its own limit.
+        this.userAudioStatusRepository.count({
+          where: {
+            user_id: user.id,
+            status: 'rented',
+            rental_expire_at: MoreThanOrEqual(new Date()),
+            audio_id: Not(audioId),
+          },
+        }),
+        // Per-day count — same self-exclusion.
+        this.userAudioStatusRepository.count({
+          where: {
+            user_id: user.id,
+            status: 'rented',
+            updated_at: Between(intervalStartTime, currentTime),
+            audio_id: Not(audioId),
+          },
+        }),
+      ]);
+
+    if (!audio) {
+      throw new NotFoundException(`Audio with ID ${audioId} not found.`);
+    }
+
+    if (!userAudio) {
+      throw new BadRequestException(
+        `The audio book with ID ${audioId} doesn't exist in your rented list.`,
+      );
+    }
+
     if (
       !this.isActionAllowed(
         audio,
@@ -788,76 +858,256 @@ export class UserAudioService {
       )
     ) {
       throw new BadRequestException(
-        'Renewing is not available due to company policy.',
+        'Renewing is not available for this audio due to company policy.',
       );
     }
 
-    if (!userAudio) {
+    if (audio.is_only_for_purchase) {
       throw new BadRequestException(
-        `The audio book with ID ${audioId} doesn't exist in your rented list.`,
+        'This title is only available for purchase, not for rental.',
       );
     }
 
-    if (audio.total_rented >= audio.purchased_rental_license_limit) {
+    const rentalCreditCost =
+      parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1;
+
+    // The renewing user already counts in audio.total_rented. Subtract one so
+    // exhaustion / auto-purchase checks reflect what's available AFTER the
+    // pending checkin frees their license back to the pool.
+    const effectiveTotalRented = Math.max(0, audio.total_rented - 1);
+
+    const purchasedRentalLicenseLimit =
+      audio.purchased_rental_license_limit ??
+      audio.metadata.purchased_rental_licenses;
+    const maxPossibleRentals = audio.metadata.is_for_sale
+      ? purchasedRentalLicenseLimit
+      : audio.metadata.purchased_rental_licenses;
+
+    if (effectiveTotalRented >= maxPossibleRentals) {
       throw new BadRequestException(
-        `You can't renew the book. Please talk to admin.`,
+        'All current copies of this title are on loan. Please check back later.',
       );
     }
 
-    if (audio.total_rented >= audio.metadata.purchased_rental_licenses) {
-      await this.purchaseLicenseOfAudio(
-        audio.sku,
-        1,
-        audio.metadata.product_id,
-        audio.metadata.findaway_price,
-        'US',
+    const maxRentalItemsOnHand =
+      parseInt(appConfigs['max_audio_rental_items_on_hand'], 10) || 1;
+
+    if (rentedAudioCount >= maxRentalItemsOnHand) {
+      throw new BadRequestException(
+        `You already have rented ${maxRentalItemsOnHand} books, please return one book`,
       );
     }
 
+    const maxRentalItemsPerDay =
+      parseInt(appConfigs['max_audio_rental_items_per_day'], 10) || 1;
+
+    if (rentedAudioPerDayCount >= maxRentalItemsPerDay) {
+      throw new BadRequestException(
+        `You can't rent more than ${maxRentalItemsPerDay} books per day.`,
+      );
+    }
+
+    if (
+      audio.metadata.is_for_sale &&
+      effectiveTotalRented >= audio.metadata.purchased_rental_licenses &&
+      audio.metadata.purchased_rental_licenses < purchasedRentalLicenseLimit
+    ) {
+      // Same pessimistic-lock auto-purchase pattern as rent (with the same
+      // guarded rollback so we don't rollback an already-committed tx).
+      const queryRunner =
+        this.audioMetadataRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      // Flags set when the auto-purchase aborts cleanly under the lock. The
+      // customer-facing throws run after release so the catch below doesn't
+      // wrap them as the generic retry message.
+      let metadataMissing = false;
+      let allCopiesOnLoan = false;
+
+      try {
+        const lockedMetadata = await queryRunner.manager
+          .createQueryBuilder(AudioMetadata, 'metadata')
+          .setLock('pessimistic_write')
+          .where('metadata.sku = :sku', { sku: audio.sku })
+          .getOne();
+
+        if (!lockedMetadata) {
+          metadataMissing = true;
+          this.logger.error(
+            `audio_metadata row missing for sku=${audio.sku} during renew auto-purchase lock`,
+          );
+          await queryRunner.commitTransaction();
+        } else if (
+          lockedMetadata.purchased_rental_licenses >=
+          purchasedRentalLicenseLimit
+        ) {
+          // Limit reached by a concurrent request — abort cleanly.
+          allCopiesOnLoan = true;
+          await queryRunner.commitTransaction();
+        } else {
+          await this.purchaseLicenseOfAudio(
+            audio.sku,
+            1,
+            audio.metadata.product_id,
+            audio.metadata.findaway_price,
+            'US',
+          );
+
+          await queryRunner.manager.update(
+            AudioMetadata,
+            { sku: audio.sku },
+            {
+              purchased_rental_licenses:
+                lockedMetadata.purchased_rental_licenses + 1,
+            },
+          );
+
+          await queryRunner.commitTransaction();
+
+          audio.metadata.purchased_rental_licenses =
+            lockedMetadata.purchased_rental_licenses + 1;
+
+          this.logger.log(
+            `Auto-purchased license for audio ${audio.sku} during renew, new count: ${audio.metadata.purchased_rental_licenses}`,
+          );
+        }
+      } catch (error: any) {
+        if (queryRunner.isTransactionActive) {
+          await queryRunner.rollbackTransaction();
+        }
+        this.logger.error(
+          `Auto-purchase failed during renew for audio ${audio.sku}: ${error?.message}`,
+          error?.stack || JSON.stringify(error),
+        );
+        throw new BadRequestException(
+          'Unable to process rental at this time. Please try again.',
+        );
+      } finally {
+        await queryRunner.release();
+      }
+
+      if (metadataMissing) {
+        throw new BadRequestException(
+          'This title is temporarily unavailable. Please talk to admin.',
+        );
+      }
+      if (allCopiesOnLoan) {
+        throw new BadRequestException(
+          'All current copies of this title are on loan. Please check back later.',
+        );
+      }
+    }
+
+    // Headline fix: check in the user's existing Inaudio license BEFORE
+    // issuing a new checkout, but only if Inaudio still has it on loan.
+    // If Inaudio's loan_period already elapsed and the license was
+    // auto-returned (local DB stale), skip the checkin silently and treat
+    // the renew as a fresh rental.
     const previousExpireAt = userAudio.rental_expire_at;
+    const previousCheckoutId: string | undefined =
+      userAudio.meta?.inaudio_checkout_response?.checkout_id;
 
-    const remainingTimeInMinutes = Math.max(
-      0,
-      Math.floor(
-        (new Date(userAudio.rental_expire_at).getTime() - Date.now()) /
-          (1000 * 60),
-      ),
-    );
-    const rentalPeriodInDays =
-      parseInt(appConfigs.audio_rental_period_in_days, 10) || 14;
-    const newRentalExpireAt = userAudio.rental_expire_at
-      ? new Date(
-          userAudio.rental_expire_at.getTime() +
-            rentalPeriodInDays * 24 * 60 * 60 * 1000,
-        )
-      : new Date(Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000);
+    let userLicenseStillOnLoan = false;
+    if (previousCheckoutId && userAudio.license_id) {
+      const inaudioAudioDetails: any = await this.audioEngineService.get(
+        `/accounts/${this.audioEngineAccountId}/audiobooks/${audio.sku}`,
+      );
+      const inaudioLicenses: AudioFindawayworldLicense[] =
+        inaudioAudioDetails?.licenses ?? [];
+      const userInaudioLicense = inaudioLicenses.find(
+        (l) => l.id === userAudio.license_id,
+      );
+      userLicenseStillOnLoan =
+        !!userInaudioLicense &&
+        userInaudioLicense.checkout_id === previousCheckoutId;
+    }
 
-    userAudio.rental_expire_at = newRentalExpireAt;
+    let checkinResponse: any = null;
+    if (userLicenseStillOnLoan && previousCheckoutId) {
+      try {
+        checkinResponse = await this.checkInLicenseOfAudio(previousCheckoutId);
+      } catch (error: any) {
+        this.logger.error(
+          `Inaudio checkin failed during renew for checkout_id=${previousCheckoutId} user_id=${user.id} sku=${audio.sku}: ${error?.message}`,
+          error?.stack || JSON.stringify(error),
+        );
+        throw error;
+      }
+    } else if (previousCheckoutId) {
+      // Inaudio already auto-returned this checkout (or reassigned the
+      // license). Proceed silently as a fresh rental for the user.
+      this.logger.warn(
+        `Renew: Inaudio license_id=${userAudio.license_id} no longer on loan (local checkout_id=${previousCheckoutId}); proceeding silently as fresh rental for user_id=${user.id} audio_id=${audioId}.`,
+      );
+    } else {
+      // Legacy row pre-dates meta.inaudio_checkout_response; treat as fresh.
+      this.logger.warn(
+        `Renewing audio_id=${audioId} for user_id=${user.id} without a stored Inaudio checkout_id; treating as fresh rental.`,
+      );
+    }
+
+    let newRentalExpireAt: Date;
+    let loanPeriodMinutes: number;
+    if (userLicenseStillOnLoan && previousExpireAt) {
+      // Extend from the previous expiry — preserve any unused loan period.
+      const remainingTimeInMinutes = Math.max(
+        0,
+        Math.floor((previousExpireAt.getTime() - Date.now()) / (1000 * 60)),
+      );
+      newRentalExpireAt = new Date(
+        previousExpireAt.getTime() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
+      );
+      loanPeriodMinutes = rentalPeriodInDays * 1440 + remainingTimeInMinutes;
+    } else {
+      // Fresh-rental semantics: start the clock now (matches rent behavior).
+      newRentalExpireAt = new Date(
+        Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
+      );
+      loanPeriodMinutes = rentalPeriodInDays * 1440;
+    }
 
     const license = await this.getLicenseForCheckoutToRentAudio(audio.sku);
     const checkout = await this.checkoutLicenseOfAudio(
       audio,
       license,
-      rentalPeriodInDays * 1440 + remainingTimeInMinutes,
+      loanPeriodMinutes,
     );
+
+    userAudio.rental_expire_at = newRentalExpireAt;
     userAudio.license_id = checkout.license_id;
+    userAudio.updated_at = new Date();
     userAudio.meta = {
       ...(userAudio.meta || {}),
+      ...(checkinResponse ? { inaudio_checkin_response: checkinResponse } : {}),
       inaudio_checkout_response: checkout,
     };
 
-    await Promise.all([
-      this.userAudioStatusRepository.save(userAudio),
-      this.audioRepository.update(
-        { id: audioId },
-        { total_rented: (audio.total_rented || 0) + 1 },
-      ),
-      this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENEW, {
-        credit_used: parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1,
-        start_time: previousExpireAt,
-        end_time: userAudio.rental_expire_at,
-      }),
-    ]);
+    try {
+      await Promise.all([
+        this.userAudioStatusRepository.save(userAudio),
+        // NOTE: no total_rented bump. The same user is holding the same copy;
+        // rent already counted it and return decrements it once. Bumping here
+        // would leave total_rented +1 stuck for every rent→renew→return.
+        this.storeUserActivityLog(user, audio, USER_ACTIVITY.RENEW, {
+          credit_used: rentalCreditCost,
+          // start_time = when the new period begins. For an "extend" renew
+          // that's the old expiry; for the silent fresh-rental path it's now.
+          start_time: userLicenseStillOnLoan
+            ? previousExpireAt
+            : userAudio.updated_at,
+          end_time: newRentalExpireAt,
+        }),
+      ]);
+    } catch (error: any) {
+      // Inaudio already accepted the checkin + new checkout — surface the
+      // mismatch for ops to reconcile.
+      this.logger.error(
+        `Inaudio checkout succeeded but local persistence failed during renew. sku=${audio.sku} license_id=${checkout.license_id} user_id=${user.id}: ${error?.message}`,
+        error?.stack || JSON.stringify(error),
+      );
+      throw error;
+    }
 
     await this.audioElasticsearchSyncService.syncAudioById(audioId);
 

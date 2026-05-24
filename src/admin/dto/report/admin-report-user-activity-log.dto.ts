@@ -78,11 +78,9 @@ export class AdminReportUserActivityLogDto {
 
   @Expose({ name: 'action' })
   @Transform(({ value }) =>
-    [USER_ACTIVITY.RENT, USER_ACTIVITY.RENEW].includes(value)
-      ? 'Rent'
-      : 'Purchase',
+    [USER_ACTIVITY.RENT, USER_ACTIVITY.RENEW].includes(value) ? 'Rent' : 'Kept',
   )
-  action: 'Rent' | 'Purchase';
+  action: 'Rent' | 'Kept';
 
   @Expose()
   @Transform(({ obj }) => obj.meta?.credit_used)
