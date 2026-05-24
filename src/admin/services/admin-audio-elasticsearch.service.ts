@@ -275,7 +275,7 @@ export class AdminAudioElasticsearchService {
     }
 
     if (page_type === PageType.CURATION) {
-      filter.push({ term: { available_for: 'rental' } });
+      must_not.push({ term: { available_for: 'rental' } });
     }
 
     const esQuery: QueryDslQueryContainer = {
