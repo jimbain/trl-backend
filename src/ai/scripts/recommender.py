@@ -190,30 +190,65 @@ def stream_rows(since_iso=None):
         conn.close()
 
 
+FULL_BUILD_BATCH_SIZE = 10000
+
+
 def full_build():
-    """Fetch every eligible row and build a fresh index from scratch."""
+    """Stream rows and build the HNSW index in batches.
+
+    Vectors are added to the index in fixed-size batches so peak RAM stays
+    bounded — accumulating the full matrix and np.stack-ing it allocates a
+    duplicate copy that OOMs on multi-hundred-thousand-row datasets.
+
+    A seen-SKU set guards against the same audio being indexed twice if the
+    underlying cursor ever yields it more than once (e.g. concurrent updates
+    shifting updated_at during a long-running fetch). The resulting HNSW
+    graph is bit-identical to the previous all-at-once build because FAISS
+    inserts vectors sequentially within each add() call and the DB stream
+    order (updated_at ASC) is preserved.
+    """
     skus = []
-    vectors = []
+    sku_set = set()
     streamed = 0
+    skipped = 0
     max_updated_at = None
+    index = None
+    batch = []
+
+    def flush():
+        nonlocal index
+        if not batch:
+            return
+        matrix = np.stack(batch)
+        if index is None:
+            index = build_empty_index(matrix.shape[1])
+        add_to_index(index, matrix)
+        batch.clear()
+
     for sku, vec, updated_at in stream_rows():
         streamed += 1
+        if sku in sku_set:
+            skipped += 1
+            continue
+        sku_set.add(sku)
         skus.append(sku)
-        vectors.append(vec)
+        batch.append(vec)
         if updated_at is not None and (
             max_updated_at is None or updated_at > max_updated_at
         ):
             max_updated_at = updated_at
+        if len(batch) >= FULL_BUILD_BATCH_SIZE:
+            flush()
         if streamed % 5000 == 0:
-            log(f'streamed {streamed} rows...')
+            log(f'streamed {streamed} rows ({skipped} duplicates skipped)...')
 
-    log(f'streamed {streamed} rows total; building index')
-    if not vectors:
+    flush()
+    log(
+        f'streamed {streamed} rows total ({skipped} duplicates skipped); '
+        f'index built with {len(skus)} vectors'
+    )
+    if index is None:
         return skus, None, None
-
-    matrix = np.stack(vectors)
-    index = build_empty_index(matrix.shape[1])
-    add_to_index(index, matrix)
     return skus, index, _iso(max_updated_at)
 
 
