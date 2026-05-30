@@ -40,7 +40,7 @@ import psycopg2
 from sentence_transformers import SentenceTransformer
 
 MODEL_NAME = 'BAAI/bge-base-en-v1.5'
-SSL_CA_PATH = '/app/cert/db-ca-certificate.crt'
+SSL_CA_PATH = 'cert/db-ca-certificate.crt'
 INDEX_DIR_DEFAULT = '/app/data/ai-reco'
 FETCH_BATCH_SIZE = 1000
 
