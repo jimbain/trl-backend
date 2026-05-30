@@ -140,7 +140,8 @@ export class PythonRecommenderService implements OnModuleInit, OnModuleDestroy {
     this.startupError = null;
     this.isReady = false;
 
-    const child = spawn('python3', ['-u', scriptPath], {
+    const pythonBin = process.env.PYTHON_BIN || 'python3';
+    const child = spawn(pythonBin, ['-u', scriptPath], {
       env: process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
