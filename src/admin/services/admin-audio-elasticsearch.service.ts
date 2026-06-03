@@ -276,6 +276,10 @@ export class AdminAudioElasticsearchService {
 
     if (page_type === PageType.CURATION) {
       must_not.push({ term: { available_for: 'rental' } });
+      // ES indexes a missing retail_product_id as '' (see
+      // audio-elasticsearch-sync.service.ts), so `exists` would match
+      // everything — exclude the empty-string sentinel instead.
+      must_not.push({ term: { retail_product_id: '' } });
     }
 
     const esQuery: QueryDslQueryContainer = {
