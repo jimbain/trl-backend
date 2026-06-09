@@ -888,8 +888,12 @@ export class UserAudioService {
     const effectiveTotalRented = Math.max(0, audio.total_rented - 1);
 
     const purchasedRentalLicenseLimit =
-      audio.purchased_rental_license_limit ??
-      audio.metadata.purchased_rental_licenses;
+      audio.purchased_rental_license_limit === null ||
+      audio.purchased_rental_license_limit === undefined ||
+      audio.purchased_rental_license_limit === 0
+        ? audio.metadata.purchased_rental_licenses
+        : audio.purchased_rental_license_limit;
+
     const maxPossibleRentals = audio.metadata.is_for_sale
       ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
