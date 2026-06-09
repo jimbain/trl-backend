@@ -470,8 +470,11 @@ export class UserAudioService {
       parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1;
 
     const purchasedRentalLicenseLimit =
-      audio.purchased_rental_license_limit ??
-      audio.metadata.purchased_rental_licenses;
+      audio.purchased_rental_license_limit === null ||
+      audio.purchased_rental_license_limit === undefined ||
+      audio.purchased_rental_license_limit === 0
+        ? audio.metadata.purchased_rental_licenses
+        : audio.purchased_rental_license_limit;
     const maxPossibleRentals = audio.metadata.is_for_sale
       ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
