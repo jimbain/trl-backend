@@ -991,9 +991,13 @@ export class AudioService {
     const [audio, userAudio] = await Promise.all([
       // Pass userId to allow viewing user's owned deactivated audios
       this.findByIdWithCache(id, user.id),
+      // Historical duplicate (user_id, audio_id) rows can exist (the
+      // @Unique on the entity was never enforced by a migration). Order by
+      // updated_at DESC so the most recent action wins over a stale row.
       this.userAudioStatusRepository.findOne({
         where: { user_id: user.id, audio_id: id },
         select: ['status', 'rental_expire_at'],
+        order: { updated_at: 'DESC' },
       }),
     ]);
 

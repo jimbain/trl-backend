@@ -302,25 +302,11 @@ export class UserAudioService {
 
     const [audio, userAudio, nextListOrder] = await Promise.all([
       this.audioService.findById(audioId),
+      // Look up by (user_id, audio_id) without status filter — an expired
+      // `rented` row must be found here so we update it in place instead of
+      // inserting a duplicate row alongside it.
       this.userAudioStatusRepository.findOne({
-        where: [
-          {
-            audio_id: audioId,
-            user_id: user.id,
-            status: 'queued',
-          },
-          {
-            audio_id: audioId,
-            user_id: user.id,
-            status: 'rented',
-            rental_expire_at: MoreThanOrEqual(new Date()),
-          },
-          {
-            audio_id: audioId,
-            user_id: user.id,
-            status: 'bookshelved',
-          },
-        ],
+        where: { audio_id: audioId, user_id: user.id },
       }),
       this.getNextListOrder(user.id, 'queued'),
     ]);
@@ -335,14 +321,34 @@ export class UserAudioService {
           'This audio book is already in your bookshelf.',
         );
       }
-      if (userAudio.status === 'rented') {
+      if (userAudio.status === 'queued') {
+        throw new BadRequestException(
+          'This audio book is already in your queued list.',
+        );
+      }
+      if (
+        userAudio.status === 'rented' &&
+        userAudio.rental_expire_at &&
+        userAudio.rental_expire_at > new Date()
+      ) {
         throw new BadRequestException(
           'You currently have an active rental for this audio book. Please return it before adding to the queue.',
         );
       }
-      throw new BadRequestException(
-        'This audio book is already in your queued list.',
-      );
+
+      // status === 'rented' with an expired (or missing) rental_expire_at:
+      // flip the existing row to queued instead of inserting a new one.
+      userAudio.status = 'queued';
+      userAudio.list_order = nextListOrder;
+      userAudio.rental_expire_at = null;
+      userAudio.license_id = null;
+      userAudio.updated_at = new Date();
+
+      await this.storeUserActivityLog(user, audio, USER_ACTIVITY.QUEUE, {
+        credit_used: 0,
+      });
+
+      return this.userAudioStatusRepository.save(userAudio);
     }
 
     const queueAudio = this.userAudioStatusRepository.create({
@@ -464,8 +470,11 @@ export class UserAudioService {
       parseInt(appConfigs['audio_rental_credit_cost'], 10) || 1;
 
     const purchasedRentalLicenseLimit =
-      audio.purchased_rental_license_limit ??
-      audio.metadata.purchased_rental_licenses;
+      audio.purchased_rental_license_limit === null ||
+      audio.purchased_rental_license_limit === undefined ||
+      audio.purchased_rental_license_limit === 0
+        ? audio.metadata.purchased_rental_licenses
+        : audio.purchased_rental_license_limit;
     const maxPossibleRentals = audio.metadata.is_for_sale
       ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
@@ -641,6 +650,7 @@ export class UserAudioService {
           credit_used: rentalCreditCost,
           start_time: updatedUserAudio.updated_at,
           end_time: updatedUserAudio.rental_expire_at,
+          inaudio_license_id: checkout.license_id,
         }),
       ]);
     } catch (error: any) {
@@ -777,6 +787,7 @@ export class UserAudioService {
     await this.storeUserActivityLog(user, audio, USER_ACTIVITY.KEEP, {
       credit_used: audio.bookshelf_credit_cost || 0,
       keep_at: updatedUserAudio.updated_at,
+      inaudio_license_id: license.id,
     });
 
     return this.userAudioStatusRepository.findOne({
@@ -1097,6 +1108,7 @@ export class UserAudioService {
             ? previousExpireAt
             : userAudio.updated_at,
           end_time: newRentalExpireAt,
+          inaudio_license_id: checkout.license_id,
         }),
       ]);
     } catch (error: any) {
