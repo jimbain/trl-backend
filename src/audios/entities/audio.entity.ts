@@ -69,6 +69,9 @@ export class Audio extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true, default: [] })
   categories: string[]; // categories.id[]
 
+  @Column({ type: 'text', nullable: true })
+  ai_categories: string | null;
+
   @Column({ type: 'jsonb', nullable: false, default: [] })
   suggestions: string[]; // audios.id[]
 

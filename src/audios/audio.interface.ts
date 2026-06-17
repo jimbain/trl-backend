@@ -12,6 +12,7 @@ export interface ElasticAudio {
   is_for_sale: boolean;
   category: string; // primary category name
   category_ids: string[]; // array of category IDs
+  ai_categories: string[];
   fa_retail_price: number;
   fa_retail_content_cost: number;
   bookshelf_credit_cost: number;

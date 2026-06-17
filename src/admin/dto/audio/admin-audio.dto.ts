@@ -15,6 +15,9 @@ export class AdminAudioListDto {
   category: string;
 
   @Expose()
+  ai_categories?: string[];
+
+  @Expose()
   authors?: string[];
 
   @Expose()
