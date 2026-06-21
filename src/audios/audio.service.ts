@@ -81,33 +81,32 @@ export class AudioService {
     configAction: 'rent' | 'bookshelf' | 'both' | undefined,
     metadataAlias: string = 'metadata',
   ): void {
-    // If no config restriction, no filtering needed
     if (!configAction) {
       return;
     }
 
-    // If config is 'both': allow both rental and purchasable titles
-    if (configAction === 'both') {
-      // No additional filtering needed - both rental and purchasable are allowed
-      return;
-    }
+    // Rent is possible only when metadata allows rental, Findaway has at
+    // least one license, TRL's per-title limit is > 0, and the title isn't
+    // flagged purchase-only.
+    const rentPossible = `(${metadataAlias}.available_for IN (:...rentAvailableFor) AND audio.purchased_rental_license_limit > 0 AND ${metadataAlias}.purchased_rental_licenses > 0 AND audio.is_only_for_purchase != true)`;
+    const rentParams = { rentAvailableFor: ['rental', 'both'] };
 
-    // If config is 'rent': only allow rental or both
-    // AND only if purchased_rental_license_limit > 0
+    // Bookshelf is possible whenever metadata allows purchase.
+    const bookshelfPossible = `${metadataAlias}.available_for IN (:...bookshelfAvailableFor)`;
+    const bookshelfParams = { bookshelfAvailableFor: ['purchasable', 'both'] };
+
     if (configAction === 'rent') {
+      queryBuilder.andWhere(rentPossible, rentParams);
+    } else if (configAction === 'bookshelf') {
+      queryBuilder.andWhere(bookshelfPossible, bookshelfParams);
+    } else if (configAction === 'both') {
       queryBuilder.andWhere(
-        `${metadataAlias}.available_for IN (:...allowedFor)`,
-        {
-          allowedFor: ['rental', 'both'],
-        },
-      );
-      queryBuilder.andWhere('audio.purchased_rental_license_limit > 0');
-    }
-    // If config is 'bookshelf': only allow purchasable or both
-    else if (configAction === 'bookshelf') {
-      queryBuilder.andWhere(
-        `${metadataAlias}.available_for IN (:...allowedFor)`,
-        { allowedFor: ['purchasable', 'both'] },
+        new Brackets((qb) => {
+          qb.where(rentPossible, rentParams).orWhere(
+            bookshelfPossible,
+            bookshelfParams,
+          );
+        }),
       );
     }
   }
