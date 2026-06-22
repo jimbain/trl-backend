@@ -85,10 +85,18 @@ export class AudioService {
       return;
     }
 
-    // Rent is possible only when metadata allows rental, Findaway has at
-    // least one license, TRL's per-title limit is > 0, and the title isn't
-    // flagged purchase-only.
-    const rentPossible = `(${metadataAlias}.available_for IN (:...rentAvailableFor) AND audio.purchased_rental_license_limit > 0 AND ${metadataAlias}.purchased_rental_licenses > 0 AND audio.is_only_for_purchase != true)`;
+    // Rent is possible when metadata allows rental, the title isn't flagged
+    // purchase-only, and the effective rental-license cap exceeds total_rented.
+    // Effective cap = audio.purchased_rental_license_limit when it's set
+    // (positive); otherwise (NULL or 0 = unset) it falls back to the Findaway
+    // metadata.purchased_rental_licenses count.
+    const rentPossible =
+      `(${metadataAlias}.available_for IN (:...rentAvailableFor)` +
+      ` AND audio.is_only_for_purchase != true` +
+      ` AND (` +
+      `   (audio.purchased_rental_license_limit > 0 AND audio.purchased_rental_license_limit > audio.total_rented)` +
+      `   OR ((audio.purchased_rental_license_limit IS NULL OR audio.purchased_rental_license_limit = 0) AND ${metadataAlias}.purchased_rental_licenses > audio.total_rented)` +
+      ` ))`;
     const rentParams = { rentAvailableFor: ['rental', 'both'] };
 
     // Bookshelf is possible whenever metadata allows purchase.
