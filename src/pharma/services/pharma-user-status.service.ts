@@ -109,8 +109,12 @@ export class PharmaUserStatusService {
     ]);
 
     if (pharmaUser) {
+      const titleLabel =
+        pharma.title && pharma.title.trim() !== ''
+          ? pharma.title
+          : 'this title';
       throw new BadRequestException(
-        `The pharma book with ID ${id} is not available for queue.`,
+        `"${titleLabel}" is not available for queue.`,
       );
     }
 
@@ -130,6 +134,10 @@ export class PharmaUserStatusService {
   }
 
   async dequeue(id: string, user: User) {
+    const title = await this.pharmaService.getTitleById(id);
+
+    const titleLabel = title && title.trim() !== '' ? title : 'this title';
+
     const queuedPharma = await this.pharmaUserStatusRepository.findOne({
       where: {
         pharma_id: id,
@@ -140,7 +148,7 @@ export class PharmaUserStatusService {
 
     if (!queuedPharma) {
       throw new BadRequestException(
-        `The pharma book with ID ${id} doesn't exist in your queued list.`,
+        `"${titleLabel}" is not in your queued list.`,
       );
     }
 
@@ -175,13 +183,17 @@ export class PharmaUserStatusService {
 
     const pharma = await this.pharmaService.findById(id);
     if (!pharma) {
-      throw new NotFoundException(`Pharma with ID ${id} not found`);
+      throw new NotFoundException('Pharma not found.');
     }
 
     // Check if pharma is active
     if (!pharma.is_active) {
+      const titleLabel =
+        pharma.title && pharma.title.trim() !== ''
+          ? pharma.title
+          : 'this title';
       throw new BadRequestException(
-        `Pharma with ID ${id} is not available for rental`,
+        `"${titleLabel}" is not available for rental.`,
       );
     }
 
@@ -264,9 +276,9 @@ export class PharmaUserStatusService {
     });
 
     if (!pharmaUser) {
-      throw new NotFoundException(
-        `No rental found for pharma with ID ${pharmaId}`,
-      );
+      const title = await this.pharmaService.getTitleById(pharmaId);
+      const titleLabel = title && title.trim() !== '' ? title : 'this title';
+      throw new NotFoundException(`No rental found for "${titleLabel}".`);
     }
 
     if (pharmaUser.status !== 'rented') {
@@ -336,8 +348,10 @@ export class PharmaUserStatusService {
     });
 
     if (!pharmaUser) {
+      const title = await this.pharmaService.getTitleById(pharmaId);
+      const titleLabel = title && title.trim() !== '' ? title : 'this title';
       throw new BadRequestException(
-        `The pharma with ID ${pharmaId} doesn't exist in your rented list.`,
+        `"${titleLabel}" is not in your rented list.`,
       );
     }
 

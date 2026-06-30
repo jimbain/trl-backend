@@ -85,10 +85,18 @@ export class AudioService {
       return;
     }
 
-    // Rent is possible only when metadata allows rental, Findaway has at
-    // least one license, TRL's per-title limit is > 0, and the title isn't
-    // flagged purchase-only.
-    const rentPossible = `(${metadataAlias}.available_for IN (:...rentAvailableFor) AND audio.purchased_rental_license_limit > 0 AND ${metadataAlias}.purchased_rental_licenses > 0 AND audio.is_only_for_purchase != true)`;
+    // Rent is possible when metadata allows rental, the title isn't flagged
+    // purchase-only, and the effective rental-license cap exceeds total_rented.
+    // Effective cap = audio.purchased_rental_license_limit when it's set
+    // (positive); otherwise (NULL or 0 = unset) it falls back to the Findaway
+    // metadata.purchased_rental_licenses count.
+    const rentPossible =
+      `(${metadataAlias}.available_for IN (:...rentAvailableFor)` +
+      ` AND audio.is_only_for_purchase != true` +
+      ` AND (` +
+      `   (audio.purchased_rental_license_limit > 0 AND audio.purchased_rental_license_limit > audio.total_rented)` +
+      `   OR ((audio.purchased_rental_license_limit IS NULL OR audio.purchased_rental_license_limit = 0) AND ${metadataAlias}.purchased_rental_licenses > audio.total_rented)` +
+      ` ))`;
     const rentParams = { rentAvailableFor: ['rental', 'both'] };
 
     // Bookshelf is possible whenever metadata allows purchase.
@@ -310,7 +318,7 @@ export class AudioService {
     const audio = await query.getOne();
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${id} not found`);
+      throw new NotFoundException('Audio not found.');
     }
 
     return audio;
@@ -332,6 +340,42 @@ export class AudioService {
     }
 
     return audio;
+  }
+
+  // Resolve a user-facing title following the project convention:
+  // admin-overridable display_title first, then the Inaudio metadata title.
+  // Returns null when both are unset so the caller can apply its own fallback.
+  resolveTitle(audio: {
+    display_title?: string | null;
+    metadata?: { title?: string | null } | null;
+  }): string | null {
+    if (audio.display_title && audio.display_title.trim() !== '') {
+      return audio.display_title;
+    }
+    const metaTitle = audio.metadata?.title;
+    if (metaTitle && metaTitle.trim() !== '') {
+      return metaTitle;
+    }
+    return null;
+  }
+
+  // Lightweight title-only lookup that ignores is_active — safe for use in
+  // error messages where the entity may be deactivated but still referenced
+  // by user state (e.g. a queued audio the admin later deactivated).
+  async getTitleById(id: string): Promise<string | null> {
+    const audio = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoin('audio.metadata', 'metadata')
+      .select([
+        'audio.id',
+        'audio.sku',
+        'audio.display_title',
+        'metadata.sku',
+        'metadata.title',
+      ])
+      .where('audio.id = :id', { id })
+      .getOne();
+    return audio ? this.resolveTitle(audio) : null;
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
@@ -811,9 +855,7 @@ export class AudioService {
       }
 
       if (!categoryIds.length) {
-        throw new NotFoundException(
-          `Category with ID ${categoryId} not found for your company`,
-        );
+        throw new NotFoundException('Category not found for your company.');
       }
     }
 
@@ -1011,15 +1053,20 @@ export class AudioService {
     );
 
     if (availableAfterRestriction === null) {
+      const titleLabel = this.resolveTitle(audio) ?? 'this audio';
       throw new NotFoundException(
-        `Audio with ID ${id} is not available for your company.`,
+        `Audio "${titleLabel}" is not available for your company.`,
       );
     }
 
     let status = userAudio?.status ?? null;
     let rentalExpiresAt = userAudio?.rental_expire_at ?? null;
 
-    if (status === 'rented' && rentalExpiresAt <= new Date()) {
+    if (
+      status === 'rented' &&
+      rentalExpiresAt &&
+      rentalExpiresAt <= new Date()
+    ) {
       status = null;
       rentalExpiresAt = null;
     }
@@ -1059,7 +1106,7 @@ export class AudioService {
     const audio = await queryBuilder.getOne();
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${audioId} not found`);
+      throw new NotFoundException('Audio not found.');
     }
 
     const userAudioStatus = await this.userAudioStatusRepository.findOne({

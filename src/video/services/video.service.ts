@@ -316,7 +316,7 @@ export class VideoService {
       .getRawOne();
 
     if (!video) {
-      throw new NotFoundException(`Video with id "${id}" not found`);
+      throw new NotFoundException('Video not found.');
     }
 
     // Transform image URLs for main video
