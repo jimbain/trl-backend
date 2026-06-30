@@ -92,7 +92,7 @@ export class CategoryService {
     });
 
     if (!category) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
+      throw new NotFoundException('Category not found.');
     }
 
     return category;
@@ -135,7 +135,7 @@ export class CategoryService {
     });
 
     if (!category) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
+      throw new NotFoundException('Category not found.');
     }
 
     return plainToInstance(CategoryDto, category, {

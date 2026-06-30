@@ -367,6 +367,10 @@ export class UserAudioService {
   }
 
   async dequeueAudio(audioId: string, user: User) {
+    const title = await this.audioService.getTitleById(audioId);
+
+    const titleLabel = title && title.trim() !== '' ? title : 'this audio';
+
     const queuedAudio = await this.userAudioStatusRepository.findOne({
       where: {
         audio_id: audioId,
@@ -377,7 +381,7 @@ export class UserAudioService {
 
     if (!queuedAudio) {
       throw new BadRequestException(
-        `The audio book with ID ${audioId} doesn't exist in your queued list.`,
+        `"${titleLabel}" is not in your queued list.`,
       );
     }
 
@@ -389,7 +393,7 @@ export class UserAudioService {
     await this.reorderListAfterRemoval(user.id, 'queued', removedListOrder);
 
     return {
-      message: `The audio book with ID ${audioId} has been removed from your queued list.`,
+      message: `"${titleLabel}" has been removed from your queued list.`,
     };
   }
 
@@ -438,7 +442,7 @@ export class UserAudioService {
       ]);
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${audioId} not found.`);
+      throw new NotFoundException('Audio not found.');
     }
 
     // Check if rent action is allowed based on company config
@@ -848,12 +852,13 @@ export class UserAudioService {
       ]);
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${audioId} not found.`);
+      throw new NotFoundException('Audio not found.');
     }
 
     if (!userAudio) {
+      const titleLabel = this.audioService.resolveTitle(audio) ?? 'this audio';
       throw new BadRequestException(
-        `The audio book with ID ${audioId} doesn't exist in your rented list.`,
+        `"${titleLabel}" is not in your rented list.`,
       );
     }
 
@@ -1133,6 +1138,10 @@ export class UserAudioService {
   }
 
   async returnRentedAudio(audioId: string, user: User) {
+    const title = await this.audioService.getTitleById(audioId);
+
+    const titleLabel = title && title.trim() !== '' ? title : 'this audio';
+
     const userAudio = await this.userAudioStatusRepository.findOne({
       where: {
         audio_id: audioId,
@@ -1143,7 +1152,7 @@ export class UserAudioService {
 
     if (!userAudio) {
       throw new BadRequestException(
-        `The audio book with ID ${audioId} doesn't exist in your rented list.`,
+        `"${titleLabel}" is not in your rented list.`,
       );
     }
 
@@ -1151,9 +1160,7 @@ export class UserAudioService {
       userAudio.rental_expire_at &&
       userAudio.rental_expire_at <= new Date()
     ) {
-      throw new BadRequestException(
-        `The audio book with ID ${audioId} is already returned.`,
-      );
+      throw new BadRequestException(`"${titleLabel}" is already returned.`);
     }
 
     const checkoutId: string | undefined =

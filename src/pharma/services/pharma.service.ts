@@ -294,7 +294,7 @@ export class PharmaService {
   async findById(id: string): Promise<Pharma> {
     const pharma = await this.pharmaRepository.findOne({ where: { id } });
     if (!pharma) {
-      throw new NotFoundException(`Pharma with id "${id}" not found`);
+      throw new NotFoundException('Pharma not found.');
     }
     return pharma;
   }
@@ -307,6 +307,17 @@ export class PharmaService {
 
     await this.cacheService.set(id, audio);
     return audio;
+  }
+
+  // Lightweight title-only lookup — safe for use in error messages where the
+  // entity may be referenced by user state but the caller doesn't need the
+  // full row or want findById's NotFoundException semantics.
+  async getTitleById(id: string): Promise<string | null> {
+    const pharma = await this.pharmaRepository.findOne({
+      where: { id },
+      select: ['title'],
+    });
+    return pharma?.title ?? null;
   }
 
   async findPharmaUserVideoPlayerPosition(
@@ -370,7 +381,7 @@ export class PharmaService {
       .getRawOne();
 
     if (!pharma) {
-      throw new NotFoundException(`Pharma with id "${id}" not found`);
+      throw new NotFoundException('Pharma not found.');
     }
 
     // Transform image URLs

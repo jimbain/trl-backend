@@ -318,7 +318,7 @@ export class AudioService {
     const audio = await query.getOne();
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${id} not found`);
+      throw new NotFoundException('Audio not found.');
     }
 
     return audio;
@@ -340,6 +340,42 @@ export class AudioService {
     }
 
     return audio;
+  }
+
+  // Resolve a user-facing title following the project convention:
+  // admin-overridable display_title first, then the Inaudio metadata title.
+  // Returns null when both are unset so the caller can apply its own fallback.
+  resolveTitle(audio: {
+    display_title?: string | null;
+    metadata?: { title?: string | null } | null;
+  }): string | null {
+    if (audio.display_title && audio.display_title.trim() !== '') {
+      return audio.display_title;
+    }
+    const metaTitle = audio.metadata?.title;
+    if (metaTitle && metaTitle.trim() !== '') {
+      return metaTitle;
+    }
+    return null;
+  }
+
+  // Lightweight title-only lookup that ignores is_active — safe for use in
+  // error messages where the entity may be deactivated but still referenced
+  // by user state (e.g. a queued audio the admin later deactivated).
+  async getTitleById(id: string): Promise<string | null> {
+    const audio = await this.audioRepository
+      .createQueryBuilder('audio')
+      .leftJoin('audio.metadata', 'metadata')
+      .select([
+        'audio.id',
+        'audio.sku',
+        'audio.display_title',
+        'metadata.sku',
+        'metadata.title',
+      ])
+      .where('audio.id = :id', { id })
+      .getOne();
+    return audio ? this.resolveTitle(audio) : null;
   }
 
   async findAllAudioCategoryIdOfCompany(companyId: string): Promise<string[]> {
@@ -819,9 +855,7 @@ export class AudioService {
       }
 
       if (!categoryIds.length) {
-        throw new NotFoundException(
-          `Category with ID ${categoryId} not found for your company`,
-        );
+        throw new NotFoundException('Category not found for your company.');
       }
     }
 
@@ -1019,15 +1053,20 @@ export class AudioService {
     );
 
     if (availableAfterRestriction === null) {
+      const titleLabel = this.resolveTitle(audio) ?? 'this audio';
       throw new NotFoundException(
-        `Audio with ID ${id} is not available for your company.`,
+        `Audio "${titleLabel}" is not available for your company.`,
       );
     }
 
     let status = userAudio?.status ?? null;
     let rentalExpiresAt = userAudio?.rental_expire_at ?? null;
 
-    if (status === 'rented' && rentalExpiresAt <= new Date()) {
+    if (
+      status === 'rented' &&
+      rentalExpiresAt &&
+      rentalExpiresAt <= new Date()
+    ) {
       status = null;
       rentalExpiresAt = null;
     }
@@ -1067,7 +1106,7 @@ export class AudioService {
     const audio = await queryBuilder.getOne();
 
     if (!audio) {
-      throw new NotFoundException(`Audio with ID ${audioId} not found`);
+      throw new NotFoundException('Audio not found.');
     }
 
     const userAudioStatus = await this.userAudioStatusRepository.findOne({
