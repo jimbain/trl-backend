@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { Category } from 'src/categories/entities/category.entity';
 import { CategoryModule } from 'src/categories/category.module';
 import { CatalogService } from './catalog.service';
 import { Audio } from 'src/audios/entities/audio.entity';
@@ -12,7 +13,7 @@ import { CommonModule } from 'src/common/common.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Catalog, Audio, Pharma, Video]),
+    TypeOrmModule.forFeature([Catalog, Category, Audio, Pharma, Video]),
     forwardRef(() => CategoryModule),
     forwardRef(() => AppElasticsearchModule),
     forwardRef(() => CompanyModule),
