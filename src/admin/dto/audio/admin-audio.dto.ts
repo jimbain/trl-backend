@@ -9,6 +9,9 @@ export class AdminAudioListDto {
   sku: string;
 
   @Expose()
+  isbn?: string;
+
+  @Expose()
   title: string;
 
   @Expose()
