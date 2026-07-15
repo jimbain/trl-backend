@@ -862,6 +862,20 @@ export class UserAudioService {
       );
     }
 
+    // Pending-renewal guard. A fresh rent sets rental_expire_at to
+    // now + rentalPeriodInDays; a renew extends it further. So any expiry
+    // beyond that ceiling means this rental has already been renewed and
+    // the next period hasn't started yet — reject a second renew.
+    const renewCeiling = new Date(
+      Date.now() + rentalPeriodInDays * 24 * 60 * 60 * 1000,
+    );
+    if (
+      userAudio.rental_expire_at &&
+      userAudio.rental_expire_at.getTime() > renewCeiling.getTime()
+    ) {
+      throw new BadRequestException('This title is already set to renew.');
+    }
+
     if (
       !this.isActionAllowed(
         audio,

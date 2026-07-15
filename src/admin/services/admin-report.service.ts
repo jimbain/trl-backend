@@ -159,9 +159,24 @@ export class AdminReportService {
           )
         ) AS listened_time_ms`,
       ])
-      .where('log.action IN (:...actions)', {
-        actions: ['rent', 'keep', 'renew'],
-      });
+      // Hide renewals whose new period hasn't started yet — user may still
+      // return the title before it kicks in, in which case the renewal
+      // never happens.
+      .where(
+        `log.action IN (:...actions)
+         AND (
+           log.action <> :renewAction
+           OR (log.meta->>'start_time')::timestamp <= NOW()
+         )`,
+        {
+          actions: [
+            USER_ACTIVITY.RENT,
+            USER_ACTIVITY.KEEP,
+            USER_ACTIVITY.RENEW,
+          ],
+          renewAction: USER_ACTIVITY.RENEW,
+        },
+      );
 
     // Apply dynamic filters
     if (created_at_from) {
