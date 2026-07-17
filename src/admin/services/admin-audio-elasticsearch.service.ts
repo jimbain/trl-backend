@@ -396,6 +396,7 @@ export class AdminAudioElasticsearchService {
         pageType === PageType.CURATION
           ? [
               'sku',
+              'isbn',
               'title',
               'authors',
               'category',
@@ -495,6 +496,7 @@ export class AdminAudioElasticsearchService {
           if (pageType === PageType.CURATION) {
             csvStream.write({
               SKU: item.sku ?? '',
+              ISBN: item.isbn ?? '',
               Title: item.title ?? '',
               Authors: (item.authors ?? []).join(', '),
               Category: item.category ?? '',
