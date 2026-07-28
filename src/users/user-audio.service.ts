@@ -479,7 +479,15 @@ export class UserAudioService {
       audio.purchased_rental_license_limit === 0
         ? audio.metadata.purchased_rental_licenses
         : audio.purchased_rental_license_limit;
-    const maxPossibleRentals = audio.metadata.is_for_sale
+    // Auto-purchase requires both is_for_sale AND territory permission (US).
+    // Null sales_locations means Findaway hasn't provided location data — allow
+    // the attempt so existing behaviour is preserved for those titles.
+    const canAutoPurchase =
+      audio.metadata.is_for_sale &&
+      (!audio.metadata.sales_locations ||
+        audio.metadata.sales_locations.includes('US'));
+
+    const maxPossibleRentals = canAutoPurchase
       ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
 
@@ -520,7 +528,7 @@ export class UserAudioService {
     }
 
     if (
-      audio.metadata.is_for_sale &&
+      canAutoPurchase &&
       audio.total_rented >= audio.metadata.purchased_rental_licenses &&
       audio.metadata.purchased_rental_licenses < purchasedRentalLicenseLimit
     ) {
@@ -735,6 +743,15 @@ export class UserAudioService {
       );
     }
 
+    if (
+      audio.metadata.retail_sales_locations &&
+      !audio.metadata.retail_sales_locations.includes('US')
+    ) {
+      throw new BadRequestException(
+        'This title is not available for purchase in your region.',
+      );
+    }
+
     const purchaseResponse = await this.purchaseLicenseOfAudio(
       audio.sku,
       1,
@@ -913,7 +930,12 @@ export class UserAudioService {
         ? audio.metadata.purchased_rental_licenses
         : audio.purchased_rental_license_limit;
 
-    const maxPossibleRentals = audio.metadata.is_for_sale
+    const canAutoPurchase =
+      audio.metadata.is_for_sale &&
+      (!audio.metadata.sales_locations ||
+        audio.metadata.sales_locations.includes('US'));
+
+    const maxPossibleRentals = canAutoPurchase
       ? purchasedRentalLicenseLimit
       : audio.metadata.purchased_rental_licenses;
 
@@ -942,7 +964,7 @@ export class UserAudioService {
     }
 
     if (
-      audio.metadata.is_for_sale &&
+      canAutoPurchase &&
       effectiveTotalRented >= audio.metadata.purchased_rental_licenses &&
       audio.metadata.purchased_rental_licenses < purchasedRentalLicenseLimit
     ) {
