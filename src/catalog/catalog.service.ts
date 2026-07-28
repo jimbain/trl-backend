@@ -29,6 +29,9 @@ export class CatalogService {
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
 
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
+
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
 
@@ -233,6 +236,20 @@ export class CatalogService {
       return 0;
     }
 
+    // Match customer-facing filtering: only active categories are visible to
+    // customers (see CompanyService.buildCategoryIdsCache), and only active
+    // titles show up in the customer feed. Counting anything else here made
+    // the admin catalog total overstate what a customer can actually see.
+    const activeCategories = await this.categoryRepository.find({
+      where: { id: In(catalog.categories), is_active: true },
+      select: ['id'],
+    });
+    const activeCategoryIds = activeCategories.map((c) => c.id);
+
+    if (activeCategoryIds.length === 0) {
+      return 0;
+    }
+
     if (catalog.media_type === 'audio') {
       const { hits } = await this.appElasticsearchService.search({
         index: 'es_audios',
@@ -241,11 +258,8 @@ export class CatalogService {
         query: {
           bool: {
             filter: [
-              {
-                terms: {
-                  category_ids: catalog.categories,
-                },
-              },
+              { terms: { category_ids: activeCategoryIds } },
+              { term: { is_active: true } },
             ],
           },
         },
@@ -258,16 +272,18 @@ export class CatalogService {
       return this.pharmaRepository.count({
         where: {
           categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
-            categories: catalog.categories,
+            categories: activeCategoryIds,
           }),
+          is_active: true,
         },
       });
     } else if (catalog.media_type === 'video') {
       return this.videoRepository.count({
         where: {
           categories: Raw((alias) => `${alias} ?| array[:...categories]`, {
-            categories: catalog.categories,
+            categories: activeCategoryIds,
           }),
+          is_active: true,
         },
       });
     }
