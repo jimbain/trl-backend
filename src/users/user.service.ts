@@ -273,14 +273,19 @@ export class UserService {
       );
     }
 
-    // Only update password if it's provided and not empty
-    if (!payload.password || payload.password.trim() === '') {
-      delete payload.password;
+    // Separate password from the rest of the payload to avoid the @BeforeUpdate
+    // hook re-hashing the existing bcrypt hash when no new password is supplied.
+    const { password, ...updateData } = payload;
+
+    if (password && password.trim() !== '') {
+      updateData.password = await bcrypt.hash(
+        password,
+        await bcrypt.genSalt(10),
+      );
     }
 
-    Object.assign(user, payload);
-
-    await this.userRepository.save(user);
+    // Use update() (SQL UPDATE) instead of save() to bypass @BeforeUpdate hooks.
+    await this.userRepository.update(id, updateData);
 
     return this.findOne(id);
   }
