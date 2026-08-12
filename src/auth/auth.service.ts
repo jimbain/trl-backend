@@ -200,6 +200,10 @@ export class AuthService {
     return this.userService.storeUserDevice(user, data);
   }
 
+  async logout(user: User, deviceId?: string): Promise<void> {
+    await this.userService.deactivateUserDevice(user.id, deviceId);
+  }
+
   async login(user: User) {
     const accessPayload: JwtPayload = {
       id: user.id,
