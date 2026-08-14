@@ -319,26 +319,64 @@ export class UserService {
   ): Promise<UserDevice> {
     data.device_os = data.os;
 
-    const existingUserDevice = await this.userDeviceRepository.findOne({
-      where: {
-        user_id: user.id,
-        device_id: data.device_id,
-      },
-    });
+    // A single FCM token can only be tied to one physical install at a time.
+    // On every registration we (a) steal the token from any previous owner
+    // and (b) collapse any other rows this user has that carry the same
+    // token. Both happen in one transaction so the invariant "at most one
+    // active row per (fcm_key)" always holds, even without a DB constraint.
+    return this.userDeviceRepository.manager.transaction(async (manager) => {
+      const deviceRepo = manager.getRepository(UserDevice);
 
-    let userDevice: UserDevice;
+      if (data.fcm_key) {
+        await deviceRepo
+          .createQueryBuilder()
+          .update(UserDevice)
+          .set({ is_active: false })
+          .where('fcm_key = :fcm_key', { fcm_key: data.fcm_key })
+          .andWhere('is_active = true')
+          .andWhere('(user_id <> :user_id OR device_id <> :device_id)', {
+            user_id: user.id,
+            device_id: data.device_id,
+          })
+          .execute();
+      }
 
-    if (existingUserDevice) {
-      userDevice = existingUserDevice;
-      this.userDeviceRepository.merge(userDevice, data);
-    } else {
-      userDevice = this.userDeviceRepository.create({
-        user_id: user.id,
-        ...data,
+      const existingUserDevice = await deviceRepo.findOne({
+        where: {
+          user_id: user.id,
+          device_id: data.device_id,
+        },
       });
+
+      let userDevice: UserDevice;
+
+      if (existingUserDevice) {
+        userDevice = existingUserDevice;
+        deviceRepo.merge(userDevice, data);
+        userDevice.is_active = true;
+      } else {
+        userDevice = deviceRepo.create({
+          user_id: user.id,
+          ...data,
+          is_active: true,
+        });
+      }
+
+      return deviceRepo.save(userDevice);
+    });
+  }
+
+  async deactivateUserDevice(userId: string, deviceId?: string): Promise<void> {
+    const where: { user_id: string; device_id?: string; is_active: boolean } = {
+      user_id: userId,
+      is_active: true,
+    };
+
+    if (deviceId) {
+      where.device_id = deviceId;
     }
 
-    return this.userDeviceRepository.save(userDevice);
+    await this.userDeviceRepository.update(where, { is_active: false });
   }
 
   getTotalActiveUsersByStatusOfCompany(

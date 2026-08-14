@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { NotificationNewBookDto } from '../dto/notification/notification-new-book.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
-import { In, IsNull, LessThan, Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Or, Repository } from 'typeorm';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { User } from 'src/users/entities/user.entity';
 import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
@@ -46,9 +46,25 @@ export class AdminNotificationService {
 
     if (!userIds.length) return;
 
-    payload.conditions.map((condition) => {
-      this.handleNewBookCondition(payload, condition, userIds);
-    });
+    // Resolve every condition to a user-set, then union them into a single
+    // deduped recipient list so each matching user gets ONE notification for
+    // this new-book event — not one per condition they happen to match.
+    const perConditionUserIds = await Promise.all(
+      payload.conditions.map((condition) =>
+        this.resolveUserIdsForCondition(payload, condition, userIds),
+      ),
+    );
+
+    const unionedUserIds = Array.from(new Set(perConditionUserIds.flat()));
+
+    if (!unionedUserIds.length) return;
+
+    const notificationExpiration = await this.getNotificationExpiration();
+    await this.createNotification(
+      payload,
+      unionedUserIds,
+      notificationExpiration,
+    );
   }
 
   async validateCompanyIds(payload: NotificationNewBookDto) {
@@ -116,59 +132,50 @@ export class AdminNotificationService {
     return users.map((user) => user.id);
   }
 
-  private async handleNewBookCondition(
+  private async resolveUserIdsForCondition(
     payload: NotificationNewBookDto,
     condition: NotificationNewBookConditionType,
     userIds: string[],
-  ) {
-    if (payload.media_type === 'audio') {
-      return this.handleAudioNewBookCondition(payload, condition, userIds);
-    }
-  }
-
-  private async handleAudioNewBookCondition(
-    payload: NotificationNewBookDto,
-    condition: NotificationNewBookConditionType,
-    userIds: string[],
-  ) {
-    const notificationExpiration = await this.getNotificationExpiration();
-    let targetUserIds: string[] = [];
+  ): Promise<string[]> {
+    if (payload.media_type !== 'audio') return [];
 
     if (condition === 'active' || condition === 'queue') {
-      targetUserIds = await this.getUserIdsWithActiveOrQueuedAudios(
-        payload.condition_book_ids,
-        userIds,
-      );
-    } else if (condition === 'played') {
-      targetUserIds = await this.getUserIdsWithPlayedAudios(
+      return this.getUserIdsWithActiveOrQueuedAudios(
         payload.condition_book_ids,
         userIds,
       );
     }
 
-    if (targetUserIds.length) {
-      await this.createNotification(
-        payload,
-        targetUserIds,
-        notificationExpiration,
+    if (condition === 'played') {
+      return this.getUserIdsWithPlayedAudios(
+        payload.condition_book_ids,
+        userIds,
       );
     }
+
+    return [];
   }
 
   private async getUserIdsWithActiveOrQueuedAudios(
     bookIds: string[],
     userIds: string[],
   ): Promise<string[]> {
+    // `rental_expire_at IS NULL` covers queued/bookshelf; `> NOW()` covers
+    // an active rental that has not yet expired. The previous
+    // `IsNull() || LessThan(new Date())` was JS `||` — evaluated to
+    // `IsNull()` and silently dropped every user with an active rental.
     const userAudioStatuses = await this.userAudioStatusRepository.find({
       where: {
         user_id: In(userIds),
         audio_id: In(bookIds),
-        rental_expire_at: IsNull() || LessThan(new Date()),
+        rental_expire_at: Or(IsNull(), MoreThan(new Date())),
       },
       select: ['user_id'],
     });
 
-    return userAudioStatuses.map((status) => status.user_id);
+    return Array.from(
+      new Set(userAudioStatuses.map((status) => status.user_id)),
+    );
   }
 
   private async getUserIdsWithPlayedAudios(
@@ -181,7 +188,9 @@ export class AdminNotificationService {
         select: ['user_id'],
       });
 
-    return userAudioPositions.map((position) => position.user_id);
+    return Array.from(
+      new Set(userAudioPositions.map((position) => position.user_id)),
+    );
   }
 
   private async createNotification(

@@ -15,6 +15,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { DomainValidationGuard } from './guards/domain-validation.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CheckUserDto } from './dto/check-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -219,5 +220,13 @@ export class AuthController {
   @HttpCode(200)
   async getCurrentUser(@Request() req) {
     return this.authService.getCurrentUser(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Request() req, @Body() payload: LogoutDto) {
+    await this.authService.logout(req.user, payload?.device_id);
+    return { message: 'Logged out.' };
   }
 }
