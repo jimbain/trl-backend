@@ -72,4 +72,34 @@ export class UpdateAppConfigDto {
   @IsIn(['both', 'rent', 'bookshelf'])
   @IsOptional()
   available_audio_title_user_action: string;
+
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : parseInt(value, 10),
+  )
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ai_recommendation_interval_days: number;
+
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : parseInt(value, 10),
+  )
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ai_recommendation_top_n: number;
+
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : parseInt(value, 10),
+  )
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ai_recommendation_top_k_per_active: number;
 }

@@ -2,3 +2,4 @@ sentence-transformers==2.7.0
 faiss-cpu==1.8.0
 psycopg2-binary==2.9.9
 numpy==1.26.4
+pgvector==0.3.6

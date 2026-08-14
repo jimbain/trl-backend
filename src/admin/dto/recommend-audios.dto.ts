@@ -11,7 +11,7 @@ import {
 export class RecommendAudiosDto {
   @IsString()
   @IsNotEmpty()
-  @MaxLength(150)
+  @MaxLength(500)
   prompt: string;
 
   @IsInt()

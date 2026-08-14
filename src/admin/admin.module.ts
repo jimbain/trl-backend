@@ -55,6 +55,7 @@ import { VideoUserStatus } from 'src/video/entities/video-user-status.entity';
 import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity';
 import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audio-categories.validator';
 import { AdminAiRecommendationController } from './controllers/admin-ai-recommendation.controller';
+import { AdminAiActiveRecommendationController } from './controllers/admin-ai-active-recommendation.controller';
 import { AiModule } from 'src/ai/ai.module';
 
 @Module({
@@ -120,6 +121,7 @@ import { AiModule } from 'src/ai/ai.module';
     AdminAppErrorLogController,
     AdminStorageController,
     AdminAiRecommendationController,
+    AdminAiActiveRecommendationController,
   ],
   providers: [
     AdminAuthService,
