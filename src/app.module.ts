@@ -20,6 +20,7 @@ import { PharmaModule } from './pharma/pharma.module';
 import { VideoModule } from './video/video.module';
 import { StorageModule } from './storage/storage.module';
 import { AiModule } from './ai/ai.module';
+import { PopularityModule } from './popularity/popularity.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AiModule } from './ai/ai.module';
     VideoModule,
     StorageModule,
     AiModule,
+    PopularityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

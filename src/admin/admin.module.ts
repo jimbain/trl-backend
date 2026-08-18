@@ -56,7 +56,9 @@ import { PharmaUserStatus } from 'src/pharma/entities/pharma-user-status.entity'
 import { IsDefaultAudioCategoriesConstraint } from './validators/is-default-audio-categories.validator';
 import { AdminAiRecommendationController } from './controllers/admin-ai-recommendation.controller';
 import { AdminAiActiveRecommendationController } from './controllers/admin-ai-active-recommendation.controller';
+import { AdminPopularityController } from './controllers/admin-popularity.controller';
 import { AiModule } from 'src/ai/ai.module';
+import { PopularityModule } from 'src/popularity/popularity.module';
 
 @Module({
   imports: [
@@ -103,6 +105,7 @@ import { AiModule } from 'src/ai/ai.module';
     forwardRef(() => AppElasticsearchModule),
     forwardRef(() => StorageModule),
     forwardRef(() => AiModule),
+    forwardRef(() => PopularityModule),
   ],
   controllers: [
     AdminAuthController,
@@ -122,6 +125,7 @@ import { AiModule } from 'src/ai/ai.module';
     AdminStorageController,
     AdminAiRecommendationController,
     AdminAiActiveRecommendationController,
+    AdminPopularityController,
   ],
   providers: [
     AdminAuthService,

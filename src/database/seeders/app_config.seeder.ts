@@ -32,6 +32,10 @@ export class AppConfigSeeder {
       ai_recommendation_interval_days: 30,
       ai_recommendation_top_n: 1000,
       ai_recommendation_top_k_per_active: 50,
+      popularity_interval_days: 1,
+      popularity_source_weight_openlibrary: 0.6,
+      popularity_source_weight_google: 0.4,
+      popularity_min_confidence_display: 1,
     };
 
     for (const [key, value] of Object.entries(appConfig)) {
