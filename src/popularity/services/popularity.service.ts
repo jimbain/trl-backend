@@ -9,8 +9,9 @@ import { plainToInstance } from 'class-transformer';
 import { Brackets, In, Repository } from 'typeorm';
 import { createHash } from 'crypto';
 import { AppConfigService } from 'src/app-config/app-config.service';
-import { Audio } from 'src/audios/entities/audio.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { CacheService } from 'src/common/services/cache.service';
+import { PaginationMeta } from 'src/common/interfaces';
 import { ListPopularityDto } from '../dto/list-popularity.dto';
 import {
   PopularityAudioDto,
@@ -49,8 +50,8 @@ export class PopularityService implements OnModuleInit {
     private readonly scoresRepo: Repository<AudioPopularityScore>,
     @InjectRepository(AudioPopularityRun)
     private readonly runsRepo: Repository<AudioPopularityRun>,
-    @InjectRepository(Audio)
-    private readonly audioRepo: Repository<Audio>,
+    @InjectRepository(AudioMetadata)
+    private readonly audioMetadataRepo: Repository<AudioMetadata>,
     private readonly runner: PopularityRunnerService,
     private readonly appConfigService: AppConfigService,
     private readonly cache: CacheService,
@@ -102,7 +103,8 @@ export class PopularityService implements OnModuleInit {
   private async executeList(
     query: ListPopularityDto,
   ): Promise<PopularityListDto> {
-    const { page, limit, min_score, max_score, min_confidence, search } = query;
+    const { page, per_page, min_score, max_score, min_confidence, search } =
+      query;
 
     const qb = this.scoresRepo
       .createQueryBuilder('score')
@@ -117,49 +119,49 @@ export class PopularityService implements OnModuleInit {
       qb.andWhere('score.confidence >= :min_confidence', { min_confidence });
 
     if (search) {
-      // Join to audios so we can search title. Simple ILIKE — small dataset.
-      qb.innerJoin(
-        Audio,
-        'audio_search',
-        'audio_search.sku = score.sku AND audio_search.is_active = true',
-      );
+      // Join to audio_metadata (not audios) so we can search title even when
+      // the parent audios row is missing / soft-deleted. Simple ILIKE — the
+      // popularity set is only a few thousand rows.
+      qb.innerJoin(AudioMetadata, 'meta_search', 'meta_search.sku = score.sku');
       qb.andWhere(
         new Brackets((sub) => {
           sub
-            .where('audio_search.display_title ILIKE :s', { s: `%${search}%` })
+            .where('meta_search.title ILIKE :s', { s: `%${search}%` })
             .orWhere('score.sku ILIKE :s', { s: `%${search}%` });
         }),
       );
     }
 
     const [rows, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
+      .skip((page - 1) * per_page)
+      .take(per_page)
       .getManyAndCount();
 
+    // Query audio_metadata directly for title/authors/cover_url. Robust:
+    // even if the parent audios row is missing / soft-deleted / inactive,
+    // the metadata is still there and the row renders correctly.
     const skus = rows.map((r) => r.sku);
-    const audios = skus.length
-      ? await this.audioRepo.find({
+    const metadatas = skus.length
+      ? await this.audioMetadataRepo.find({
           where: { sku: In(skus) },
-          relations: ['metadata'],
+          select: ['sku', 'title', 'authors', 'cover_url'],
         })
       : [];
-    const bySku = new Map(audios.map((a) => [a.sku, a]));
+    const metaBySku = new Map(metadatas.map((m) => [m.sku, m]));
 
+    // Pre-shape each item — DTO only enforces exposure, no @Transform.
     const items = rows.map((row) => {
-      const audio = bySku.get(row.sku);
+      const meta = metaBySku.get(row.sku);
       return {
-        ...(audio ?? {}),
         sku: row.sku,
+        title: meta?.title ?? null,
+        authors: meta?.authors ?? [],
+        image_url: meta?.cover_url ?? null,
         popularity_score: row.popularity_score,
         confidence: row.confidence,
         sources: row.sources,
         computed_at: row.computed_at,
       };
-    });
-
-    const itemDtos = plainToInstance(PopularityAudioDto, items, {
-      excludeExtraneousValues: true,
     });
 
     const latestRun = await this.runsRepo.findOne({
@@ -170,10 +172,8 @@ export class PopularityService implements OnModuleInit {
     return plainToInstance(
       PopularityListDto,
       {
-        items: itemDtos,
-        page,
-        limit,
-        total,
+        data: items,
+        meta: this.buildMeta(page, per_page, total),
         batch_id: latestRun?.batch_id ?? null,
         computed_at: latestRun?.completed_at ?? null,
       },
@@ -181,19 +181,42 @@ export class PopularityService implements OnModuleInit {
     );
   }
 
+  private buildMeta(
+    page: number,
+    perPage: number,
+    total: number,
+  ): PaginationMeta {
+    const last_page = Math.max(1, Math.ceil(total / perPage));
+    const from = total === 0 ? null : (page - 1) * perPage + 1;
+    const to = total === 0 ? null : Math.min(total, page * perPage);
+    return {
+      current_page: page,
+      per_page: perPage,
+      total,
+      last_page,
+      from,
+      to,
+    };
+  }
+
   async getOne(sku: string): Promise<PopularityAudioDto> {
     const score = await this.scoresRepo.findOne({ where: { sku } });
     if (!score)
       throw new NotFoundException(`No popularity score for sku ${sku}`);
-    const audio = await this.audioRepo.findOne({
+
+    // Direct metadata lookup — same rationale as executeList().
+    const meta = await this.audioMetadataRepo.findOne({
       where: { sku },
-      relations: ['metadata'],
+      select: ['sku', 'title', 'authors', 'cover_url'],
     });
+
     return plainToInstance(
       PopularityAudioDto,
       {
-        ...(audio ?? {}),
         sku: score.sku,
+        title: meta?.title ?? null,
+        authors: meta?.authors ?? [],
+        image_url: meta?.cover_url ?? null,
         popularity_score: score.popularity_score,
         confidence: score.confidence,
         sources: score.sources,
@@ -327,13 +350,11 @@ export class PopularityService implements OnModuleInit {
       if (rows.length === 0) break;
 
       const skus = rows.map((r) => r.sku);
-      const audios = await this.audioRepo.find({
+      const metas = await this.audioMetadataRepo.find({
         where: { sku: In(skus) },
-        select: ['sku', 'display_title'],
+        select: ['sku', 'title'],
       });
-      const titleBySku = new Map(
-        audios.map((a) => [a.sku, a.display_title ?? '']),
-      );
+      const titleBySku = new Map(metas.map((m) => [m.sku, m.title ?? '']));
 
       for (const row of rows) {
         const title = titleBySku.get(row.sku) ?? '';
@@ -368,7 +389,7 @@ export class PopularityService implements OnModuleInit {
     // single cache slot regardless of key ordering.
     const canonical = JSON.stringify({
       page: query.page ?? 1,
-      limit: query.limit ?? 50,
+      per_page: query.per_page ?? 10,
       min_score: query.min_score ?? null,
       max_score: query.max_score ?? null,
       min_confidence: query.min_confidence ?? null,

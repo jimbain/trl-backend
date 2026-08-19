@@ -13,7 +13,7 @@ export class ListPopularityDto {
   @IsInt()
   @Min(1)
   @Max(200)
-  limit: number = 50;
+  per_page: number = 10;
 
   @IsOptional()
   @Type(() => Number)

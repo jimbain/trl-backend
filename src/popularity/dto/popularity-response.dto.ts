@@ -1,19 +1,22 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
+import { PaginationMeta } from 'src/common/interfaces';
 
+/**
+ * Flat, pre-resolved item DTO. No @Transform fallback chains — the service
+ * queries `audio_metadata` directly and shapes the plain object before
+ * plainToInstance, so class-transformer only enforces exposure.
+ */
 export class PopularityAudioDto {
   @Expose()
   sku: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.display_title ?? obj?.metadata?.title ?? null)
   title: string | null;
 
   @Expose()
-  @Transform(({ obj }) => obj.display_authors ?? obj?.metadata?.authors ?? [])
   authors: string[];
 
   @Expose()
-  @Transform(({ obj }) => obj?.metadata?.cover_url ?? null)
   image_url: string | null;
 
   @Expose()
@@ -29,18 +32,21 @@ export class PopularityAudioDto {
   computed_at: Date;
 }
 
+/**
+ * Project-wide `{ data, meta }` pagination envelope. `meta` matches
+ * `PaginationMeta` from src/common/interfaces so the shared frontend
+ * <Pagination> component just works.
+ *
+ * `@Type()` on the array is mandatory under excludeExtraneousValues:true —
+ * without it class-transformer silently drops nested item fields.
+ */
 export class PopularityListDto {
   @Expose()
-  items: PopularityAudioDto[];
+  @Type(() => PopularityAudioDto)
+  data: PopularityAudioDto[];
 
   @Expose()
-  page: number;
-
-  @Expose()
-  limit: number;
-
-  @Expose()
-  total: number;
+  meta: PaginationMeta;
 
   @Expose()
   batch_id: string | null;
