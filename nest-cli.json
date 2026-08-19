@@ -5,7 +5,7 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": [
-      "ai/scripts/recommender.py",
+      { "include": "ai/scripts/*.py", "outDir": "dist" },
       "ai/scripts/requirements.txt"
     ],
     "watchAssets": true
