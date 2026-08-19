@@ -7,13 +7,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { In, Repository } from 'typeorm';
-import { Audio } from 'src/audios/entities/audio.entity';
+import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { PaginationMeta } from 'src/common/interfaces';
 import { AiRecommendedActiveAudio } from '../entities/ai-recommended-active-audio.entity';
 import { AiRecommendationRun } from '../entities/ai-recommendation-run.entity';
 import {
   AiActiveRecommendationStatusDto,
-  RecommendedActiveAudioDto,
   RecommendedActiveAudiosPageDto,
 } from '../dto/recommended-active-audio.dto';
 import { AiActiveRecommendationRunnerService } from './ai-active-recommendation-runner.service';
@@ -30,8 +30,8 @@ export class AiActiveRecommendationService implements OnModuleInit {
     private readonly recoRepo: Repository<AiRecommendedActiveAudio>,
     @InjectRepository(AiRecommendationRun)
     private readonly runsRepo: Repository<AiRecommendationRun>,
-    @InjectRepository(Audio)
-    private readonly audioRepo: Repository<Audio>,
+    @InjectRepository(AudioMetadata)
+    private readonly audioMetadataRepo: Repository<AudioMetadata>,
     private readonly runner: AiActiveRecommendationRunnerService,
     private readonly appConfigService: AppConfigService,
   ) {}
@@ -62,9 +62,22 @@ export class AiActiveRecommendationService implements OnModuleInit {
     }
   }
 
+  /**
+   * Returns the newest successful recommendation batch, paginated.
+   *
+   * Data source: `audio_metadata` is queried directly (its `sku` is the PK,
+   * and it holds every display field we render — `title`, `authors`,
+   * `cover_url`). This is more robust than joining through `audios`: even
+   * if a recommended sku's parent `audios` row is missing / soft-deleted /
+   * inactive, the metadata is still there and the row renders correctly.
+   *
+   * Response envelope matches the project-wide `{ data, meta }` shape
+   * (src/common/interfaces PaginationMeta) so the shared frontend
+   * <Pagination> component just works.
+   */
   async listLatestBatch(
     page: number,
-    limit: number,
+    perPage: number,
   ): Promise<RecommendedActiveAudiosPageDto> {
     const latestRun = await this.runsRepo.findOne({
       where: { status: 'success' },
@@ -75,10 +88,8 @@ export class AiActiveRecommendationService implements OnModuleInit {
       return plainToInstance(
         RecommendedActiveAudiosPageDto,
         {
-          items: [],
-          page,
-          limit,
-          total: 0,
+          data: [],
+          meta: this.buildMeta(page, perPage, 0),
           batch_id: null,
           computed_at: null,
         },
@@ -89,48 +100,62 @@ export class AiActiveRecommendationService implements OnModuleInit {
     const [rows, total] = await this.recoRepo.findAndCount({
       where: { batch_id: latestRun.batch_id },
       order: { rank: 'ASC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (page - 1) * perPage,
+      take: perPage,
     });
 
     const skus = rows.map((r) => r.sku);
-    const audios = skus.length
-      ? await this.audioRepo.find({
+    const metadatas = skus.length
+      ? await this.audioMetadataRepo.find({
           where: { sku: In(skus) },
-          relations: ['metadata'],
+          select: ['sku', 'title', 'authors', 'cover_url'],
         })
       : [];
-    const bySku = new Map(audios.map((a) => [a.sku, a]));
+    const metaBySku = new Map(metadatas.map((m) => [m.sku, m]));
 
+    // Pre-shape each item so the DTO only enforces exposure (no @Transform
+    // fallback chain — that was the source of the earlier "always null" bug).
     const items = rows.map((row) => {
-      const audio = bySku.get(row.sku);
-      // Merge audio fields onto the recommendation so the DTO transforms have
-      // everything (display_title, display_authors, metadata.cover_url, etc).
+      const meta = metaBySku.get(row.sku);
       return {
-        ...(audio ?? {}),
-        sku: row.sku,
         rank: row.rank,
+        sku: row.sku,
+        title: meta?.title ?? null,
+        authors: meta?.authors ?? [],
+        image_url: meta?.cover_url ?? null,
         ai_similarity_score: row.ai_similarity_score,
         computed_at: row.computed_at,
       };
     });
 
-    const itemDtos = plainToInstance(RecommendedActiveAudioDto, items, {
-      excludeExtraneousValues: true,
-    });
-
     return plainToInstance(
       RecommendedActiveAudiosPageDto,
       {
-        items: itemDtos,
-        page,
-        limit,
-        total,
+        data: items,
+        meta: this.buildMeta(page, perPage, total),
         batch_id: latestRun.batch_id,
         computed_at: latestRun.completed_at,
       },
       { excludeExtraneousValues: true },
     );
+  }
+
+  private buildMeta(
+    page: number,
+    perPage: number,
+    total: number,
+  ): PaginationMeta {
+    const last_page = Math.max(1, Math.ceil(total / perPage));
+    const from = total === 0 ? null : (page - 1) * perPage + 1;
+    const to = total === 0 ? null : Math.min(total, page * perPage);
+    return {
+      current_page: page,
+      per_page: perPage,
+      total,
+      last_page,
+      from,
+      to,
+    };
   }
 
   async getStatus(): Promise<AiActiveRecommendationStatusDto> {
@@ -187,8 +212,8 @@ export class AiActiveRecommendationService implements OnModuleInit {
 
   /**
    * Stream a batch as CSV. Called by the controller which pipes to res.
-   * Uses the same columns the dev's manual CSV had (SKU, Book Title,
-   * AI Similarity score) plus rank for parity with the UI table.
+   * Kept even though the UI's Download CSV button was removed — the
+   * endpoint may still be called via a direct URL for ops purposes.
    */
   async streamCsv(
     write: (chunk: string) => void,
@@ -213,13 +238,11 @@ export class AiActiveRecommendationService implements OnModuleInit {
       if (rows.length === 0) break;
 
       const skus = rows.map((r) => r.sku);
-      const audios = await this.audioRepo.find({
+      const metas = await this.audioMetadataRepo.find({
         where: { sku: In(skus) },
-        select: ['sku', 'display_title'],
+        select: ['sku', 'title'],
       });
-      const titleBySku = new Map(
-        audios.map((a) => [a.sku, a.display_title ?? '']),
-      );
+      const titleBySku = new Map(metas.map((m) => [m.sku, m.title ?? '']));
 
       for (const row of rows) {
         const title = titleBySku.get(row.sku) ?? '';

@@ -24,7 +24,7 @@ export class AdminAiActiveRecommendationController {
   list(@Query() query: ListRecommendedActiveAudiosDto) {
     return this.aiActiveRecommendationService.listLatestBatch(
       query.page,
-      query.limit,
+      query.per_page,
     );
   }
 
