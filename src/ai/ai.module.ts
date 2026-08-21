@@ -4,6 +4,7 @@ import { AppConfigModule } from 'src/app-config/app-config.module';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { CommonModule } from 'src/common/common.module';
+import { AudioModule } from 'src/audios/audio.module';
 import { AiRecommendedActiveAudio } from './entities/ai-recommended-active-audio.entity';
 import { AiRecommendationRun } from './entities/ai-recommendation-run.entity';
 import { AiActiveRecommendationRunnerService } from './services/ai-active-recommendation-runner.service';
@@ -22,6 +23,7 @@ import { AiActiveRecommendationScheduler } from './schedulers/ai-active-recommen
     ]),
     CommonModule,
     forwardRef(() => AppConfigModule),
+    AudioModule,
   ],
   providers: [
     PythonRecommenderService,

@@ -323,6 +323,8 @@ export class AdminAudioElasticsearchService {
         street_date: 'street_date',
         activated_at: 'activated_at',
         curated_at: 'curated_at',
+        match_quality: 'ai_rank',
+        popularity_score: 'popularity_score',
       };
 
       const column = orderByMap[order_by_column];

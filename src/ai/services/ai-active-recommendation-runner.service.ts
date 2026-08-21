@@ -9,13 +9,16 @@ import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as readline from 'readline';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   AiRecommendationRun,
   AiRecommendationRunStatus,
   AiRecommendationRunTrigger,
 } from '../entities/ai-recommendation-run.entity';
+import { AiRecommendedActiveAudio } from '../entities/ai-recommended-active-audio.entity';
+import { Audio } from 'src/audios/entities/audio.entity';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 
 const EMBED_SCRIPT = 'embed_new_inactive.py';
 const RANK_SCRIPT = 'active_recommendations.py';
@@ -46,7 +49,12 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
   constructor(
     @InjectRepository(AiRecommendationRun)
     private readonly runsRepo: Repository<AiRecommendationRun>,
+    @InjectRepository(AiRecommendedActiveAudio)
+    private readonly recoRepo: Repository<AiRecommendedActiveAudio>,
+    @InjectRepository(Audio)
+    private readonly audioRepo: Repository<Audio>,
     private readonly appConfigService: AppConfigService,
+    private readonly audioEsSync: AudioElasticsearchSyncService,
   ) {}
 
   onModuleDestroy() {
@@ -142,6 +150,7 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
         completed_at: new Date(),
         rows_produced: rows,
       });
+      this.syncBatchToElasticsearch(run.batch_id);
       return run;
     } catch (err: any) {
       await this.updateRun(run, {
@@ -159,6 +168,35 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
   ): Promise<AiRecommendationRun> {
     Object.assign(run, patch);
     return this.runsRepo.save(run);
+  }
+
+  private syncBatchToElasticsearch(batchId: string): void {
+    const run = async () => {
+      const rows = await this.recoRepo.find({ where: { batch_id: batchId } });
+      if (rows.length === 0) return;
+      const skus = rows.map((r) => r.sku);
+      const audioRows = await this.audioRepo.find({
+        where: { sku: In(skus) },
+        select: ['id'],
+      });
+      const ids = audioRows.map((a) => a.id);
+      const CHUNK = 10;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        await Promise.allSettled(
+          ids
+            .slice(i, i + CHUNK)
+            .map((id) => this.audioEsSync.syncAudioById(id)),
+        );
+      }
+      this.logger.log(
+        `ES: synced ${ids.length} audio docs after AI recommendation run`,
+      );
+    };
+    run().catch((err: any) =>
+      this.logger.warn(
+        `ES sync after AI recommendation failed: ${err?.message}`,
+      ),
+    );
   }
 
   private parsePositiveInt(raw: unknown, fallback: number): number {

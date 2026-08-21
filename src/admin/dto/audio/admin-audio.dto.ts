@@ -91,6 +91,18 @@ export class AdminAudioListDto {
     value ? dayjs.unix(value).format('MM/DD/YYYY') : null,
   )
   curated_at?: string;
+
+  @Expose()
+  ai_rank?: number | null;
+
+  @Expose()
+  ai_similarity_score?: number | null;
+
+  @Expose()
+  popularity_score?: number | null;
+
+  @Expose()
+  popularity_confidence?: number | null;
 }
 
 export class MetadataDto {

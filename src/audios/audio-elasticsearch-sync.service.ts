@@ -56,6 +56,10 @@ interface RawAudioQueryResult {
   retail_sales_locations: string[];
   purchased_rental_licenses: string | number;
   street_date: string | number;
+  popularity_score: string | number | null;
+  popularity_confidence: string | number | null;
+  ai_rank: string | number | null;
+  ai_similarity_score: string | number | null;
 }
 
 interface CategoryResult {
@@ -126,6 +130,10 @@ interface AudioTransformed {
   retail_sales_locations: string[];
   purchased_rental_licenses: number;
   street_date: number;
+  popularity_score: number | null;
+  popularity_confidence: number | null;
+  ai_rank: number | null;
+  ai_similarity_score: number | null;
 }
 
 @Injectable()
@@ -235,7 +243,17 @@ export class AudioElasticsearchSyncService {
         'metadata.retail_sales_locations AS retail_sales_locations',
         'metadata.purchased_rental_licenses AS purchased_rental_licenses',
         'EXTRACT(EPOCH FROM metadata.street_date)::BIGINT AS street_date',
-      ]);
+        'pop.popularity_score AS popularity_score',
+        'pop.confidence AS popularity_confidence',
+        'airec.rank AS ai_rank',
+        'airec.ai_similarity_score AS ai_similarity_score',
+      ])
+      .leftJoin('audio_popularity_scores', 'pop', 'pop.sku = audio.sku')
+      .leftJoin(
+        'ai_recommended_active_audios',
+        'airec',
+        `airec.sku = audio.sku AND airec.batch_id = (SELECT batch_id FROM ai_recommendation_runs WHERE status = 'success' ORDER BY completed_at DESC LIMIT 1)`,
+      );
 
     if (id) {
       query.where('audio.id = :id', { id });
@@ -423,6 +441,24 @@ export class AudioElasticsearchSyncService {
       purchased_rental_licenses:
         parseInt(String(audio.purchased_rental_licenses)) || 0,
       street_date: parseInt(String(audio.street_date)) || 0,
+      popularity_score:
+        audio.popularity_score !== null && audio.popularity_score !== undefined
+          ? parseInt(String(audio.popularity_score))
+          : null,
+      popularity_confidence:
+        audio.popularity_confidence !== null &&
+        audio.popularity_confidence !== undefined
+          ? parseInt(String(audio.popularity_confidence))
+          : null,
+      ai_rank:
+        audio.ai_rank !== null && audio.ai_rank !== undefined
+          ? parseInt(String(audio.ai_rank))
+          : null,
+      ai_similarity_score:
+        audio.ai_similarity_score !== null &&
+        audio.ai_similarity_score !== undefined
+          ? parseFloat(String(audio.ai_similarity_score))
+          : null,
     };
   }
 
@@ -530,6 +566,10 @@ export class AudioElasticsearchSyncService {
       retail_sales_locations: { type: 'keyword' },
       purchased_rental_licenses: { type: 'integer' },
       street_date: { type: 'long' },
+      popularity_score: { type: 'integer' },
+      popularity_confidence: { type: 'integer' },
+      ai_rank: { type: 'integer' },
+      ai_similarity_score: { type: 'float' },
     };
   }
 

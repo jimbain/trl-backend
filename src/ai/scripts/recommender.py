@@ -160,7 +160,12 @@ def add_to_index(index, matrix):
 
 
 def stream_rows(since_iso=None):
-    """Yield (sku, vector, updated_at) tuples from postgres, optionally after a timestamp."""
+    """Yield (sku, vector, updated_at) tuples from postgres, optionally after a timestamp.
+
+    Only English-language audios are included so the FAISS index stays
+    language-consistent with the BGE English model. Non-English titles returned
+    bad results when English corporate prompts were used.
+    """
     conn = db_connect()
     try:
         with conn.cursor(name='ai_reco_fetch') as cur:
@@ -168,18 +173,24 @@ def stream_rows(since_iso=None):
             if since_iso:
                 log(f'streaming rows with updated_at > {since_iso}')
                 cur.execute(
-                    'SELECT sku, ai_embedding, updated_at FROM audios '
-                    'WHERE ai_embedding IS NOT NULL AND deleted_at IS NULL '
-                    '  AND updated_at > %s '
-                    'ORDER BY updated_at ASC',
+                    'SELECT a.sku, a.ai_embedding, a.updated_at '
+                    'FROM audios a '
+                    'JOIN audio_metadata m ON m.sku = a.sku '
+                    'WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL '
+                    '  AND m.language ILIKE \'%english%\' '
+                    '  AND a.updated_at > %s '
+                    'ORDER BY a.updated_at ASC',
                     (since_iso,),
                 )
             else:
-                log('streaming all eligible rows')
+                log('streaming all eligible rows (English only)')
                 cur.execute(
-                    'SELECT sku, ai_embedding, updated_at FROM audios '
-                    'WHERE ai_embedding IS NOT NULL AND deleted_at IS NULL '
-                    'ORDER BY updated_at ASC'
+                    'SELECT a.sku, a.ai_embedding, a.updated_at '
+                    'FROM audios a '
+                    'JOIN audio_metadata m ON m.sku = a.sku '
+                    'WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL '
+                    '  AND m.language ILIKE \'%english%\' '
+                    'ORDER BY a.updated_at ASC'
                 )
             for sku, embedding, updated_at in cur:
                 vec = parse_embedding(embedding)

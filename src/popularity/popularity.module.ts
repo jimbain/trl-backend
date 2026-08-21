@@ -5,6 +5,7 @@ import { AppConfigModule } from 'src/app-config/app-config.module';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { AudioMetadata } from 'src/audios/entities/audio_metadata.entity';
 import { CommonModule } from 'src/common/common.module';
+import { AudioModule } from 'src/audios/audio.module';
 import { AudioPopularityHistory } from './entities/audio-popularity-history.entity';
 import { AudioPopularityRun } from './entities/audio-popularity-run.entity';
 import { AudioPopularityScore } from './entities/audio-popularity-score.entity';
@@ -30,6 +31,7 @@ import { PopularityScheduler } from './schedulers/popularity.scheduler';
     }),
     CommonModule,
     forwardRef(() => AppConfigModule),
+    AudioModule,
   ],
   providers: [
     OpenLibraryFetcher,

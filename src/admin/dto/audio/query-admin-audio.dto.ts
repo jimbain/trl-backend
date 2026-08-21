@@ -142,7 +142,9 @@ export class QueryAdminAudioDto {
     | 'author'
     | 'publisher'
     | 'language'
-    | 'bookshelf_credit_cost';
+    | 'bookshelf_credit_cost'
+    | 'match_quality'
+    | 'popularity_score';
 
   @IsOptional()
   @Transform(({ value }) => value?.toUpperCase())

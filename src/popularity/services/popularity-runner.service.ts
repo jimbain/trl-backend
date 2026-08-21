@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { CacheService } from 'src/common/services/cache.service';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 import { AudioPopularityHistory } from '../entities/audio-popularity-history.entity';
 import { AudioPopularityScore } from '../entities/audio-popularity-score.entity';
 import {
@@ -58,6 +59,7 @@ export class PopularityRunnerService {
     private readonly openLibrary: OpenLibraryFetcher,
     private readonly google: GoogleBooksFetcher,
     private readonly cache: CacheService,
+    private readonly audioEsSync: AudioElasticsearchSyncService,
   ) {}
 
   isRunning(): boolean {
@@ -240,6 +242,7 @@ export class PopularityRunnerService {
       // Fresh batch committed — drop cached list pages + status so the next
       // admin request sees the new numbers immediately.
       await this.invalidateReadCache();
+      this.syncAudiosToElasticsearch(audios.map((a) => a.id));
       return run;
     } catch (err: any) {
       await this.updateRun(run, {
@@ -302,6 +305,27 @@ export class PopularityRunnerService {
     } catch (err: any) {
       this.logger.warn(`popularity cache invalidation failed: ${err?.message}`);
     }
+  }
+
+  private syncAudiosToElasticsearch(audioIds: string[]): void {
+    const CHUNK = 10;
+    const chunks: string[][] = [];
+    for (let i = 0; i < audioIds.length; i += CHUNK) {
+      chunks.push(audioIds.slice(i, i + CHUNK));
+    }
+    const runChunks = async () => {
+      for (const chunk of chunks) {
+        await Promise.allSettled(
+          chunk.map((id) => this.audioEsSync.syncAudioById(id)),
+        );
+      }
+      this.logger.log(
+        `ES: synced ${audioIds.length} audio docs after popularity run`,
+      );
+    };
+    runChunks().catch((err: any) =>
+      this.logger.warn(`ES sync after popularity failed: ${err?.message}`),
+    );
   }
 
   private async loadWeights(): Promise<Record<string, number>> {
