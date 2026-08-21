@@ -1,18 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import type {
-  TDocumentDefinitions,
-  Content,
-  StyleDictionary,
-} from 'pdfmake/interfaces';
 import { Audio } from 'src/audios/entities/audio.entity';
 import { Category } from 'src/categories/entities/category.entity';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { Media } from 'src/constants';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const PdfPrinter = require('pdfmake');
+const PdfPrinter = require('pdfmake/js/Printer.js').default;
 
 interface TitleRow {
   title: string;
@@ -135,15 +130,15 @@ export class AdminCatalogPdfService {
   ): Promise<Buffer> {
     const year = new Date().getFullYear().toString();
 
-    const content: Content[] = [
+    const content: any[] = [
       this.buildCoverPage(mediaType, year),
-      { text: '', pageBreak: 'after' } as unknown as Content,
+      { text: '', pageBreak: 'after' },
       this.buildTocPage(categories),
-      { text: '', pageBreak: 'after' } as unknown as Content,
+      { text: '', pageBreak: 'after' },
       ...categories.map((cat, i) => this.buildCategorySection(cat, i === 0)),
     ];
 
-    const docDef: TDocumentDefinitions = {
+    const docDef: Record<string, any> = {
       pageSize: 'LETTER',
       pageMargins: [40, 54, 40, 54],
       defaultStyle: { font: 'Helvetica', fontSize: 8.5, lineHeight: 1.3 },
@@ -152,7 +147,7 @@ export class AdminCatalogPdfService {
         currentPage: number,
         pageSize: { width: number; height: number },
       ) => {
-        if (currentPage !== 1) return null as unknown as Content;
+        if (currentPage !== 1) return null;
         return {
           canvas: [
             {
@@ -180,11 +175,11 @@ export class AdminCatalogPdfService {
               color: GOLD,
             },
           ],
-        } as unknown as Content;
+        };
       },
 
       footer: (currentPage: number) => {
-        if (currentPage <= 2) return {} as Content;
+        if (currentPage <= 2) return {};
         return {
           margin: [40, 6, 40, 0],
           columns: [
@@ -213,7 +208,7 @@ export class AdminCatalogPdfService {
               color: '#666666',
             },
           ],
-        } as unknown as Content;
+        };
       },
 
       content,
@@ -231,7 +226,7 @@ export class AdminCatalogPdfService {
     });
   }
 
-  private buildCoverPage(mediaType: string, year: string): Content {
+  private buildCoverPage(mediaType: string, year: string): any {
     const topLabel =
       mediaType === 'audio'
         ? 'AUDIO'
@@ -262,10 +257,10 @@ export class AdminCatalogPdfService {
         { text: year, style: 'coverYear' },
       ],
       alignment: 'center',
-    } as Content;
+    };
   }
 
-  private buildTocPage(categories: CategoryWithTitles[]): Content {
+  private buildTocPage(categories: CategoryWithTitles[]): any {
     return {
       columns: [
         {
@@ -311,7 +306,7 @@ export class AdminCatalogPdfService {
               fontSize: 8,
               margin: [0, 2, 0, 2],
             })),
-          ] as Content[],
+          ],
         },
         { width: '4%', text: '' },
         {
@@ -325,27 +320,21 @@ export class AdminCatalogPdfService {
                 fontSize: 7.5,
                 color: DARK_BLUE,
                 margin: [0, 6, 0, 2],
-              } as Content,
-              ...cat.titles.slice(0, 5).map(
-                (t) =>
-                  ({
-                    text: `${t.title}  —  ${t.authors[0] ?? ''}`,
-                    fontSize: 7,
-                    color: '#444444',
-                    margin: [0, 1, 0, 1],
-                  }) as Content,
-              ),
+              },
+              ...cat.titles.slice(0, 5).map((t) => ({
+                text: `${t.title}  —  ${t.authors[0] ?? ''}`,
+                fontSize: 7,
+                color: '#444444',
+                margin: [0, 1, 0, 1],
+              })),
             ]),
-          ] as Content[],
+          ],
         },
       ],
-    } as Content;
+    };
   }
 
-  private buildCategorySection(
-    cat: CategoryWithTitles,
-    isFirst: boolean,
-  ): Content {
+  private buildCategorySection(cat: CategoryWithTitles, isFirst: boolean): any {
     const mid = Math.ceil(cat.titles.length / 2);
     const leftTitles = cat.titles.slice(0, mid);
     const rightTitles = cat.titles.slice(mid);
@@ -355,30 +344,24 @@ export class AdminCatalogPdfService {
         this.headerBar(cat.name.toUpperCase()),
         {
           columns: [
-            {
-              width: '48%',
-              stack: leftTitles.map((t) => this.titleEntry(t)),
-            },
+            { width: '48%', stack: leftTitles.map((t) => this.titleEntry(t)) },
             { width: '4%', text: '' },
-            {
-              width: '48%',
-              stack: rightTitles.map((t) => this.titleEntry(t)),
-            },
+            { width: '48%', stack: rightTitles.map((t) => this.titleEntry(t)) },
           ],
         },
       ],
       ...(isFirst ? {} : { pageBreak: 'before' }),
-    } as Content;
+    };
   }
 
-  private titleEntry(t: TitleRow): Content {
-    const stack: Content[] = [
+  private titleEntry(t: TitleRow): any {
+    const stack: any[] = [
       {
         text: (t.title ?? '').toUpperCase(),
         bold: true,
         fontSize: 8,
         margin: [0, 6, 0, 1],
-      } as Content,
+      },
     ];
 
     if (t.authors.length > 0) {
@@ -388,7 +371,7 @@ export class AdminCatalogPdfService {
         fontSize: 7.5,
         color: '#555555',
         margin: [0, 0, 0, 2],
-      } as Content);
+      });
     }
 
     if (t.description) {
@@ -400,7 +383,7 @@ export class AdminCatalogPdfService {
         fontSize: 7,
         color: '#333333',
         margin: [0, 0, 0, 2],
-      } as Content);
+      });
     }
 
     const copyrightParts = [t.copyright, t.publisher].filter(Boolean);
@@ -410,13 +393,13 @@ export class AdminCatalogPdfService {
         fontSize: 6.5,
         color: '#888888',
         margin: [0, 0, 0, 4],
-      } as Content);
+      });
     }
 
-    return { stack } as Content;
+    return { stack };
   }
 
-  private headerBar(text: string): Content {
+  private headerBar(text: string): any {
     return {
       table: {
         widths: ['*'],
@@ -436,31 +419,20 @@ export class AdminCatalogPdfService {
       },
       layout: 'noBorders',
       margin: [0, 0, 0, 6],
-    } as Content;
+    };
   }
 
-  private buildStyles(): StyleDictionary {
+  private buildStyles(): Record<string, any> {
     return {
-      coverTitle: {
-        fontSize: 72,
-        bold: true,
-        color: '#111111',
-      },
+      coverTitle: { fontSize: 72, bold: true, color: '#111111' },
       coverLogo: {
         fontSize: 36,
         bold: true,
         color: '#111111',
         margin: [0, 0, 0, 8],
       },
-      coverYear: {
-        fontSize: 16,
-        color: '#333333',
-        margin: [0, 10, 0, 0],
-      },
-      bodyText: {
-        fontSize: 8.5,
-        color: '#222222',
-      },
+      coverYear: { fontSize: 16, color: '#333333', margin: [0, 10, 0, 0] },
+      bodyText: { fontSize: 8.5, color: '#222222' },
     };
   }
 }
