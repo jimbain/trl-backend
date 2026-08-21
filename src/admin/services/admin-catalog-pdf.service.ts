@@ -215,9 +215,12 @@ export class AdminCatalogPdfService {
       styles: this.buildStyles(),
     };
 
-    // urlResolver is required by pdfmake 0.3.x even when all fonts are built-in
-    // pdfkit names (no actual URL fetching needed).
-    const noopResolver = { resolve: () => {} };
+    // pdfmake 0.3.x requires a urlResolver with both resolve() and resolved().
+    // Built-in Helvetica fonts need no actual fetching; the resolver is a no-op.
+    const noopResolver = {
+      resolve: () => {},
+      resolved: () => Promise.resolve(),
+    };
     const printer = new PdfPrinter(FONTS, undefined, noopResolver);
     const doc = await printer.createPdfKitDocument(docDef);
 
