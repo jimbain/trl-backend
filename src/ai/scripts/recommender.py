@@ -177,7 +177,7 @@ def stream_rows(since_iso=None):
                     'FROM audios a '
                     'JOIN audio_metadata m ON m.sku = a.sku '
                     'WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL '
-                    '  AND m.language ILIKE \'%english%\' '
+                    '  AND m.language ILIKE \'%%english%%\' '
                     '  AND a.updated_at > %s '
                     'ORDER BY a.updated_at ASC',
                     (since_iso,),
