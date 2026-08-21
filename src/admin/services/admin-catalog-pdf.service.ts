@@ -124,7 +124,7 @@ export class AdminCatalogPdfService {
       .filter((c) => c.titles.length > 0);
   }
 
-  private renderPdf(
+  private async renderPdf(
     categories: CategoryWithTitles[],
     mediaType: string,
   ): Promise<Buffer> {
@@ -215,9 +215,13 @@ export class AdminCatalogPdfService {
       styles: this.buildStyles(),
     };
 
-    const printer = new PdfPrinter(FONTS);
+    // urlResolver is required by pdfmake 0.3.x even when all fonts are built-in
+    // pdfkit names (no actual URL fetching needed).
+    const noopResolver = { resolve: () => {} };
+    const printer = new PdfPrinter(FONTS, undefined, noopResolver);
+    const doc = await printer.createPdfKitDocument(docDef);
+
     return new Promise<Buffer>((resolve, reject) => {
-      const doc = printer.createPdfKitDocument(docDef);
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
