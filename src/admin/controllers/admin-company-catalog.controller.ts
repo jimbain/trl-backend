@@ -4,12 +4,14 @@ import {
   UseGuards,
   Query,
   Param,
-  Put,
   Patch,
   Body,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
 import { AdminCompanyCatalogService } from '../services/admin-company-catalog.service';
+import { AdminCatalogPdfService } from '../services/admin-catalog-pdf.service';
 import { UpdateCatalogDto } from 'src/catalog/dto/update-catalog.dto';
 
 @UseGuards(JwtAdminAuthGuard)
@@ -17,6 +19,7 @@ import { UpdateCatalogDto } from 'src/catalog/dto/update-catalog.dto';
 export class AdminCompanyCatalogController {
   constructor(
     private readonly adminCompanyCatalogService: AdminCompanyCatalogService,
+    private readonly adminCatalogPdfService: AdminCatalogPdfService,
   ) {}
 
   @Get(':id/catalogs')
@@ -40,5 +43,23 @@ export class AdminCompanyCatalogController {
     @Body() payload: UpdateCatalogDto,
   ) {
     return this.adminCompanyCatalogService.update(companyId, id, payload);
+  }
+
+  @Get(':companyId/catalogs/:id/pdf')
+  async generatePdf(
+    @Param('companyId') companyId: string,
+    @Param('id') id: number,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.adminCatalogPdfService.generateCompanyCatalogPdf(
+      Number(id),
+    );
+    const year = new Date().getFullYear();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="trl-catalog-company-${companyId}-${year}.pdf"`,
+    );
+    res.end(buffer);
   }
 }

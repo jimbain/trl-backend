@@ -33,6 +33,8 @@ import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_pos
 import { Notification } from 'src/notification/entities/notification.entity';
 import { AdminCompanyCatalogService } from './services/admin-company-catalog.service';
 import { AdminCatalogService } from './services/admin-catalog.service';
+import { AdminCatalogPdfService } from './services/admin-catalog-pdf.service';
+import { Category } from 'src/categories/entities/category.entity';
 import { AdminVideoController } from './controllers/admin-video.controller';
 import { AdminPharmaController } from './controllers/admin-pharma.controller';
 import { CommonModule } from 'src/common/common.module';
@@ -91,6 +93,7 @@ import { PopularityModule } from 'src/popularity/popularity.module';
       UserAudioplayerPosition,
       UserActivityLog,
       Notification,
+      Category,
     ]),
     forwardRef(() => AppErrorLogModule),
     forwardRef(() => AudioModule),
@@ -135,6 +138,7 @@ import { PopularityModule } from 'src/popularity/popularity.module';
     AdminReportService,
     AdminNotificationService,
     AdminCatalogService,
+    AdminCatalogPdfService,
     AdminCompanyCatalogService,
     AdminAudioElasticsearchService,
     AdminPharmaService,
