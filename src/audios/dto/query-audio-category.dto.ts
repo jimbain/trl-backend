@@ -1,19 +1,10 @@
-import { IsOptional, IsString, IsInt } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
-export class QueryAudioCategoryDto {
+export class QueryAudioCategoryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   @Transform(({ value }) => (value === 'category_0' ? null : value))
   category_id?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  page?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  per_page?: number;
 }

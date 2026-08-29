@@ -453,6 +453,13 @@ export class AudioService {
       queryBuilder.andWhere('audio.id NOT IN (:...audioIds)', { audioIds });
     }
 
+    // A total ordering is required: OFFSET/LIMIT without one lets Postgres
+    // return rows in any order per page, which duplicates/skips titles while
+    // the client pages through the list.
+    queryBuilder
+      .orderBy('audio.display_title', 'ASC')
+      .addOrderBy('audio.id', 'ASC');
+
     const paginatedData = await paginate(queryBuilder, page, limit);
 
     paginatedData.data = paginatedData.data.map((audio) =>

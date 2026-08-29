@@ -18,6 +18,7 @@ import { AudioSeedService } from './audio_seed.service';
 import { CompanyService } from 'src/companies/company.service';
 import { QueryAudioDto } from './dto/query-audio.dto';
 import { QueryAudioCategoryDto } from './dto/query-audio-category.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -80,8 +81,7 @@ export class AudioController {
   async findAudioByTypeOrId(
     @Param('param') param: string,
     @Request() req,
-    @Query('page') page: string = '1',
-    @Query('per_page') per_page: string = '10',
+    @Query() query: PaginationQueryDto = {},
   ) {
     const validTypes = ['featured', 'queued', 'bookself', 'popular', 'new'];
 
@@ -89,19 +89,18 @@ export class AudioController {
       return this.audioService.findAudioById(param, req.user);
     }
 
-    const parsedPage = parseInt(page, 10) || 1;
-    const parsedPerPage = parseInt(per_page, 10) || 10;
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 10;
     const company = await this.companyService.findByIdWithCache(
       req.user.company.id,
     );
-    const categoryIds = company.category_ids.audio;
 
     if (param === 'featured') {
       return this.audioService.getFeaturedAudios(
         company,
         req.user,
-        parsedPerPage,
-        parsedPage,
+        perPage,
+        page,
       );
     } else if (param === 'queued' || param === 'bookself') {
       return {
@@ -113,7 +112,7 @@ export class AudioController {
       };
     } else if (param === 'popular' || param === 'new') {
       return {
-        data: await this.audioService.getPopularAudios(categoryIds, req.user),
+        data: await this.audioService.getPopularAudios(company, req.user),
       };
     }
   }
