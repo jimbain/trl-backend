@@ -1,23 +1,8 @@
 import { Type } from 'class-transformer';
-import {
-  IsOptional,
-  IsInt,
-  IsArray,
-  ValidateNested,
-  ArrayMinSize,
-} from 'class-validator';
+import { IsOptional, IsArray } from 'class-validator';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
-export class QueryAudioDto {
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  page?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  per_page?: number;
-
+export class QueryAudioDto extends PaginationQueryDto {
   @IsOptional()
   @IsArray()
   @Type(() => String)
