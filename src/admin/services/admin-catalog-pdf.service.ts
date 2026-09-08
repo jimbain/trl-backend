@@ -327,7 +327,7 @@ export class AdminCatalogPdfService {
           columns: [
             { text: c.name, fontSize: 8, width: '*' },
             {
-              text: { pageReference: `cat_${i}` },
+              text: [{ pageReference: `cat_${i}` }],
               fontSize: 8,
               width: 30,
               alignment: 'right',
@@ -470,7 +470,7 @@ export class AdminCatalogPdfService {
           margin: [0, 1, 0, 1],
         },
         {
-          text: { pageReference: `cat_${e.catIndex}` },
+          text: [{ pageReference: `cat_${e.catIndex}` }],
           fontSize: 7,
           width: 20,
           alignment: 'right',
@@ -511,6 +511,7 @@ export class AdminCatalogPdfService {
 
   private stripHtml(s: string): string {
     return s
+      .replace(/<br\s*\/?>/gi, ' ')
       .replace(/<[^>]*>/g, '')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
