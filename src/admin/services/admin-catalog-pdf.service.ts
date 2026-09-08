@@ -202,7 +202,7 @@ export class AdminCatalogPdfService {
       },
 
       footer: (currentPage: number) => {
-        if (currentPage <= 2) return {};
+        if (currentPage <= 1) return {};
         return {
           margin: [40, 6, 40, 0],
           columns: [
@@ -219,7 +219,7 @@ export class AdminCatalogPdfService {
               color: '#666666',
             },
             {
-              text: String(currentPage - 2),
+              text: String(currentPage),
               alignment: 'right',
               fontSize: 7.5,
               color: '#666666',
