@@ -541,6 +541,17 @@ export class AdminCatalogPdfService {
 
   private formatRuntime(raw: string | null): string | null {
     if (!raw) return null;
+    // HH:MM:SS format stored in DB (e.g. "05:33:36")
+    const hms = raw.match(/^(\d+):(\d{2}):\d{2}$/);
+    if (hms) {
+      const hours = parseInt(hms[1], 10);
+      const mins = parseInt(hms[2], 10);
+      if (hours && mins) return `(${hours} hours ${mins} min.)`;
+      if (hours) return `(${hours} hours)`;
+      if (mins) return `(${mins} min.)`;
+      return null;
+    }
+    // Fallback: text format like "7 hrs 32 mins"
     const h = raw.match(/(\d+)\s*hr/i);
     const m = raw.match(/(\d+)\s*min/i);
     if (!h && !m) return null;
