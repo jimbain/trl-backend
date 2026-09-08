@@ -504,9 +504,27 @@ export class AdminCatalogPdfService {
   }
 
   private headerBarWithId(text: string, id: string): any {
-    const bar = this.headerBar(text);
-    bar.id = id;
-    return bar;
+    return {
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              text,
+              id,
+              color: 'white',
+              bold: true,
+              alignment: 'center',
+              fontSize: 9,
+              margin: [0, 3, 0, 3],
+              fillColor: DARK_BLUE,
+            },
+          ],
+        ],
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 6],
+    };
   }
 
   private stripHtml(s: string): string {
