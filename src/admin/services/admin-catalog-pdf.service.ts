@@ -12,9 +12,11 @@ const PdfPrinter = require('pdfmake/js/Printer.js').default;
 interface TitleRow {
   title: string;
   authors: string[];
+  short_description: string | null;
   description: string | null;
   copyright: string | null;
   publisher: string | null;
+  runtime: string | null;
 }
 
 interface CategoryWithTitles {
@@ -82,9 +84,11 @@ export class AdminCatalogPdfService {
       SELECT
         COALESCE(a.display_title, m.title)              AS title,
         COALESCE(a.display_authors, m.authors)           AS authors,
+        a.display_short_description,
         COALESCE(a.display_description, m.description)  AS description,
         COALESCE(a.display_copyright, m.copyright)      AS copyright,
         m.publisher,
+        m.runtime,
         a.categories
       FROM audios a
       INNER JOIN audio_metadata m ON m.sku = a.sku
@@ -108,9 +112,11 @@ export class AdminCatalogPdfService {
       const entry: TitleRow = {
         title: row.title ?? '',
         authors,
+        short_description: row.display_short_description ?? null,
         description: row.description ?? null,
         copyright: row.copyright ?? null,
         publisher: row.publisher ?? null,
+        runtime: row.runtime ?? null,
       };
       for (const catId of cats) {
         if (catMap.has(catId)) {
@@ -128,19 +134,19 @@ export class AdminCatalogPdfService {
     categories: CategoryWithTitles[],
     mediaType: string,
   ): Promise<Buffer> {
-    const year = new Date().getFullYear().toString();
-
     const content: any[] = [
-      this.buildCoverPage(mediaType, year),
+      this.buildCoverPage(mediaType),
       { text: '', pageBreak: 'after' },
       this.buildTocPage(categories),
       { text: '', pageBreak: 'after' },
-      ...categories.map((cat, i) => this.buildCategorySection(cat, i === 0)),
+      ...categories.map((cat, i) => this.buildCategorySection(cat, i === 0, i)),
     ];
+
+    content.push(this.buildAuthorIndex(categories));
 
     const docDef: Record<string, any> = {
       pageSize: 'LETTER',
-      pageMargins: [40, 54, 40, 54],
+      pageMargins: [40, 60, 40, 54],
       defaultStyle: { font: 'Helvetica', fontSize: 8.5, lineHeight: 1.3 },
 
       background: (
@@ -178,25 +184,36 @@ export class AdminCatalogPdfService {
         };
       },
 
+      header: (currentPage: number) => {
+        if (currentPage === 1) return {};
+        return {
+          margin: [40, 10, 40, 0],
+          columns: [
+            { text: '', width: '*' },
+            {
+              text: 'TRL Audiobooks',
+              alignment: 'center',
+              fontSize: 7.5,
+              color: '#666666',
+            },
+            { text: '', width: '*' },
+          ],
+        };
+      },
+
       footer: (currentPage: number) => {
         if (currentPage <= 2) return {};
         return {
           margin: [40, 6, 40, 0],
           columns: [
             {
-              text: 'On Demand',
+              text: 'TRL',
               alignment: 'left',
               fontSize: 7.5,
               color: '#666666',
             },
             {
-              text: year,
-              alignment: 'center',
-              fontSize: 7.5,
-              color: '#666666',
-            },
-            {
-              text: 'Tape Rental Library',
+              text: 'Audiobooks',
               alignment: 'center',
               fontSize: 7.5,
               color: '#666666',
@@ -233,13 +250,14 @@ export class AdminCatalogPdfService {
     });
   }
 
-  private buildCoverPage(mediaType: string, year: string): any {
+  private buildCoverPage(mediaType: string): any {
     const topLabel =
       mediaType === 'audio'
         ? 'AUDIO'
         : mediaType === 'video'
           ? 'VIDEO'
           : 'PHARMA';
+    const year = new Date().getFullYear().toString();
     return {
       stack: [
         { text: '', margin: [0, 90, 0, 0] },
@@ -269,86 +287,69 @@ export class AdminCatalogPdfService {
 
   private buildTocPage(categories: CategoryWithTitles[]): any {
     return {
-      columns: [
+      stack: [
+        this.headerBar('TRL AUDIOBOOK LIBRARY'),
         {
-          width: '48%',
-          stack: [
-            this.headerBar('TRL AUDIOBOOK LIBRARY'),
+          text: 'Continue your career self-development with Audiobooks from TRL. This catalog has over 1000 titles to choose from on a wide variety of business topics.',
+          style: 'bodyText',
+          margin: [0, 8, 0, 12],
+        },
+        {
+          text: 'How do I get started?',
+          bold: true,
+          fontSize: 8.5,
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: 'Download our app "TRL Audiobooks" to get started right away. Contact us for information on how to login.',
+          style: 'bodyText',
+          margin: [0, 0, 0, 12],
+        },
+        {
+          table: {
+            widths: [36, '*'],
+            body: [
+              [
+                { text: 'Email:', bold: true, fontSize: 8 },
+                { text: 'info@TRLonline.com', fontSize: 8 },
+              ],
+              [
+                { text: 'Web:', bold: true, fontSize: 8 },
+                { text: 'www.TrainingResourceLibrary.com', fontSize: 8 },
+              ],
+            ],
+          },
+          layout: 'noBorders',
+          margin: [0, 0, 0, 16],
+        },
+        this.headerBar('TABLE OF CONTENTS'),
+        ...categories.map((c, i) => ({
+          columns: [
+            { text: c.name, fontSize: 8, width: '*' },
             {
-              text: 'Continue your career self-development with Audiobooks from TRL. This catalog has over 1000 titles to choose from on a wide variety of business topics.',
-              style: 'bodyText',
-              margin: [0, 8, 0, 12],
-            },
-            {
-              text: 'How do I get started?',
-              bold: true,
-              fontSize: 8.5,
-              margin: [0, 0, 0, 4],
-            },
-            {
-              text: 'Download our app "TRL Audiobooks" to get started right away. Contact us for information on how to login.',
-              style: 'bodyText',
-              margin: [0, 0, 0, 12],
-            },
-            {
-              table: {
-                widths: [36, '*'],
-                body: [
-                  [
-                    { text: 'Email:', bold: true, fontSize: 8 },
-                    { text: 'info@TRLonline.com', fontSize: 8 },
-                  ],
-                  [
-                    { text: 'Web:', bold: true, fontSize: 8 },
-                    { text: 'www.TrainingResourceLibrary.com', fontSize: 8 },
-                  ],
-                ],
-              },
-              layout: 'noBorders',
-              margin: [0, 0, 0, 16],
-            },
-            this.headerBar('TABLE OF CONTENTS'),
-            ...categories.map((c) => ({
-              text: c.name,
+              text: { pageReference: `cat_${i}` },
               fontSize: 8,
-              margin: [0, 2, 0, 2],
-            })),
+              width: 30,
+              alignment: 'right',
+            },
           ],
-        },
-        { width: '4%', text: '' },
-        {
-          width: '48%',
-          stack: [
-            this.headerBar('TITLE INDEX'),
-            ...categories.slice(0, 25).flatMap((cat) => [
-              {
-                text: cat.name.toUpperCase(),
-                bold: true,
-                fontSize: 7.5,
-                color: DARK_BLUE,
-                margin: [0, 6, 0, 2],
-              },
-              ...cat.titles.slice(0, 5).map((t) => ({
-                text: `${t.title}  —  ${t.authors[0] ?? ''}`,
-                fontSize: 7,
-                color: '#444444',
-                margin: [0, 1, 0, 1],
-              })),
-            ]),
-          ],
-        },
+          margin: [0, 2, 0, 2],
+        })),
       ],
     };
   }
 
-  private buildCategorySection(cat: CategoryWithTitles, isFirst: boolean): any {
-    const mid = Math.ceil(cat.titles.length / 2);
-    const leftTitles = cat.titles.slice(0, mid);
-    const rightTitles = cat.titles.slice(mid);
+  private buildCategorySection(
+    cat: CategoryWithTitles,
+    isFirst: boolean,
+    catIndex: number,
+  ): any {
+    const leftTitles = cat.titles.filter((_, i) => i % 2 === 0);
+    const rightTitles = cat.titles.filter((_, i) => i % 2 === 1);
 
     return {
       stack: [
-        this.headerBar(cat.name.toUpperCase()),
+        this.headerBarWithId(cat.name.toUpperCase(), `cat_${catIndex}`),
         {
           columns: [
             { width: '48%', stack: leftTitles.map((t) => this.titleEntry(t)) },
@@ -381,12 +382,14 @@ export class AdminCatalogPdfService {
       });
     }
 
-    if (t.description) {
+    const rawDesc = t.short_description?.trim() || t.description;
+    const desc = rawDesc ? this.stripHtml(rawDesc) : null;
+    if (desc) {
+      const clipped = desc.length > 400 ? desc.slice(0, 400) + '…' : desc;
+      const rtStr = this.formatRuntime(t.runtime);
+      const fullDesc = rtStr ? `${clipped} ${rtStr}` : clipped;
       stack.push({
-        text:
-          t.description.length > 600
-            ? t.description.slice(0, 600) + '…'
-            : t.description,
+        text: fullDesc,
         fontSize: 7,
         color: '#333333',
         margin: [0, 0, 0, 2],
@@ -403,7 +406,78 @@ export class AdminCatalogPdfService {
       });
     }
 
-    return { stack };
+    return { stack, unbreakable: true };
+  }
+
+  private buildAuthorIndex(categories: CategoryWithTitles[]): any {
+    const entries: {
+      authorDisplay: string;
+      lastName: string;
+      title: string;
+      catIndex: number;
+    }[] = [];
+
+    categories.forEach((cat, ci) => {
+      cat.titles.forEach((t) => {
+        const author = t.authors[0] ?? 'Unknown';
+        const lastName = author.split(' ').pop() ?? author;
+        entries.push({
+          authorDisplay: author,
+          lastName,
+          title: t.title,
+          catIndex: ci,
+        });
+      });
+    });
+
+    entries.sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+    const leftEntries = entries.filter((_, i) => i % 2 === 0);
+    const rightEntries = entries.filter((_, i) => i % 2 === 1);
+
+    return {
+      stack: [
+        this.headerBar('AUTHOR INDEX'),
+        {
+          columns: [
+            {
+              width: '48%',
+              stack: leftEntries.map((e) => this.authorEntry(e)),
+            },
+            { width: '4%', text: '' },
+            {
+              width: '48%',
+              stack: rightEntries.map((e) => this.authorEntry(e)),
+            },
+          ],
+        },
+      ],
+      pageBreak: 'before',
+    };
+  }
+
+  private authorEntry(e: {
+    authorDisplay: string;
+    title: string;
+    catIndex: number;
+  }): any {
+    return {
+      columns: [
+        {
+          text: `${e.authorDisplay} — ${e.title}`,
+          fontSize: 7,
+          width: '*',
+          margin: [0, 1, 0, 1],
+        },
+        {
+          text: { pageReference: `cat_${e.catIndex}` },
+          fontSize: 7,
+          width: 20,
+          alignment: 'right',
+          margin: [0, 1, 0, 1],
+        },
+      ],
+    };
   }
 
   private headerBar(text: string): any {
@@ -427,6 +501,35 @@ export class AdminCatalogPdfService {
       layout: 'noBorders',
       margin: [0, 0, 0, 6],
     };
+  }
+
+  private headerBarWithId(text: string, id: string): any {
+    const bar = this.headerBar(text);
+    bar.id = id;
+    return bar;
+  }
+
+  private stripHtml(s: string): string {
+    return s
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private formatRuntime(raw: string | null): string | null {
+    if (!raw) return null;
+    const h = raw.match(/(\d+)\s*hr/i);
+    const m = raw.match(/(\d+)\s*min/i);
+    if (!h && !m) return null;
+    const hours = h ? parseInt(h[1], 10) : 0;
+    const mins = m ? parseInt(m[1], 10) : 0;
+    if (hours && mins) return `(${hours} hours ${mins} min.)`;
+    if (hours) return `(${hours} hours)`;
+    return `(${mins} min.)`;
   }
 
   private buildStyles(): Record<string, any> {
