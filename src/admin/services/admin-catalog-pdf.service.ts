@@ -5,6 +5,7 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { Category } from 'src/categories/entities/category.entity';
 import { CatalogService } from 'src/catalog/catalog.service';
 import { Media } from 'src/constants';
+import { CatalogTextMeasurer, packIntoPages } from './catalog-pdf-layout';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PdfPrinter = require('pdfmake/js/Printer.js').default;
@@ -24,6 +25,14 @@ interface CategoryWithTitles {
   titles: TitleRow[];
 }
 
+/** A row reduced to the literal strings the page renders. */
+interface PreparedEntry {
+  title: string;
+  authorLine: string | null;
+  description: string | null;
+  copyrightLine: string | null;
+}
+
 const FONTS = {
   Helvetica: {
     normal: 'Helvetica',
@@ -36,6 +45,34 @@ const FONTS = {
 const DARK_BLUE = '#1A3A5C';
 const GOLD = '#C9A227';
 const PAGE_BG = '#C5CBD8';
+
+const PAGE_MARGINS: [number, number, number, number] = [40, 60, 40, 54];
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+
+/** Two equal columns with a gutter, filling the printable width exactly. */
+const COLUMN_WIDTH = 255;
+const COLUMN_GUTTER =
+  PAGE_WIDTH - PAGE_MARGINS[0] - PAGE_MARGINS[2] - 2 * COLUMN_WIDTH;
+
+const CONTENT_HEIGHT = PAGE_HEIGHT - PAGE_MARGINS[1] - PAGE_MARGINS[3];
+
+/** Banner cell padding, above and below the 9pt text, plus the node's margin. */
+const BANNER_PADDING = 4;
+const BANNER_MARGIN_BOTTOM = 6;
+
+/**
+ * Carried over from TRL's own 50th Anniversary catalogue (2021). Confirm with
+ * the client before the next print run in case the postal address or phone
+ * number has since changed.
+ */
+const CONTACT = {
+  company: 'Tape Rental Library, Inc.',
+  address: ['One Cassette Center', 'P.O. Box 107', 'Covesville, VA 22931'],
+  phone: '434-293-3705',
+  email: 'info@TRLonline.com',
+  web: 'www.TrainingResourceLibrary.com',
+};
 
 @Injectable()
 export class AdminCatalogPdfService {
@@ -134,24 +171,39 @@ export class AdminCatalogPdfService {
     categories: CategoryWithTitles[],
     mediaType: string,
   ): Promise<Buffer> {
+    const measurer = new CatalogTextMeasurer();
+
+    const categoryPages = categories.flatMap((cat, i) =>
+      this.buildCategoryPages(cat, i === 0, i, measurer),
+    );
+
+    // Because we paginate the body ourselves, the last page number is known up
+    // front. Cover and back cover share a decorative treatment and carry no
+    // running header, footer or page number.
+    const backCoverPage = 2 + categoryPages.length + 1;
+    const isPlate = (page: number) => page === 1 || page === backCoverPage;
+
     const content: any[] = [
       this.buildCoverPage(mediaType),
       { text: '', pageBreak: 'after' },
       this.buildTocPage(categories),
       { text: '', pageBreak: 'after' },
-      ...categories.map((cat, i) => this.buildCategorySection(cat, i === 0, i)),
+      ...categoryPages,
+      this.buildBackCoverPage(),
     ];
 
     const docDef: Record<string, any> = {
       pageSize: 'LETTER',
-      pageMargins: [40, 60, 40, 54],
+      // Shared with the column maths above: the packer sizes columns from
+      // these margins, so the two must never drift apart.
+      pageMargins: PAGE_MARGINS,
       defaultStyle: { font: 'Helvetica', fontSize: 8.5, lineHeight: 1.3 },
 
       background: (
         currentPage: number,
         pageSize: { width: number; height: number },
       ) => {
-        if (currentPage !== 1) return null;
+        if (!isPlate(currentPage)) return null;
         return {
           canvas: [
             {
@@ -183,7 +235,7 @@ export class AdminCatalogPdfService {
       },
 
       header: (currentPage: number) => {
-        if (currentPage === 1) return {};
+        if (isPlate(currentPage)) return {};
         return {
           margin: [40, 10, 40, 0],
           columns: [
@@ -200,7 +252,7 @@ export class AdminCatalogPdfService {
       },
 
       footer: (currentPage: number) => {
-        if (currentPage <= 1) return {};
+        if (isPlate(currentPage)) return {};
         return {
           margin: [40, 6, 40, 0],
           columns: [
@@ -248,6 +300,32 @@ export class AdminCatalogPdfService {
     });
   }
 
+  /**
+   * A horizontal rule that centres correctly. pdfmake sizes a canvas from its
+   * largest x, so a line must start at x=0 for `alignment: 'center'` to place
+   * it symmetrically; any left inset shifts the whole rule to the right.
+   */
+  private centeredRule(
+    width: number,
+    thickness: number,
+    margin: [number, number, number, number] = [0, 10, 0, 16],
+  ): any {
+    return {
+      canvas: [
+        {
+          type: 'line',
+          x1: 0,
+          y1: 0,
+          x2: width,
+          y2: 0,
+          lineWidth: thickness,
+          lineColor: '#CC0000',
+        },
+      ],
+      margin,
+    };
+  }
+
   private buildCoverPage(mediaType: string): any {
     const topLabel =
       mediaType === 'audio'
@@ -258,22 +336,9 @@ export class AdminCatalogPdfService {
     const year = new Date().getFullYear().toString();
     return {
       stack: [
-        { text: '', margin: [0, 90, 0, 0] },
+        { text: '', margin: [0, 150, 0, 0] },
         { text: topLabel, style: 'coverTitle' },
-        {
-          canvas: [
-            {
-              type: 'line',
-              x1: 40,
-              y1: 0,
-              x2: 440,
-              y2: 0,
-              lineWidth: 5,
-              lineColor: '#CC0000',
-            },
-          ],
-          margin: [0, 6, 0, 6],
-        },
+        this.centeredRule(400, 5),
         { text: 'LEARNING', style: 'coverTitle' },
         { text: '', margin: [0, 60, 0, 0] },
         { text: 'T · R · L', style: 'coverLogo' },
@@ -283,10 +348,42 @@ export class AdminCatalogPdfService {
     };
   }
 
+  /**
+   * Back cover: the front cover's logo treatment over the contact block, on the
+   * same decorative ground, so the catalogue opens and closes on the same note.
+   */
+  private buildBackCoverPage(): any {
+    const line = (text: string, opts: Record<string, any> = {}) => ({
+      text,
+      alignment: 'center',
+      fontSize: 9,
+      color: '#222222',
+      margin: [0, 1, 0, 1],
+      ...opts,
+    });
+
+    return {
+      pageBreak: 'before',
+      alignment: 'center',
+      stack: [
+        { text: '', margin: [0, 210, 0, 0] },
+        { text: 'T · R · L', style: 'coverLogo' },
+        this.centeredRule(240, 4, [0, 2, 0, 26]),
+        line(CONTACT.company, { bold: true, fontSize: 11 }),
+        ...CONTACT.address.map((l) => line(l)),
+        { text: '', margin: [0, 9, 0, 0] },
+        line(CONTACT.phone, { bold: true, fontSize: 10 }),
+        { text: '', margin: [0, 9, 0, 0] },
+        line(CONTACT.email),
+        line(CONTACT.web),
+      ],
+    };
+  }
+
   private buildTocPage(categories: CategoryWithTitles[]): any {
     return {
       stack: [
-        this.headerBar('TRL AUDIOBOOK LIBRARY'),
+        this.bannerNode('TRL AUDIOBOOK LIBRARY'),
         {
           text: 'Continue your career self-development with Audiobooks from TRL. This catalog has over 1000 titles to choose from on a wide variety of business topics.',
           style: 'bodyText',
@@ -308,19 +405,30 @@ export class AdminCatalogPdfService {
             widths: [36, '*'],
             body: [
               [
+                { text: 'Mail:', bold: true, fontSize: 8 },
+                {
+                  text: [CONTACT.company, ...CONTACT.address].join('\n'),
+                  fontSize: 8,
+                },
+              ],
+              [
+                { text: 'Phone:', bold: true, fontSize: 8 },
+                { text: CONTACT.phone, fontSize: 8 },
+              ],
+              [
                 { text: 'Email:', bold: true, fontSize: 8 },
-                { text: 'info@TRLonline.com', fontSize: 8 },
+                { text: CONTACT.email, fontSize: 8 },
               ],
               [
                 { text: 'Web:', bold: true, fontSize: 8 },
-                { text: 'www.TrainingResourceLibrary.com', fontSize: 8 },
+                { text: CONTACT.web, fontSize: 8 },
               ],
             ],
           },
           layout: 'noBorders',
           margin: [0, 0, 0, 16],
         },
-        this.headerBar('TABLE OF CONTENTS'),
+        this.bannerNode('TABLE OF CONTENTS'),
         ...categories.map((c, i) => ({
           columns: [
             { text: c.name, fontSize: 8, width: '*' },
@@ -337,76 +445,83 @@ export class AdminCatalogPdfService {
     };
   }
 
-  private buildCategorySection(
+  /**
+   * Lays a category out as a sequence of whole pages, each carrying its own
+   * banner. We paginate rather than letting pdfmake do it because neither of
+   * its native options flows text between columns, and both leave the ragged
+   * vertical gaps Mark flagged.
+   */
+  private buildCategoryPages(
     cat: CategoryWithTitles,
     isFirst: boolean,
     catIndex: number,
-  ): any {
-    const pairs: [TitleRow, TitleRow | null][] = [];
-    for (let i = 0; i < cat.titles.length; i += 2) {
-      pairs.push([cat.titles[i], cat.titles[i + 1] ?? null]);
-    }
+    measurer: CatalogTextMeasurer,
+  ): any[] {
+    const bannerHeight =
+      2 * BANNER_PADDING + measurer.lineHeight(9) + BANNER_MARGIN_BOTTOM;
+    const columnHeight = CONTENT_HEIGHT - bannerHeight;
 
-    return {
+    const prepared = cat.titles.map((t) => this.prepareEntry(t));
+    const heights = new Map<PreparedEntry, number>(
+      prepared.map((p) => [p, measurer.measureEntry(p, COLUMN_WIDTH)]),
+    );
+
+    const pages = packIntoPages(prepared, (p) => heights.get(p)!, columnHeight);
+
+    return pages.map((columns, pageIndex) => ({
       stack: [
-        // TOC anchor. It must sit outside the table: the banner is a repeating
-        // header row, so an id on that cell resolves to the category's LAST
-        // page rather than its first.
-        { text: '', id: `cat_${catIndex}`, fontSize: 1, margin: [0, 0, 0, 0] },
+        // Only the first page carries the TOC anchor, so `pageReference`
+        // resolves to where the category starts.
+        this.bannerNode(
+          cat.name.toUpperCase(),
+          pageIndex === 0 ? `cat_${catIndex}` : undefined,
+        ),
         {
-          table: {
-            headerRows: 1,
-            dontBreakRows: true,
-            widths: ['48%', '4%', '48%'],
-            body: [
-              [
-                {
-                  text: cat.name.toUpperCase(),
-                  colSpan: 3,
-                  fillColor: DARK_BLUE,
-                  color: 'white',
-                  bold: true,
-                  alignment: 'center',
-                  fontSize: 9,
-                  margin: [0, 3, 0, 3],
-                },
-                {},
-                {},
-              ],
-              ...pairs.map(([l, r]) => [
-                this.titleEntry(l),
-                { text: '' },
-                r ? this.titleEntry(r) : { text: '' },
-              ]),
-            ],
-          },
-          layout: {
-            hLineWidth: () => 0,
-            vLineWidth: () => 0,
-            paddingLeft: () => 0,
-            paddingRight: () => 0,
-            paddingTop: () => 0,
-            paddingBottom: () => 0,
-          },
+          columns: [
+            {
+              width: COLUMN_WIDTH,
+              stack: columns[0].map((p) => this.entryNode(p)),
+            },
+            { width: COLUMN_GUTTER, text: '' },
+            {
+              width: COLUMN_WIDTH,
+              stack: columns[1].map((p) => this.entryNode(p)),
+            },
+          ],
         },
       ],
-      ...(isFirst ? {} : { pageBreak: 'before' }),
+      ...(isFirst && pageIndex === 0 ? {} : { pageBreak: 'before' }),
+    }));
+  }
+
+  /**
+   * Flattens a row into the exact strings that get rendered. Measuring and
+   * rendering both read from this, so the packer can never disagree with the
+   * page about how tall an entry is.
+   */
+  private prepareEntry(t: TitleRow): PreparedEntry {
+    const rawDesc = t.short_description?.trim() || t.description;
+    const desc = rawDesc ? this.stripHtml(rawDesc) : null;
+    const runtime = this.formatRuntime(t.runtime);
+    const copyrightParts = [t.copyright, t.publisher].filter(Boolean);
+
+    return {
+      title: (t.title ?? '').toUpperCase(),
+      authorLine: t.authors.length > 0 ? `by ${t.authors.join(', ')}` : null,
+      description: desc ? (runtime ? `${desc} ${runtime}` : desc) : null,
+      copyrightLine:
+        copyrightParts.length > 0 ? copyrightParts.join(' — ') : null,
     };
   }
 
-  private titleEntry(t: TitleRow): any {
+  private entryNode(p: PreparedEntry): any {
     const stack: any[] = [
-      {
-        text: (t.title ?? '').toUpperCase(),
-        bold: true,
-        fontSize: 8,
-        margin: [0, 6, 0, 1],
-      },
+      { text: p.title, bold: true, fontSize: 8, margin: [0, 6, 0, 1] },
     ];
 
-    if (t.authors.length > 0) {
+    if (p.authorLine) {
       stack.push({
-        text: `by ${t.authors.join(', ')}`,
+        text: p.authorLine,
         italics: true,
         fontSize: 7.5,
         color: '#555555',
@@ -414,33 +529,29 @@ export class AdminCatalogPdfService {
       });
     }
 
-    const rawDesc = t.short_description?.trim() || t.description;
-    const desc = rawDesc ? this.stripHtml(rawDesc) : null;
-    if (desc) {
-      const rtStr = this.formatRuntime(t.runtime);
-      const fullDesc = rtStr ? `${desc} ${rtStr}` : desc;
+    if (p.description) {
       stack.push({
-        text: fullDesc,
+        text: p.description,
         fontSize: 7,
         color: '#333333',
+        alignment: 'justify',
         margin: [0, 0, 0, 2],
       });
     }
 
-    const copyrightParts = [t.copyright, t.publisher].filter(Boolean);
-    if (copyrightParts.length > 0) {
+    if (p.copyrightLine) {
       stack.push({
-        text: copyrightParts.join(' — '),
+        text: p.copyrightLine,
         fontSize: 6.5,
         color: '#888888',
         margin: [0, 0, 0, 4],
       });
     }
 
-    return { stack, unbreakable: true };
+    return { stack };
   }
 
-  private headerBar(text: string): any {
+  private bannerNode(text: string, anchorId?: string): any {
     return {
       table: {
         widths: ['*'],
@@ -448,18 +559,26 @@ export class AdminCatalogPdfService {
           [
             {
               text,
+              ...(anchorId ? { id: anchorId } : {}),
               color: 'white',
               bold: true,
               alignment: 'center',
               fontSize: 9,
-              margin: [0, 3, 0, 3],
+              margin: [0, BANNER_PADDING, 0, BANNER_PADDING],
               fillColor: DARK_BLUE,
             },
           ],
         ],
       },
-      layout: 'noBorders',
-      margin: [0, 0, 0, 6],
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => 0,
+        paddingBottom: () => 0,
+      },
+      margin: [0, 0, 0, BANNER_MARGIN_BOTTOM],
     };
   }
 
@@ -500,7 +619,14 @@ export class AdminCatalogPdfService {
 
   private buildStyles(): Record<string, any> {
     return {
-      coverTitle: { fontSize: 72, bold: true, color: '#111111' },
+      // lineHeight 1 keeps the 72pt line box tight to the glyphs, so the rule
+      // between AUDIO and LEARNING sits in the gap instead of across the text.
+      coverTitle: {
+        fontSize: 72,
+        bold: true,
+        color: '#111111',
+        lineHeight: 1,
+      },
       coverLogo: {
         fontSize: 36,
         bold: true,
