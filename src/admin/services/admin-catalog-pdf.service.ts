@@ -142,8 +142,6 @@ export class AdminCatalogPdfService {
       ...categories.map((cat, i) => this.buildCategorySection(cat, i === 0, i)),
     ];
 
-    content.push(this.buildAuthorIndex(categories));
-
     const docDef: Record<string, any> = {
       pageSize: 'LETTER',
       pageMargins: [40, 60, 40, 54],
@@ -344,20 +342,47 @@ export class AdminCatalogPdfService {
     isFirst: boolean,
     catIndex: number,
   ): any {
-    const leftTitles = cat.titles.filter((_, i) => i % 2 === 0);
-    const rightTitles = cat.titles.filter((_, i) => i % 2 === 1);
+    const pairs: [TitleRow, TitleRow | null][] = [];
+    for (let i = 0; i < cat.titles.length; i += 2) {
+      pairs.push([cat.titles[i], cat.titles[i + 1] ?? null]);
+    }
 
     return {
-      stack: [
-        this.headerBarWithId(cat.name.toUpperCase(), `cat_${catIndex}`),
-        {
-          columns: [
-            { width: '48%', stack: leftTitles.map((t) => this.titleEntry(t)) },
-            { width: '4%', text: '' },
-            { width: '48%', stack: rightTitles.map((t) => this.titleEntry(t)) },
+      table: {
+        headerRows: 1,
+        dontBreakRows: true,
+        widths: ['48%', '4%', '48%'],
+        body: [
+          [
+            {
+              text: cat.name.toUpperCase(),
+              id: `cat_${catIndex}`,
+              colSpan: 3,
+              fillColor: DARK_BLUE,
+              color: 'white',
+              bold: true,
+              alignment: 'center',
+              fontSize: 9,
+              margin: [0, 3, 0, 3],
+            },
+            {},
+            {},
           ],
-        },
-      ],
+          ...pairs.map(([l, r]) => [
+            this.titleEntry(l),
+            { text: '' },
+            r ? this.titleEntry(r) : { text: '' },
+          ]),
+        ],
+      },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => 0,
+        paddingBottom: () => 0,
+      },
       ...(isFirst ? {} : { pageBreak: 'before' }),
     };
   }
@@ -385,9 +410,8 @@ export class AdminCatalogPdfService {
     const rawDesc = t.short_description?.trim() || t.description;
     const desc = rawDesc ? this.stripHtml(rawDesc) : null;
     if (desc) {
-      const clipped = desc.length > 400 ? desc.slice(0, 400) + '…' : desc;
       const rtStr = this.formatRuntime(t.runtime);
-      const fullDesc = rtStr ? `${clipped} ${rtStr}` : clipped;
+      const fullDesc = rtStr ? `${desc} ${rtStr}` : desc;
       stack.push({
         text: fullDesc,
         fontSize: 7,
@@ -409,77 +433,6 @@ export class AdminCatalogPdfService {
     return { stack, unbreakable: true };
   }
 
-  private buildAuthorIndex(categories: CategoryWithTitles[]): any {
-    const entries: {
-      authorDisplay: string;
-      lastName: string;
-      title: string;
-      catIndex: number;
-    }[] = [];
-
-    categories.forEach((cat, ci) => {
-      cat.titles.forEach((t) => {
-        const author = t.authors[0] ?? 'Unknown';
-        const lastName = author.split(' ').pop() ?? author;
-        entries.push({
-          authorDisplay: author,
-          lastName,
-          title: t.title,
-          catIndex: ci,
-        });
-      });
-    });
-
-    entries.sort((a, b) => a.lastName.localeCompare(b.lastName));
-
-    const leftEntries = entries.filter((_, i) => i % 2 === 0);
-    const rightEntries = entries.filter((_, i) => i % 2 === 1);
-
-    return {
-      stack: [
-        this.headerBar('AUTHOR INDEX'),
-        {
-          columns: [
-            {
-              width: '48%',
-              stack: leftEntries.map((e) => this.authorEntry(e)),
-            },
-            { width: '4%', text: '' },
-            {
-              width: '48%',
-              stack: rightEntries.map((e) => this.authorEntry(e)),
-            },
-          ],
-        },
-      ],
-      pageBreak: 'before',
-    };
-  }
-
-  private authorEntry(e: {
-    authorDisplay: string;
-    title: string;
-    catIndex: number;
-  }): any {
-    return {
-      columns: [
-        {
-          text: `${e.authorDisplay} — ${e.title}`,
-          fontSize: 7,
-          width: '*',
-          margin: [0, 1, 0, 1],
-        },
-        {
-          text: [{ pageReference: `cat_${e.catIndex}` }],
-          fontSize: 7,
-          width: 20,
-          alignment: 'right',
-          margin: [0, 1, 0, 1],
-        },
-      ],
-    };
-  }
-
   private headerBar(text: string): any {
     return {
       table: {
@@ -488,30 +441,6 @@ export class AdminCatalogPdfService {
           [
             {
               text,
-              color: 'white',
-              bold: true,
-              alignment: 'center',
-              fontSize: 9,
-              margin: [0, 3, 0, 3],
-              fillColor: DARK_BLUE,
-            },
-          ],
-        ],
-      },
-      layout: 'noBorders',
-      margin: [0, 0, 0, 6],
-    };
-  }
-
-  private headerBarWithId(text: string, id: string): any {
-    return {
-      table: {
-        widths: ['*'],
-        body: [
-          [
-            {
-              text,
-              id,
               color: 'white',
               bold: true,
               alignment: 'center',
