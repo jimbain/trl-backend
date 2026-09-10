@@ -348,41 +348,48 @@ export class AdminCatalogPdfService {
     }
 
     return {
-      table: {
-        headerRows: 1,
-        dontBreakRows: true,
-        widths: ['48%', '4%', '48%'],
-        body: [
-          [
-            {
-              text: cat.name.toUpperCase(),
-              id: `cat_${catIndex}`,
-              colSpan: 3,
-              fillColor: DARK_BLUE,
-              color: 'white',
-              bold: true,
-              alignment: 'center',
-              fontSize: 9,
-              margin: [0, 3, 0, 3],
-            },
-            {},
-            {},
-          ],
-          ...pairs.map(([l, r]) => [
-            this.titleEntry(l),
-            { text: '' },
-            r ? this.titleEntry(r) : { text: '' },
-          ]),
-        ],
-      },
-      layout: {
-        hLineWidth: () => 0,
-        vLineWidth: () => 0,
-        paddingLeft: () => 0,
-        paddingRight: () => 0,
-        paddingTop: () => 0,
-        paddingBottom: () => 0,
-      },
+      stack: [
+        // TOC anchor. It must sit outside the table: the banner is a repeating
+        // header row, so an id on that cell resolves to the category's LAST
+        // page rather than its first.
+        { text: '', id: `cat_${catIndex}`, fontSize: 1, margin: [0, 0, 0, 0] },
+        {
+          table: {
+            headerRows: 1,
+            dontBreakRows: true,
+            widths: ['48%', '4%', '48%'],
+            body: [
+              [
+                {
+                  text: cat.name.toUpperCase(),
+                  colSpan: 3,
+                  fillColor: DARK_BLUE,
+                  color: 'white',
+                  bold: true,
+                  alignment: 'center',
+                  fontSize: 9,
+                  margin: [0, 3, 0, 3],
+                },
+                {},
+                {},
+              ],
+              ...pairs.map(([l, r]) => [
+                this.titleEntry(l),
+                { text: '' },
+                r ? this.titleEntry(r) : { text: '' },
+              ]),
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0,
+          },
+        },
+      ],
       ...(isFirst ? {} : { pageBreak: 'before' }),
     };
   }
