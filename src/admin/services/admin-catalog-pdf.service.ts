@@ -583,13 +583,24 @@ export class AdminCatalogPdfService {
     return (
       s
         .replace(/<br\s*\/?>/gi, ' ')
-        // Block boundaries become a space; inline tags are dropped outright, so
-        // "</p><p>" cannot fuse two words while "<i>Title</i>s" stays one word.
+        // Block boundaries always become a space, so "</p><p>" cannot fuse the
+        // words either side of it.
         .replace(
           /<\/?(?:p|div|li|ul|ol|h[1-6]|table|tr|td|th|blockquote|section|article)\b[^>]*>/gi,
           ' ',
         )
-        .replace(/<[^>]*>/g, '')
+        // What is left is inline. Dropping it keeps "<b>Bold</b>ed" and
+        // "<i>Positioning</i>—note" whole, but the same rule would turn
+        // "end.<i>Next" into "end.Next", so a sentence boundary hiding behind
+        // markup becomes a space instead.
+        .replace(
+          /(?:<[^>]*>)+/g,
+          (run: string, offset: number, whole: string) =>
+            /[.!?]/.test(whole[offset - 1] ?? '') &&
+            /[A-Z0-9"'(]/.test(whole[offset + run.length] ?? '')
+              ? ' '
+              : '',
+        )
         .replace(/&#x([0-9a-f]+);/gi, (m, hex) => this.codePoint(hex, 16, m))
         .replace(/&#(\d+);/g, (m, dec) => this.codePoint(dec, 10, m))
         .replace(/&nbsp;/gi, ' ')
