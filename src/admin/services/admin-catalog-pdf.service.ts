@@ -46,7 +46,8 @@ const DARK_BLUE = '#1A3A5C';
 const GOLD = '#C9A227';
 const PAGE_BG = '#C5CBD8';
 
-const PAGE_MARGINS: [number, number, number, number] = [40, 60, 40, 54];
+// Top margin is tight because there is no running header above the banner.
+const PAGE_MARGINS: [number, number, number, number] = [40, 36, 40, 54];
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 
@@ -234,22 +235,9 @@ export class AdminCatalogPdfService {
         };
       },
 
-      header: (currentPage: number) => {
-        if (isPlate(currentPage)) return {};
-        return {
-          margin: [40, 10, 40, 0],
-          columns: [
-            { text: '', width: '*' },
-            {
-              text: 'TRL Audiobooks',
-              alignment: 'center',
-              fontSize: 7.5,
-              color: '#666666',
-            },
-            { text: '', width: '*' },
-          ],
-        };
-      },
+      // No running header. The blue category banner already names every page,
+      // so the plain-type "TRL Audiobooks" line was redundant; dropping it and
+      // tightening the top margin hands its space back to the listings.
 
       footer: (currentPage: number) => {
         if (isPlate(currentPage)) return {};
