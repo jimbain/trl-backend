@@ -570,16 +570,48 @@ export class AdminCatalogPdfService {
     };
   }
 
+  /**
+   * Flattens stored HTML to plain text for the page.
+   *
+   * Entities have to be decoded, not just the four named ones: the short
+   * descriptions carry numeric references (`&#160;` alone appears ~880 times),
+   * which otherwise print literally. `&amp;` is decoded last so that an
+   * escaped entity like `&amp;lt;` survives as text rather than turning into
+   * a bracket.
+   */
   private stripHtml(s: string): string {
-    return s
-      .replace(/<br\s*\/?>/gi, ' ')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return (
+      s
+        .replace(/<br\s*\/?>/gi, ' ')
+        // Block boundaries become a space; inline tags are dropped outright, so
+        // "</p><p>" cannot fuse two words while "<i>Title</i>s" stays one word.
+        .replace(
+          /<\/?(?:p|div|li|ul|ol|h[1-6]|table|tr|td|th|blockquote|section|article)\b[^>]*>/gi,
+          ' ',
+        )
+        .replace(/<[^>]*>/g, '')
+        .replace(/&#x([0-9a-f]+);/gi, (m, hex) => this.codePoint(hex, 16, m))
+        .replace(/&#(\d+);/g, (m, dec) => this.codePoint(dec, 10, m))
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&quot;/gi, '"')
+        .replace(/&apos;/gi, "'")
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&amp;/gi, '&')
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
+  }
+
+  /** Decodes one numeric character reference, leaving malformed ones as-is. */
+  private codePoint(value: string, radix: number, original: string): string {
+    const n = parseInt(value, radix);
+    if (!Number.isFinite(n) || n < 0 || n > 0x10ffff) return original;
+    try {
+      return String.fromCodePoint(n);
+    } catch {
+      return original;
+    }
   }
 
   private formatRuntime(raw: string | null): string | null {
