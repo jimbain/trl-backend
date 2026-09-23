@@ -98,9 +98,12 @@ def verify_setup(cur):
 def load_active_books(conn):
     cur = conn.cursor()
     cur.execute(
+        # Excluded titles are dropped here too: a title TRL has pulled should
+        # not steer what gets recommended next.
         'SELECT sku, display_title, "AI_Class_Vector" '
         'FROM audios '
         'WHERE is_active = true '
+        '  AND is_excluded = false '
         '  AND "AI_Class_Vector" IS NOT NULL '
         '  AND deleted_at IS NULL '
         'ORDER BY sku'
@@ -120,9 +123,11 @@ def load_active_books(conn):
 def get_similar_inactive(conn, active_embedding, top_k):
     cur = conn.cursor()
     cur.execute(
+        # These rows become the recommendations, so excluded titles must never
+        # appear among them.
         'SELECT sku '
         'FROM audios '
-        'WHERE is_active = false AND deleted_at IS NULL '
+        'WHERE is_active = false AND is_excluded = false AND deleted_at IS NULL '
         'ORDER BY "AI_Class_Vector" <=> %s::vector '
         'LIMIT %s',
         (active_embedding, top_k),

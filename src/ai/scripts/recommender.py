@@ -165,6 +165,11 @@ def stream_rows(since_iso=None):
     Only English-language audios are included so the FAISS index stays
     language-consistent with the BGE English model. Non-English titles returned
     bad results when English corporate prompts were used.
+
+    Titles flagged is_excluded are left out of the index so they can never be
+    recommended. Note this applies when rows are read: ingest_delta only
+    appends, so a title excluded after it was indexed stays until the index is
+    rebuilt from scratch (delete the data dir, or redeploy).
     """
     conn = db_connect()
     try:
@@ -177,6 +182,7 @@ def stream_rows(since_iso=None):
                     'FROM audios a '
                     'JOIN audio_metadata m ON m.sku = a.sku '
                     'WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL '
+                    '  AND a.is_excluded = false '
                     '  AND m.language ILIKE \'%%english%%\' '
                     '  AND a.updated_at > %s '
                     'ORDER BY a.updated_at ASC',
@@ -189,6 +195,7 @@ def stream_rows(since_iso=None):
                     'FROM audios a '
                     'JOIN audio_metadata m ON m.sku = a.sku '
                     'WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL '
+                    '  AND a.is_excluded = false '
                     '  AND m.language ILIKE \'%english%\' '
                     'ORDER BY a.updated_at ASC'
                 )

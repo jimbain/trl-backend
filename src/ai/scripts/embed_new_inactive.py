@@ -93,8 +93,11 @@ def main():
         )
 
     cur.execute(
+        # Excluded titles are never recommended, so there is nothing to gain
+        # from spending embedding time on them.
         'SELECT sku, display_title, display_description FROM audios '
-        'WHERE is_active = false AND "AI_Class_Vector" IS NULL '
+        'WHERE is_active = false AND is_excluded = false '
+        'AND "AI_Class_Vector" IS NULL '
         'AND deleted_at IS NULL '
         'ORDER BY sku ASC'
     )
