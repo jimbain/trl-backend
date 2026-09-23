@@ -63,6 +63,22 @@ const BANNER_PADDING = 4;
 const BANNER_MARGIN_BOTTOM = 6;
 
 /**
+ * The TRL wordmark, inlined so it needs no build-time asset copying and cannot
+ * go missing from a container image. Vector rather than the PNG: the raster
+ * artwork is only 84x28, which would be visibly soft at cover size and in
+ * print, whereas this stays sharp at any scale. viewBox is 120x40, so height
+ * follows width at 1:3.
+ */
+const LOGO_ASPECT = 40 / 120;
+const LOGO_SVG = `<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 9.6L0.673887 0H28.0144L27.2924 9.6H19.3502L17.0878 39.95H5.87244L8.03851 9.6H0Z" fill="#351F25"/>
+<path d="M29.1694 28.85L30.0359 17.55L35.5714 22.25L29.1694 28.85Z" fill="#CD3026"/>
+<path d="M81.5405 28.9L82.407 17.6L87.9425 22.3L81.5405 28.9Z" fill="#CD3026"/>
+<path d="M106.956 0.0499878H95.0662L92.2744 40H119.326L120 30.1H104.886L106.956 0.0499878Z" fill="#351F25"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M43.225 0L40.3369 40H52.2262L53.4296 24.7H56.7509L61.5162 40H74.5607L68.929 22.65C71.4159 21.5833 76.4187 17.9 76.5343 11.7C76.6787 7.8 74.5319 0 64.7894 0H43.225ZM54.3923 8.6L53.9109 16.1H59.9278C61.2114 16.05 63.8363 15.25 64.0674 12.45C64.2278 11.2167 63.8171 8.72 60.8905 8.6H54.3923Z" fill="#351F25"/>
+</svg>`;
+
+/**
  * Carried over from TRL's own 50th Anniversary catalogue (2021). Confirm with
  * the client before the next print run in case the postal address or phone
  * number has since changed.
@@ -288,6 +304,20 @@ export class AdminCatalogPdfService {
     });
   }
 
+  /** The TRL wordmark at a given width, centred in the content column. */
+  private logoNode(
+    width: number,
+    margin: [number, number, number, number],
+  ): any {
+    return {
+      svg: LOGO_SVG,
+      width,
+      height: width * LOGO_ASPECT,
+      alignment: 'center',
+      margin,
+    };
+  }
+
   /**
    * A horizontal rule that centres correctly. pdfmake sizes a canvas from its
    * largest x, so a line must start at x=0 for `alignment: 'center'` to place
@@ -328,8 +358,7 @@ export class AdminCatalogPdfService {
         { text: topLabel, style: 'coverTitle' },
         this.centeredRule(400, 5),
         { text: 'LEARNING', style: 'coverTitle' },
-        { text: '', margin: [0, 60, 0, 0] },
-        { text: 'T · R · L', style: 'coverLogo' },
+        this.logoNode(230, [0, 70, 0, 24]),
         { text: year, style: 'coverYear' },
       ],
       alignment: 'center',
@@ -354,9 +383,8 @@ export class AdminCatalogPdfService {
       pageBreak: 'before',
       alignment: 'center',
       stack: [
-        { text: '', margin: [0, 210, 0, 0] },
-        { text: 'T · R · L', style: 'coverLogo' },
-        this.centeredRule(240, 4, [0, 2, 0, 26]),
+        this.logoNode(170, [0, 230, 0, 0]),
+        this.centeredRule(240, 4, [0, 16, 0, 26]),
         line(CONTACT.company, { bold: true, fontSize: 11 }),
         ...CONTACT.address.map((l) => line(l)),
         { text: '', margin: [0, 9, 0, 0] },
@@ -657,12 +685,6 @@ export class AdminCatalogPdfService {
         bold: true,
         color: '#111111',
         lineHeight: 1,
-      },
-      coverLogo: {
-        fontSize: 36,
-        bold: true,
-        color: '#111111',
-        margin: [0, 0, 0, 8],
       },
       coverYear: { fontSize: 16, color: '#333333', margin: [0, 10, 0, 0] },
       bodyText: { fontSize: 8.5, color: '#222222' },
