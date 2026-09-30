@@ -7,17 +7,34 @@
  *   npm run ai:embed-backfill -- --max-runtime-min 0    # run to completion
  *   npm run ai:embed-backfill -- --all                  # rebuild every vector
  *
- * Same code path as the nightly cron — it boots a headless Nest context and
- * calls the same runner, so there is exactly one implementation of the job.
- * Safe to run while the API is up: the script takes a Postgres advisory lock,
- * so if the cron is mid-run this exits immediately instead of double-embedding.
+ * This run starts NOW; AI_EMBEDDING_BACKFILL_CRON only governs the nightly tick.
+ *
+ * Deliberately boots a two-provider module rather than AppModule. Booting the
+ * whole application here would also start PythonRecommenderService, whose
+ * onModuleInit spawns the long-lived FAISS recommender — hundreds of thousands
+ * of 768-dim vectors resident in memory. Running that next to the BGE model
+ * this job loads is what the kernel OOM killer reaches for first on an 8 GB
+ * box, and it would take the recommender down repeatedly while the backfill
+ * ran. AiEmbeddingBackfillRunnerService needs only PythonScriptRunnerService,
+ * which has no dependencies of its own, so none of TypeORM, Redis,
+ * Elasticsearch or FAISS has to be loaded to run a batch job.
+ *
+ * Safe to run while the API is up: the python script takes a Postgres advisory
+ * lock, so if the nightly cron is mid-run this exits immediately rather than
+ * embedding anything twice.
  *
  * Exits 0 on success (including a clean stop at the time budget), 1 on failure.
  */
-import { Logger } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from 'src/app.module';
+import { config } from 'dotenv';
 import { AiEmbeddingBackfillRunnerService } from 'src/ai/services/ai-embedding-backfill-runner.service';
+import { PythonScriptRunnerService } from 'src/ai/services/python-script-runner.service';
+
+@Module({
+  providers: [PythonScriptRunnerService, AiEmbeddingBackfillRunnerService],
+})
+class EmbeddingBackfillCliModule {}
 
 function intArg(argv: string[], flag: string): number | undefined {
   const i = argv.indexOf(flag);
@@ -32,6 +49,13 @@ function intArg(argv: string[], flag: string): number | undefined {
 }
 
 async function main() {
+  // AppModule's ConfigModule is not in play here, so load the env ourselves —
+  // the python child inherits process.env and reads DB_* from it. Same file
+  // list and same precedence (first file to define a key wins) as
+  // ConfigModule.forRoot in app.module.ts, so the CLI cannot end up pointed at
+  // a different database than the API.
+  config({ path: ['.env', '.env.dev', '.env.stage', '.env.prod'] });
+
   const logger = new Logger('ai-embed-backfill');
   const argv = process.argv.slice(2);
 
@@ -39,16 +63,14 @@ async function main() {
   const maxRuntimeMin = intArg(argv, '--max-runtime-min');
   const all = argv.includes('--all');
 
-  // This run starts NOW and is independent of AI_EMBEDDING_BACKFILL_CRON — the
-  // schedule only governs the nightly tick. Suppress the scheduler in this
-  // process so booting AppModule does not also register a cron job inside a
-  // one-shot CLI; it affects this process only, never the running API.
-  process.env.AI_EMBEDDING_BACKFILL_ENABLED = 'false';
-
-  logger.log('bootstrapping Nest context (no HTTP server)…');
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['error', 'warn', 'log'],
-  });
+  const app = await NestFactory.createApplicationContext(
+    EmbeddingBackfillCliModule,
+    // 'debug' included on purpose: the python child's stderr — resource
+    // detection, model load, per-chunk counts — is logged at debug level. A
+    // manual run that prints nothing for minutes is indistinguishable from a
+    // hung one.
+    { logger: ['error', 'warn', 'log', 'debug'] },
+  );
 
   // Propagate Ctrl+C / SIGTERM through app.close() to the python child, which
   // commits the chunk it is holding before exiting. Without this, interrupting

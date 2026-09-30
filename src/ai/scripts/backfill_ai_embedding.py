@@ -12,8 +12,9 @@ Invocation:
                                      [--threads N] [--all]
 
 Stdout — one JSON object per line (parsed by the Node runner service):
+    {"stage":"model_loading","model":"...","to_embed":N}  (before the model loads)
     {"stage":"embedding","processed":N,"updated":M,"remaining":R,
-     "rate_per_min":X,"eta_min":Y}            (progress, periodic)
+     "rate_per_min":X,"eta_min":Y}            (progress, one per chunk)
     {"done":true,"processed":N,"updated":M,"interrupted":bool,"reason":"..."}
     {"error":"<message>"}                     (failure — non-zero exit)
 
@@ -39,7 +40,7 @@ hours of CPU inference, so the job must survive being killed:
 
 Env (all optional — every one has a derived default):
     AI_EMBED_BATCH_SIZE, AI_EMBED_CHUNK_SIZE, AI_EMBED_THREADS,
-    AI_EMBED_MAX_RUNTIME_MIN, AI_EMBED_PROGRESS_EVERY, AI_EMBED_THROTTLE_MS
+    AI_EMBED_MAX_RUNTIME_MIN, AI_EMBED_THROTTLE_MS
     DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE, POSTGRES_SSL
 """
 
@@ -59,7 +60,6 @@ SSL_CA_PATH = 'cert/db-ca-certificate.crt'
 ADVISORY_LOCK_KEY = 8471120250001
 
 DEFAULT_MAX_RUNTIME_MIN = 300
-DEFAULT_PROGRESS_EVERY = 2000
 
 _stop = {'requested': False, 'reason': None}
 
@@ -298,7 +298,6 @@ def main():
         max_runtime_min = DEFAULT_MAX_RUNTIME_MIN
     deadline = time.monotonic() + max_runtime_min * 60 if max_runtime_min > 0 else None
 
-    progress_every = _env_int('AI_EMBED_PROGRESS_EVERY') or DEFAULT_PROGRESS_EVERY
     throttle_ms = _env_int('AI_EMBED_THROTTLE_MS') or 0
 
     settings = derive_settings(args)
@@ -351,13 +350,15 @@ def main():
         from sentence_transformers import SentenceTransformer
 
         torch.set_num_threads(settings['threads'])
+        # First run on a cold HF cache downloads ~440 MB here; without a line
+        # on stdout the job looks hung for minutes.
+        emit({'stage': 'model_loading', 'model': MODEL_NAME, 'to_embed': remaining})
         log(f'loading model {MODEL_NAME} (torch threads={torch.get_num_threads()})…')
         model = SentenceTransformer(MODEL_NAME)
 
         processed = 0
         updated = 0
         last_sku = ''
-        last_progress_at = 0
         started = time.monotonic()
         reason = 'completed'
 
@@ -410,19 +411,20 @@ def main():
             processed += len(rows)
             last_sku = rows[-1][0]
 
-            if processed - last_progress_at >= progress_every:
-                last_progress_at = processed
-                elapsed_min = (time.monotonic() - started) / 60
-                rate = processed / elapsed_min if elapsed_min > 0 else 0
-                left = max(0, remaining - processed)
-                emit({
-                    'stage': 'embedding',
-                    'processed': processed,
-                    'updated': updated,
-                    'remaining': left,
-                    'rate_per_min': round(rate, 1),
-                    'eta_min': round(left / rate, 1) if rate > 0 else None,
-                })
+            # One line per chunk rather than every N rows: a chunk is the unit
+            # of committed work, and gating on a row count meant a short run
+            # (a --limit smoke test) finished without ever reporting anything.
+            elapsed_min = (time.monotonic() - started) / 60
+            rate = processed / elapsed_min if elapsed_min > 0 else 0
+            left = max(0, remaining - processed)
+            emit({
+                'stage': 'embedding',
+                'processed': processed,
+                'updated': updated,
+                'remaining': left,
+                'rate_per_min': round(rate, 1),
+                'eta_min': round(left / rate, 1) if rate > 0 else None,
+            })
 
             if throttle_ms:
                 time.sleep(throttle_ms / 1000)
