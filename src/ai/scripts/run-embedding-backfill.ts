@@ -39,15 +39,20 @@ async function main() {
   const maxRuntimeMin = intArg(argv, '--max-runtime-min');
   const all = argv.includes('--all');
 
+  // This run starts NOW and is independent of AI_EMBEDDING_BACKFILL_CRON — the
+  // schedule only governs the nightly tick. Suppress the scheduler in this
+  // process so booting AppModule does not also register a cron job inside a
+  // one-shot CLI; it affects this process only, never the running API.
+  process.env.AI_EMBEDDING_BACKFILL_ENABLED = 'false';
+
   logger.log('bootstrapping Nest context (no HTTP server)…');
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
 
-  // The nightly cron is registered by AiEmbeddingBackfillScheduler.onModuleInit
-  // and would fire inside this short-lived process too. Nothing breaks if it
-  // does — the advisory lock rejects the second one — but stopping it keeps the
-  // output clean and lets the process exit promptly.
+  // Propagate Ctrl+C / SIGTERM through app.close() to the python child, which
+  // commits the chunk it is holding before exiting. Without this, interrupting
+  // a long backfill throws away up to a chunk of completed inference.
   app.enableShutdownHooks();
 
   const runner = app.get(AiEmbeddingBackfillRunnerService);
