@@ -34,7 +34,8 @@
     "deep-links:generate": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/audios/scripts/generate-deep-links.js",
     "error-logs:populate-item-info": "NODE_OPTIONS='--max-old-space-size=4096' node --expose-gc dist/app-error-log/scripts/populate-item-info.js",
     "popularity:seed": "node dist/popularity/scripts/seed-popularity.js",
-    "ai:embed-backfill": "node dist/ai/scripts/run-embedding-backfill.js"
+    "ai:backfill-class-vector": "node dist/ai/scripts/run-embedding-backfill.js --column AI_Class_Vector",
+    "ai:backfill-embedding": "node dist/ai/scripts/run-embedding-backfill.js --column ai_embedding"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",

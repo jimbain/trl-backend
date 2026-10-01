@@ -1,4 +1,4 @@
-"""Resumable backfill of `audios.ai_embedding`.
+"""Resumable backfill of an `audios` pgvector column.
 
 Adapted from the AI dev's ai/AIEmbedding.py, which established the recipe:
 BAAI/bge-base-en-v1.5 over `display_title + ' ' + display_description`, L2
@@ -7,9 +7,22 @@ round-trip, and turns a single long-running script into a job that can be
 stopped and resumed at any point.
 
 Invocation:
-    python3 backfill_ai_embedding.py [--limit N] [--max-runtime-min N]
-                                     [--batch-size N] [--chunk-size N]
-                                     [--threads N] [--all]
+    python3 backfill_embeddings.py --column {ai_embedding|AI_Class_Vector}
+                                  [--limit N] [--max-runtime-min N]
+                                  [--batch-size N] [--chunk-size N]
+                                  [--threads N] [--all]
+
+Two columns, one engine. They feed different features and are NOT
+interchangeable:
+
+    AI_Class_Vector  the Active-Based List pipeline — find inactive titles
+                     similar to the ones already on the shelf
+    ai_embedding     "recommendations from a book description" — the prompt
+                     search in the admin panel
+
+Both hold a 768-dim BGE embedding, so the work is identical apart from which
+column it lands in; duplicating the script per column would mean fixing every
+resumability bug twice.
 
 Stdout — one JSON object per line (parsed by the Node runner service):
     {"stage":"model_loading","model":"...","to_embed":N}  (before the model loads)
@@ -24,8 +37,13 @@ Stderr — free-form human logs.
 ~929k rows need embedding on a 4 vCPU / 8 GB box with no GPU. That is many
 hours of CPU inference, so the job must survive being killed:
 
-  * Resumable. Work is selected by `ai_embedding IS NULL` and committed every
+  * Resumable. Work is selected by `<column> IS NULL` and committed every
     chunk, so a crash, a deploy, or a time-budget exit loses at most one chunk.
+    This is what the script it replaces got wrong: embed_new_inactive.py held a
+    single transaction open for the whole run and committed once at the end, so
+    the runner's 3-hour timeout rolled back every row it had embedded. The job
+    needs ~10.7 hours, so it could never finish, and it failed 24 nights running
+    while discarding three hours of inference each time.
   * Keyset pagination on `sku` (unique btree) rather than OFFSET, so page N
     costs the same as page 1 — and so `--all` cannot loop forever.
   * Bounded memory. Rows are pulled one chunk at a time; peak RSS is the model
@@ -55,9 +73,19 @@ import traceback
 MODEL_NAME = 'BAAI/bge-base-en-v1.5'
 SSL_CA_PATH = 'cert/db-ca-certificate.crt'
 
-# Fixed key so every process — cron, CLI, a second pod — contends for the same
-# lock. Derived by hand rather than from hashtext() so it can never drift.
-ADVISORY_LOCK_KEY = 8471120250001
+# Per-column config. The advisory lock keys differ so a backfill of one column
+# never blocks the other — they are independent work. They do contend for CPU on
+# a small box, which is a scheduling concern, not a correctness one.
+COLUMNS = {
+    'ai_embedding': {
+        'sql': 'ai_embedding',
+        'lock': 8471120250001,
+    },
+    'AI_Class_Vector': {
+        'sql': '"AI_Class_Vector"',
+        'lock': 8471120250002,
+    },
+}
 
 DEFAULT_MAX_RUNTIME_MIN = 300
 
@@ -70,7 +98,7 @@ def emit(payload):
 
 
 def log(msg):
-    sys.stderr.write(f'[backfill_ai_embedding] {msg}\n')
+    sys.stderr.write(f'[backfill_embeddings] {msg}\n')
     sys.stderr.flush()
 
 
@@ -226,22 +254,23 @@ def db_connect():
     return psycopg2.connect(**kwargs)
 
 
-def verify_column(cur):
+def verify_column(cur, column):
     cur.execute(
         "SELECT format_type(a.atttypid, a.atttypmod) "
         "FROM pg_attribute a "
         "WHERE a.attrelid = 'audios'::regclass AND a.attnum > 0 "
-        "  AND NOT a.attisdropped AND a.attname = 'ai_embedding'"
+        "  AND NOT a.attisdropped AND a.attname = %s",
+        (column,),
     )
     row = cur.fetchone()
     if not row:
         raise RuntimeError(
-            'audios.ai_embedding is missing. Run migrations first '
+            f'audios.{column} is missing. Run migrations first '
             '(AddAiColumnsToAudios1785000000000).'
         )
     if row[0] != 'vector(768)':
         raise RuntimeError(
-            f'audios.ai_embedding is {row[0]}, expected vector(768). '
+            f'audios.{column} is {row[0]}, expected vector(768). '
             f'{MODEL_NAME} emits 768 dimensions.'
         )
 
@@ -251,6 +280,7 @@ SELECT_SQL = """
       FROM audios
      WHERE {predicate}
        AND deleted_at IS NULL
+       AND is_excluded = false
        AND sku > %s
        AND (coalesce(display_title, '') <> '' OR coalesce(display_description, '') <> '')
      ORDER BY sku
@@ -262,6 +292,7 @@ COUNT_SQL = """
       FROM audios
      WHERE {predicate}
        AND deleted_at IS NULL
+       AND is_excluded = false
        AND (coalesce(display_title, '') <> '' OR coalesce(display_description, '') <> '')
 """
 
@@ -274,7 +305,9 @@ def vec_to_pgtext(vec):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description='Backfill audios.ai_embedding')
+    p = argparse.ArgumentParser(description='Backfill an audios pgvector column')
+    p.add_argument('--column', required=True, choices=sorted(COLUMNS),
+                   help='which column to fill — they serve different features')
     p.add_argument('--limit', type=int, default=0,
                    help='stop after N rows (0 = no limit). Useful for a smoke test.')
     p.add_argument('--max-runtime-min', type=int, default=None,
@@ -290,6 +323,12 @@ def parse_args():
 def main():
     args = parse_args()
     _install_signal_handlers()
+
+    column_cfg = COLUMNS[args.column]
+    # argparse restricts --column to the keys of COLUMNS, so this identifier is
+    # never attacker-controlled; it is interpolated rather than bound because a
+    # column name cannot be a query parameter.
+    column_sql = column_cfg['sql']
 
     max_runtime_min = args.max_runtime_min
     if max_runtime_min is None:
@@ -321,24 +360,25 @@ def main():
 
     # Session-level advisory lock. Released implicitly when this connection
     # closes, including on a hard kill — no stale lock to clean up by hand.
-    cur.execute('SELECT pg_try_advisory_lock(%s)', (ADVISORY_LOCK_KEY,))
+    cur.execute('SELECT pg_try_advisory_lock(%s)', (column_cfg['lock'],))
     if not cur.fetchone()[0]:
         conn.rollback()
         cur.close()
         conn.close()
-        log('another backfill holds the advisory lock — exiting without work')
+        log(f'another {args.column} backfill holds the advisory lock — exiting without work')
         emit({'done': True, 'processed': 0, 'updated': 0,
               'interrupted': False, 'reason': 'already running elsewhere'})
         return
 
     try:
-        verify_column(cur)
-        predicate = 'TRUE' if args.all else 'ai_embedding IS NULL'
+        verify_column(cur, args.column)
+        predicate = 'TRUE' if args.all else f'{column_sql} IS NULL'
 
         cur.execute(COUNT_SQL.format(predicate=predicate))
         remaining = cur.fetchone()[0]
         conn.commit()
-        log(f'{remaining} rows to embed (mode={"all" if args.all else "missing-only"})')
+        log(f'{remaining} rows to embed into {args.column} '
+            f'(mode={"all" if args.all else "missing-only"})')
 
         if remaining == 0:
             emit({'done': True, 'processed': 0, 'updated': 0,
@@ -352,7 +392,8 @@ def main():
         torch.set_num_threads(settings['threads'])
         # First run on a cold HF cache downloads ~440 MB here; without a line
         # on stdout the job looks hung for minutes.
-        emit({'stage': 'model_loading', 'model': MODEL_NAME, 'to_embed': remaining})
+        emit({'stage': 'model_loading', 'model': MODEL_NAME,
+              'column': args.column, 'to_embed': remaining})
         log(f'loading model {MODEL_NAME} (torch threads={torch.get_num_threads()})…')
         model = SentenceTransformer(MODEL_NAME)
 
@@ -397,9 +438,21 @@ def main():
             payload = [
                 (sku, vec_to_pgtext(vec)) for (sku, _, _), vec in zip(rows, vectors)
             ]
+            # updated_at is bumped deliberately. recommender.py's delta ingest
+            # selects `WHERE a.updated_at > <watermark>`, and audios has no
+            # trigger on updated_at — TypeORM's @UpdateDateColumn only fires for
+            # writes TypeORM itself makes, not for raw SQL like this. Without
+            # the bump, every row this job embeds stays invisible to the FAISS
+            # index forever: "Refresh AI Index" reports 0 added while the
+            # "with embeddings" count climbs.
+            #
+            # Safe to touch: recommender.py is the only consumer of
+            # audios.updated_at. Elasticsearch sync keys off
+            # audio_metadata.metadata_signature, and the client-facing
+            # updated_at values come from audio_user_statuses, not here.
             execute_values(
                 cur,
-                'UPDATE audios AS a SET ai_embedding = v.vec::vector '
+                f'UPDATE audios AS a SET {column_sql} = v.vec::vector, updated_at = now() '
                 'FROM (VALUES %s) AS v(sku, vec) WHERE a.sku = v.sku',
                 payload,
                 template='(%s::varchar, %s::text)',
@@ -441,7 +494,7 @@ def main():
     finally:
         try:
             conn.rollback()
-            cur.execute('SELECT pg_advisory_unlock(%s)', (ADVISORY_LOCK_KEY,))
+            cur.execute('SELECT pg_advisory_unlock(%s)', (column_cfg['lock'],))
             conn.commit()
         except Exception:
             pass

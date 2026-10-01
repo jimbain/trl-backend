@@ -1,11 +1,14 @@
 /**
- * Manual `audios.ai_embedding` backfill.
+ * Manual backfill of one `audios` vector column.
  *
- * Invocation:
- *   npm run ai:embed-backfill
- *   npm run ai:embed-backfill -- --limit 200            # smoke test
- *   npm run ai:embed-backfill -- --max-runtime-min 0    # run to completion
- *   npm run ai:embed-backfill -- --all                  # rebuild every vector
+ * Invocation — the column is required, because the two feed different features:
+ *   npm run ai:backfill-class-vector        # AI_Class_Vector, Active-Based List
+ *   npm run ai:backfill-embedding           # ai_embedding, prompt search
+ *
+ * Both accept the same flags after `--`:
+ *   -- --limit 200            # smoke test
+ *   -- --max-runtime-min 0    # run to completion
+ *   -- --all                  # rebuild every vector in the column
  *
  * This run starts NOW; AI_EMBEDDING_BACKFILL_CRON only governs the nightly tick.
  *
@@ -28,13 +31,31 @@
 import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { config } from 'dotenv';
-import { AiEmbeddingBackfillRunnerService } from 'src/ai/services/ai-embedding-backfill-runner.service';
+import {
+  AiEmbeddingBackfillRunnerService,
+  EmbeddingColumn,
+} from 'src/ai/services/ai-embedding-backfill-runner.service';
 import { PythonScriptRunnerService } from 'src/ai/services/python-script-runner.service';
 
 @Module({
   providers: [PythonScriptRunnerService, AiEmbeddingBackfillRunnerService],
 })
 class EmbeddingBackfillCliModule {}
+
+const COLUMNS: EmbeddingColumn[] = ['AI_Class_Vector', 'ai_embedding'];
+
+function columnArg(argv: string[]): EmbeddingColumn {
+  const i = argv.indexOf('--column');
+  const value = i === -1 ? undefined : argv[i + 1];
+  if (!value || !COLUMNS.includes(value as EmbeddingColumn)) {
+    throw new Error(
+      `--column is required and must be one of: ${COLUMNS.join(', ')}. ` +
+        'They are not interchangeable — AI_Class_Vector drives the ' +
+        'Active-Based List pipeline, ai_embedding drives prompt search.',
+    );
+  }
+  return value as EmbeddingColumn;
+}
 
 function intArg(argv: string[], flag: string): number | undefined {
   const i = argv.indexOf(flag);
@@ -59,6 +80,7 @@ async function main() {
   const logger = new Logger('ai-embed-backfill');
   const argv = process.argv.slice(2);
 
+  const column = columnArg(argv);
   const limit = intArg(argv, '--limit');
   const maxRuntimeMin = intArg(argv, '--max-runtime-min');
   const all = argv.includes('--all');
@@ -82,12 +104,13 @@ async function main() {
   try {
     const result = await runner.run({
       triggeredBy: 'cli',
+      column,
       limit,
       maxRuntimeMin,
       all,
     });
     logger.log(
-      `done — processed=${result.processed} updated=${result.updated} ` +
+      `done — column=${column} processed=${result.processed} updated=${result.updated} ` +
         `interrupted=${result.interrupted} reason="${result.reason}"`,
     );
     if (result.interrupted) {

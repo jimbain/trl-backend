@@ -208,7 +208,12 @@ def stream_rows(since_iso=None):
         conn.close()
 
 
-FULL_BUILD_BATCH_SIZE = 10000
+# Vectors are handed to FAISS in fixed-size batches by BOTH the full build and
+# the delta ingest, so peak RAM is set by the batch size rather than by how many
+# rows happen to arrive at once. Each add costs roughly 3x the batch's raw size:
+# the list of per-row arrays, the np.stack of them, and the float32 copy inside
+# add_to_index.
+INDEX_ADD_BATCH_SIZE = 10000
 
 
 def full_build():
@@ -255,7 +260,7 @@ def full_build():
             max_updated_at is None or updated_at > max_updated_at
         ):
             max_updated_at = updated_at
-        if len(batch) >= FULL_BUILD_BATCH_SIZE:
+        if len(batch) >= INDEX_ADD_BATCH_SIZE:
             flush()
         if streamed % 5000 == 0:
             log(f'streamed {streamed} rows ({skipped} duplicates skipped)...')
@@ -271,12 +276,38 @@ def full_build():
 
 
 def ingest_delta(skus, index, since_iso):
-    """Append rows added/updated after `since_iso`. Returns (added_count, new_max_iso)."""
+    """Append rows added/updated after `since_iso`. Returns (added_count, new_max_iso).
+
+    Vectors are flushed in INDEX_ADD_BATCH_SIZE batches, for exactly the reason
+    full_build() does it: accumulating the whole delta and np.stack-ing it once
+    allocates a duplicate, and add_to_index copies again on top of that. A delta
+    is normally small, but it is only as small as the gap since the last
+    successful refresh — a backfill running all day, or a few nights where the
+    recommender was not warm enough to refresh, produces a delta of hundreds of
+    thousands of rows, which is precisely the case that OOMs.
+
+    New vectors are APPENDED to the live HNSW graph; nothing is deleted and the
+    index is never rebuilt here. `skus` is extended in the same order the
+    vectors are added, because position i in the index must stay the sku at
+    skus[i].
+    """
     sku_set = set(skus)
-    new_vectors = []
-    new_skus = []
     new_max = since_iso
     streamed = 0
+    added = 0
+    batch_vectors = []
+    batch_skus = []
+
+    def flush():
+        nonlocal added
+        if not batch_vectors:
+            return
+        add_to_index(index, np.stack(batch_vectors))
+        skus.extend(batch_skus)
+        added += len(batch_vectors)
+        batch_vectors.clear()
+        batch_skus.clear()
+
     for sku, vec, updated_at in stream_rows(since_iso=since_iso):
         streamed += 1
         ts_iso = _iso(updated_at)
@@ -288,18 +319,15 @@ def ingest_delta(skus, index, since_iso):
             # changed the embedding model or need a strict replacement.
             continue
         sku_set.add(sku)
-        new_skus.append(sku)
-        new_vectors.append(vec)
+        batch_skus.append(sku)
+        batch_vectors.append(vec)
+        if len(batch_vectors) >= INDEX_ADD_BATCH_SIZE:
+            flush()
         if streamed % 5000 == 0:
-            log(f'delta streamed {streamed} rows...')
+            log(f'delta streamed {streamed} rows, {added + len(batch_vectors)} new...')
 
-    if not new_vectors:
-        return 0, new_max
-
-    matrix = np.stack(new_vectors)
-    add_to_index(index, matrix)
-    skus.extend(new_skus)
-    return len(new_vectors), new_max
+    flush()
+    return added, new_max
 
 
 def _iso(value):

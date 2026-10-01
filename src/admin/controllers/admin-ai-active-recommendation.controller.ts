@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { ListAiRecommendationRunsDto } from 'src/ai/dto/ai-recommendation-run.dto';
 import { ListRecommendedActiveAudiosDto } from 'src/ai/dto/list-recommended-active-audios.dto';
 import { AiActiveRecommendationService } from 'src/ai/services/ai-active-recommendation.service';
 import { JwtAdminAuthGuard } from '../guards/jwt-admin-auth.guard';
@@ -31,6 +32,19 @@ export class AdminAiActiveRecommendationController {
   @Get('status')
   status() {
     return this.aiActiveRecommendationService.getStatus();
+  }
+
+  /**
+   * Full run history. `status` above reports only the latest run, which is why
+   * a repeating nightly failure was invisible — a single red card looks the
+   * same whether it is the first failure or the twenty-fourth.
+   */
+  @Get('runs')
+  runs(@Query() query: ListAiRecommendationRunsDto) {
+    return this.aiActiveRecommendationService.listRuns(
+      query.page,
+      query.per_page,
+    );
   }
 
   @Post('regenerate')

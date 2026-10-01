@@ -4,7 +4,7 @@ import {
   PythonRunOptions,
 } from './python-script-runner.service';
 
-const SCRIPT = 'backfill_ai_embedding.py';
+const SCRIPT = 'backfill_embeddings.py';
 
 /** Matches the script's own default budget (AI_EMBED_MAX_RUNTIME_MIN). */
 const DEFAULT_MAX_RUNTIME_MIN = 300;
@@ -17,8 +17,20 @@ const TIMEOUT_GRACE_MIN = 30;
 
 export type EmbeddingBackfillTrigger = 'cron' | 'manual' | 'cli';
 
+/**
+ * The two pgvector columns on `audios`. They are not interchangeable:
+ *
+ *   AI_Class_Vector  drives the Active-Based List pipeline
+ *   ai_embedding     drives prompt search ("recommend from a description")
+ *
+ * Same embedding model and same source text, different consumers — so one
+ * engine fills both, but a caller always says which.
+ */
+export type EmbeddingColumn = 'AI_Class_Vector' | 'ai_embedding';
+
 export interface EmbeddingBackfillOptions {
   triggeredBy: EmbeddingBackfillTrigger;
+  column: EmbeddingColumn;
   /** Stop after N rows. 0/undefined = no limit. */
   limit?: number;
   /** Override the script's time budget, in minutes. 0 = unlimited. */
@@ -35,14 +47,18 @@ export interface EmbeddingBackfillResult {
 }
 
 /**
- * Orchestrates `backfill_ai_embedding.py`.
+ * Orchestrates `backfill_embeddings.py` for either vector column.
  *
  * Deliberately thin: it owns no run table and no progress state of its own.
  * The script is the single source of truth for what still needs embedding
- * (`ai_embedding IS NULL`), and a Postgres advisory lock — not this class —
- * is what actually guarantees single-flight, because that has to hold across
- * replicas and across the CLI entry point too. The in-process guard below only
- * saves a pointless model load when the collision is local.
+ * (`<column> IS NULL`), and a Postgres advisory lock — not this class — is what
+ * actually guarantees single-flight, because that has to hold across replicas
+ * and across the CLI entry point too. The script keys that lock on the column,
+ * so the two columns never block each other.
+ *
+ * The in-process guard below is narrower on purpose: it serialises this
+ * process's own runs regardless of column, because two concurrent backfills
+ * would each load a BGE model and contend for the same few cores.
  */
 @Injectable()
 export class AiEmbeddingBackfillRunnerService {
@@ -61,7 +77,7 @@ export class AiEmbeddingBackfillRunnerService {
   ): Promise<EmbeddingBackfillResult> {
     if (this.inFlight) {
       throw new ConflictException(
-        'An ai_embedding backfill is already in progress.',
+        'An embedding backfill is already in progress in this process.',
       );
     }
 
@@ -81,7 +97,12 @@ export class AiEmbeddingBackfillRunnerService {
         DEFAULT_MAX_RUNTIME_MIN,
       );
 
-    const args = ['--max-runtime-min', String(maxRuntimeMin)];
+    const args = [
+      '--column',
+      options.column,
+      '--max-runtime-min',
+      String(maxRuntimeMin),
+    ];
     if (options.limit && options.limit > 0) {
       args.push('--limit', String(options.limit));
     }
@@ -102,14 +123,14 @@ export class AiEmbeddingBackfillRunnerService {
       onProgress: (message) => {
         if (message.stage !== 'embedding') return;
         this.logger.log(
-          `embedding: ${message.processed} done, ${message.remaining} left ` +
+          `${options.column}: ${message.processed} done, ${message.remaining} left ` +
             `(${message.rate_per_min}/min, eta ${message.eta_min ?? '?'} min)`,
         );
       },
     };
 
     this.logger.log(
-      `starting ai_embedding backfill (trigger=${options.triggeredBy}, ` +
+      `starting ${options.column} backfill (trigger=${options.triggeredBy}, ` +
         `budget=${maxRuntimeMin || 'unlimited'} min)`,
     );
 
@@ -123,7 +144,8 @@ export class AiEmbeddingBackfillRunnerService {
     };
 
     this.logger.log(
-      `ai_embedding backfill finished — ${result.updated} rows updated (${result.reason})`,
+      `${options.column} backfill finished — ${result.updated} rows updated ` +
+        `(${result.reason})`,
     );
     return result;
   }

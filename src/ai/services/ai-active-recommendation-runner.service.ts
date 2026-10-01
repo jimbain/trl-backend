@@ -20,7 +20,6 @@ import { Audio } from 'src/audios/entities/audio.entity';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
 
-const EMBED_SCRIPT = 'embed_new_inactive.py';
 const RANK_SCRIPT = 'active_recommendations.py';
 
 const CONFIG_KEY_TOP_N = 'ai_recommendation_top_n';
@@ -29,10 +28,11 @@ const CONFIG_KEY_TOP_K = 'ai_recommendation_top_k_per_active';
 const DEFAULT_TOP_N = 1000;
 const DEFAULT_TOP_K = 50;
 
-// Hard ceiling to protect against a hung Python job — chosen higher than the
-// ~50 min upper bound the dev quoted for the full pipeline, low enough to
-// eventually free the mutex if something deadlocks.
-const SCRIPT_TIMEOUT_MS = 3 * 60 * 60 * 1000;
+// Hard ceiling to protect against a hung Python job. Now that embedding has
+// moved out, this pipeline only ranks — minutes of work over ~1,900 active
+// titles — so an hour is generous and still frees the mutex if something
+// deadlocks. It is deliberately NOT a budget the job is expected to use.
+const SCRIPT_TIMEOUT_MS = 60 * 60 * 1000;
 
 interface RunOptions {
   triggeredBy: AiRecommendationRunTrigger;
@@ -108,11 +108,21 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
     run: AiRecommendationRun,
   ): Promise<AiRecommendationRun> {
     try {
+      // Ranking only. Embedding used to be stage one here, and it is why this
+      // pipeline failed 24 nights in a row: filling AI_Class_Vector is ~11 hours
+      // of CPU against a 3-hour SCRIPT_TIMEOUT_MS, and the script it called
+      // committed once at the very end — so every run was killed before it
+      // committed and rolled back a full night of inference.
+      //
+      // Vectors are now owned by AiEmbeddingBackfillScheduler, which fills them
+      // in resumable chunks on its own budget. This pipeline ranks whatever
+      // vectors exist when it runs, which is also what makes "Generate" usable:
+      // an admin gets a fresh ranking in minutes instead of waiting on a job
+      // that cannot finish inside any reasonable request.
       await this.updateRun(run, {
         status: 'running',
-        stage: 'embedding',
+        stage: 'ranking',
       });
-      await this.runScript(EMBED_SCRIPT, [], run);
 
       const configs = await this.appConfigService.getAppConfigs([
         CONFIG_KEY_TOP_N,
@@ -127,7 +137,6 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
         DEFAULT_TOP_K,
       );
 
-      await this.updateRun(run, { stage: 'ranking' });
       const finalPayload = await this.runScript(
         RANK_SCRIPT,
         [

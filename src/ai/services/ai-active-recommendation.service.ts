@@ -16,6 +16,7 @@ import {
   AiActiveRecommendationStatusDto,
   RecommendedActiveAudiosPageDto,
 } from '../dto/recommended-active-audio.dto';
+import { AiRecommendationRunsPageDto } from '../dto/ai-recommendation-run.dto';
 import { AiActiveRecommendationRunnerService } from './ai-active-recommendation-runner.service';
 
 const CONFIG_KEY_INTERVAL = 'ai_recommendation_interval_days';
@@ -75,6 +76,30 @@ export class AiActiveRecommendationService implements OnModuleInit {
    * (src/common/interfaces PaginationMeta) so the shared frontend
    * <Pagination> component just works.
    */
+  /**
+   * The run log, newest first — every attempt, not just the successful ones.
+   *
+   * Ordered by `started_at` rather than `completed_at` so runs that are still
+   * in flight (and runs that died without ever completing) sort into place
+   * instead of collecting at the bottom with a null.
+   */
+  async listRuns(
+    page: number,
+    perPage: number,
+  ): Promise<AiRecommendationRunsPageDto> {
+    const [rows, total] = await this.runsRepo.findAndCount({
+      order: { started_at: 'DESC' },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    });
+
+    return plainToInstance(
+      AiRecommendationRunsPageDto,
+      { data: rows, meta: this.buildMeta(page, perPage, total) },
+      { excludeExtraneousValues: true },
+    );
+  }
+
   async listLatestBatch(
     page: number,
     perPage: number,

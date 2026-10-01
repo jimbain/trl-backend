@@ -90,7 +90,8 @@ def verify_setup(cur):
     dim_row = cur.fetchone()
     if not dim_row:
         raise RuntimeError(
-            'no populated AI_Class_Vector rows found. Run embed_new_inactive.py first.'
+            'no populated AI_Class_Vector rows found. Run '
+            '`npm run ai:backfill-class-vector` first.'
         )
     log(f'embedding dimension: {dim_row[0]}')
 
