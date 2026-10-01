@@ -1,10 +1,11 @@
 """Resumable backfill of an `audios` pgvector column.
 
-Adapted from the AI dev's ai/AIEmbedding.py, which established the recipe:
-BAAI/bge-base-en-v1.5 over `display_title + ' ' + display_description`, L2
-normalised. This version removes the hardcoded credentials and the CSV
-round-trip, and turns a single long-running script into a job that can be
-stopped and resumed at any point.
+The model and the per-column source text come verbatim from the AI developer's
+scripts — ai/AIEmbedding.py for AI_Class_Vector, ai/CronDBUpdate.py for
+ai_embedding — so new vectors are comparable to the ones already stored. The
+machinery around them is built for a 1.4M-title catalogue on a small box: no
+hardcoded credentials, no CSV round-trip, bounded memory, and a one-shot script
+becomes a job that can be stopped and resumed at any point.
 
 Invocation:
     python3 backfill_embeddings.py --column {ai_embedding|AI_Class_Vector}
@@ -20,9 +21,22 @@ interchangeable:
     ai_embedding     "recommendations from a book description" — the prompt
                      search in the admin panel
 
-Both hold a 768-dim BGE embedding, so the work is identical apart from which
-column it lands in; duplicating the script per column would mean fixing every
-resumability bug twice.
+Both hold a 768-dim BGE embedding, but from DIFFERENT source text:
+
+    AI_Class_Vector  display_title + ' ' + display_description
+    ai_embedding     display_description
+
+Everything else — resumability, batching, locking, resource sizing — is
+identical, so one engine serves both rather than duplicating the hard parts and
+having to fix each bug twice.
+
+Both columns are written L2-normalised. CronDBUpdate.py omitted that for
+ai_embedding, so the 518k rows it produced carry arbitrary magnitudes. Direction
+is all that cosine search uses, so this changes no result today — but it leaves
+the column mixed. To finish the job, normalise the legacy rows once:
+
+    UPDATE audios SET ai_embedding = l2_normalize(ai_embedding)
+     WHERE ai_embedding IS NOT NULL;      -- pgvector >= 0.7, direction-preserving
 
 Stdout — one JSON object per line (parsed by the Node runner service):
     {"stage":"model_loading","model":"...","to_embed":N}  (before the model loads)
@@ -76,14 +90,54 @@ SSL_CA_PATH = 'cert/db-ca-certificate.crt'
 # Per-column config. The advisory lock keys differ so a backfill of one column
 # never blocks the other — they are independent work. They do contend for CPU on
 # a small box, which is a scheduling concern, not a correctness one.
+#   sql        column identifier, quoted where the mixed case demands it
+#   lock       advisory lock key
+#   source     SQL predicate for "this row has the text this column needs"
+#   text       how that text is assembled before encoding
+#   normalize  passed to model.encode as normalize_embeddings
+#
+# The SOURCE TEXT is carried over verbatim from the AI developer's scripts,
+# because that is what decides where a vector lands. Produce ai_embedding from
+# title+description and it would sit in a different space from the 518k rows
+# already stored, quietly degrading every similarity result against them:
+#
+#   AI_Class_Vector   AIEmbedding.py:37    row[1] + ' ' + row[2]
+#   ai_embedding      CronDBUpdate.py:39   row[1]        (description alone)
+#
+# The `or ''` guards are the one deviation, and they change nothing for a row
+# that has its text — the originals simply raise TypeError on a NULL instead.
+#
+# Two things are deliberately NOT carried over, both operational rather than
+# mathematical:
+#
+#   Row scope. AIEmbedding.py filters `is_active is false`, which permanently
+#   strands the ~63 active titles that have no vector — and `load_active_books`
+#   drops exactly those rows, so they contribute nothing to recommendations.
+#   Here, every non-excluded, non-deleted row with the needed text is eligible.
+#
+#   Normalisation. CronDBUpdate.py omits normalize_embeddings for ai_embedding.
+#   Both columns are normalised here. This cannot change results — pgvector's
+#   `<=>` and FAISS's add_to_index both normalise internally, so only direction
+#   has ever mattered — but it keeps magnitudes uniform, which is what stops a
+#   future inner-product index from silently mis-ranking. See the header note
+#   about normalising the legacy rows to match.
 COLUMNS = {
     'ai_embedding': {
         'sql': 'ai_embedding',
         'lock': 8471120250001,
+        'source': "coalesce(display_description, '') <> ''",
+        'text': lambda title, desc: desc or '',
+        'normalize': True,
     },
     'AI_Class_Vector': {
         'sql': '"AI_Class_Vector"',
         'lock': 8471120250002,
+        'source': (
+            "(coalesce(display_title, '') <> '' "
+            "OR coalesce(display_description, '') <> '')"
+        ),
+        'text': lambda title, desc: (title or '') + ' ' + (desc or ''),
+        'normalize': True,
     },
 }
 
@@ -282,7 +336,7 @@ SELECT_SQL = """
        AND deleted_at IS NULL
        AND is_excluded = false
        AND sku > %s
-       AND (coalesce(display_title, '') <> '' OR coalesce(display_description, '') <> '')
+       AND {source}
      ORDER BY sku
      LIMIT %s
 """
@@ -293,7 +347,7 @@ COUNT_SQL = """
      WHERE {predicate}
        AND deleted_at IS NULL
        AND is_excluded = false
-       AND (coalesce(display_title, '') <> '' OR coalesce(display_description, '') <> '')
+       AND {source}
 """
 
 
@@ -374,7 +428,11 @@ def main():
         verify_column(cur, args.column)
         predicate = 'TRUE' if args.all else f'{column_sql} IS NULL'
 
-        cur.execute(COUNT_SQL.format(predicate=predicate))
+        cur.execute(
+            COUNT_SQL.format(
+                predicate=predicate, source=column_cfg['source']
+            )
+        )
         remaining = cur.fetchone()[0]
         conn.commit()
         log(f'{remaining} rows to embed into {args.column} '
@@ -420,17 +478,23 @@ def main():
                     break
                 limit = min(limit, left)
 
-            cur.execute(SELECT_SQL.format(predicate=predicate), (last_sku, limit))
+            cur.execute(
+                SELECT_SQL.format(
+                    predicate=predicate, source=column_cfg['source']
+                ),
+                (last_sku, limit),
+            )
             rows = cur.fetchall()
             conn.commit()
             if not rows:
                 break
 
-            texts = [f'{title or ""} {desc or ""}'.strip() for _, title, desc in rows]
+            build_text = column_cfg['text']
+            texts = [build_text(title, desc) for _, title, desc in rows]
             vectors = model.encode(
                 texts,
                 batch_size=settings['batch_size'],
-                normalize_embeddings=True,
+                normalize_embeddings=column_cfg['normalize'],
                 show_progress_bar=False,
                 convert_to_numpy=True,
             ).astype(np.float32)
