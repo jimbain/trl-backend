@@ -1,8 +1,10 @@
 # Popularity Module
 
-Scores every active audio in the library by real-world popularity, so admins can identify what to feature.
+Scores every **active** audio in the library by real-world popularity, so admins can identify what to feature.
 
-**MVP sources:** Open Library + Google Books (both free, no user-facing keys strictly required — one optional free Google Cloud API key recommended).
+**Source:** Open Library only — free, no key, no signup.
+
+> Google Books was removed in the `fix(popularity)` work after live testing: it matched **0 of 2,025** titles across 37 consecutive nightly runs. The cause is that its field operators (`isbn:`, `intitle:`, `inauthor:`) return `totalItems: 0` for our catalogue even with a valid key, and the free-text fallback mismatched 1 in 3 titles (e.g. *The Art of Creativity* → *Catalog of Copyright Entries*). Its daily quota (1,000) was also a quarter of what one run needs. See git history for `google-books.fetcher.ts`.
 
 **For architecture / score formula / code map:** see [`docs/CURRENT_IMPLEMENTATION.md`](./docs/CURRENT_IMPLEMENTATION.md)
 **For future sources / pricing / signup URLs:** see [`docs/AVAILABLE_SOURCES.md`](./docs/AVAILABLE_SOURCES.md)
@@ -12,102 +14,105 @@ Scores every active audio in the library by real-world popularity, so admins can
 # Deployment Runbook (PM2 on dev server)
 
 Assumes:
-- Backend is at `/mnt/trl_dev_backend_volume/app`, PM2 process name `trl-backend`, run as user `trl`
-- Admin-portal is at `<admin-portal-path>`, PM2 process name `trl-admin-portal`, run as user `trl`
-- Python venv at `/mnt/trl_dev_backend_volume/venv` (per Feature 1 setup — this feature adds NO new Python deps)
+- Backend at `/mnt/trl_dev_backend_volume/app`, PM2 process `trl-backend`, run as user `trl`, branch `dev`
+- Admin-portal at `<admin-portal-path>` (get it from `pm2 list`), PM2 process `trl-admin-portal`, branch `development`
+- Python venv at `/mnt/trl_dev_backend_volume/venv` — this feature adds **no** Python deps
 
-## Step 1 — Get a free Google Books API key (5 min, recommended)
-
-Without a key, Google Books works but is limited to ~1,000 req/day per IP — first-day scoring of 2,500 audios will hit some skips. With a key you get 1,000/day baseline (easily raised to 100k+/day via a self-service form).
-
-**Steps:**
-1. Go to https://console.cloud.google.com/ and either create a new project (`TRL Popularity`) or select an existing one.
-2. Enable Books API: https://console.cloud.google.com/apis/library/books.googleapis.com → click **Enable**.
-3. Create key: https://console.cloud.google.com/apis/credentials → **+ Create Credentials** → **API key** → **copy the `AIzaSy…` key immediately**.
-4. (Optional but recommended) Restrict the key — same page → pencil-edit → **API restrictions** = Books API only → **Application restrictions** = IP addresses → add your dev server's public IP (`curl ifconfig.me` from the dev server).
-
-## Step 2 — Pull latest code + install deps
+## Step 1 — Pull latest code + install deps
 
 ```bash
 # Backend
 cd /mnt/trl_dev_backend_volume/app
-git fetch origin
-git checkout feature/ai_recommendation
-git pull origin feature/ai_recommendation
-sudo -u trl npm ci                     # no new Python deps for this feature
+sudo -u trl git fetch origin
+sudo -u trl git checkout dev
+sudo -u trl git pull --ff-only origin dev
+sudo -u trl npm ci
 
 # Admin portal
 sudo -u trl pm2 list                    # confirm admin-portal cwd
 cd <admin-portal-path>
-git fetch origin
-git checkout feature/ai_recommendation
-git pull origin feature/ai_recommendation
+sudo -u trl git fetch origin
+sudo -u trl git checkout development
+sudo -u trl git pull --ff-only origin development
 sudo -u trl npm ci
 ```
 
-## Step 3 — Set env vars
+`--ff-only` so a diverged local checkout fails loudly instead of opening a merge.
 
-```bash
-sudo -u trl nano /mnt/trl_dev_backend_volume/app/.env
-```
+## Step 2 — Env vars
 
-Add at the bottom:
+Only one is read by this module:
+
 ```
-GOOGLE_BOOKS_API_KEY=AIzaSy...          # paste your key from Step 1
 POPULARITY_USER_AGENT="TRL/1.0 (+admin@therentallibrary.com)"
 ```
 
-`POPULARITY_USER_AGENT` is what we send to Open Library (raises rate limit from 1 → 3 rps — no signup needed, just a string).
+Open Library raises its rate limit from 1 → 3 rps for callers that identify themselves. **Optional** — [`open-library.fetcher.ts`](./services/fetchers/open-library.fetcher.ts) falls back to exactly this string, so setting it changes no behaviour. Keep it in `.env` anyway: it puts the contact address somewhere an operator can change without a deploy.
 
-**Skipping this step is OK** — feature still works. `GOOGLE_BOOKS_API_KEY` is optional (throttling risk on day-1); `POPULARITY_USER_AGENT` has a sensible default in code.
+**`GOOGLE_BOOKS_API_KEY` is dead — delete the line.** Nothing reads it. If a key was ever issued, revoke it in the Google Cloud console rather than leaving a live credential in a `.env`.
 
-## Step 4 — Run the migration
+## Step 3 — Run migrations
 
 ```bash
 cd /mnt/trl_dev_backend_volume/app
+sudo -u trl npm run build          # migration:run reads dist/, not src/
 sudo -u trl npm run migration:run
 ```
 
-Expected last line:
-```
-Migration CreateAudioPopularity1787000000000 has been executed successfully.
+The build is **not optional**: [`data_source.ts`](../database/data_source.ts) globs `dist/database/migrations/*.js`. Skipping it reports `No migrations are pending` on a database that is in fact behind.
+
+Two migrations belong to this module:
+
+| Migration | Effect |
+|---|---|
+| `CreateAudioPopularity1787000000000` | Creates `audio_popularity_scores`, `audio_popularity_history`, `audio_popularity_runs`; seeds 3 `app_configs` rows with `ON CONFLICT DO NOTHING` |
+| `PopularityNullableScoreAndSourceCounts1788000000000` | Drops `NOT NULL` on `popularity_score` in both score tables, converts existing `confidence = 0` rows to `NULL`, adds `source_match_counts jsonb` to the runs table |
+
+Both are idempotent and safe to re-run.
+
+**If `npm run build` fails with `EACCES: permission denied, rmdir .../dist/...`**, a previous build ran as root. Fix the ownership before retrying — do not run the build as root:
+
+```bash
+sudo chown -R trl:trl /mnt/trl_dev_backend_volume/app/dist
 ```
 
-**Idempotent** — safe to re-run. Creates 3 new tables (`audio_popularity_scores`, `audio_popularity_history`, `audio_popularity_runs`) and seeds 4 rows in `app_configs` with `ON CONFLICT DO NOTHING`.
-
-**Sanity check (optional, needs psql):**
+**Sanity check:**
 ```bash
 psql "$DATABASE_URL" -c "\dt audio_popularity*"
 psql "$DATABASE_URL" -c "SELECT key, value FROM app_configs WHERE key LIKE 'popularity_%' ORDER BY key;"
-# expect 4 rows: interval_days=1, weight_openlibrary=0.60, weight_google=0.40, min_confidence_display=1
+# expect exactly 3 rows:
+#   popularity_interval_days             = 1
+#   popularity_min_confidence_display    = 1
+#   popularity_source_weight_openlibrary = 1.00
+
+psql "$DATABASE_URL" -c "SELECT is_nullable FROM information_schema.columns
+  WHERE table_name = 'audio_popularity_scores' AND column_name = 'popularity_score';"
+# expect YES — 1788 has run
 ```
 
-## Step 5 — Build backend
+There is no `popularity_source_weight_google` row. If one is present the database predates the Google removal; it is inert (no fetcher claims it) but delete it so the Configuration page's weight set matches the fetcher set.
+
+## Step 4 — Restart backend
 
 ```bash
 cd /mnt/trl_dev_backend_volume/app
-sudo -u trl npm run build
-```
-
-## Step 6 — Restart backend under PM2
-
-```bash
 sudo -u trl pm2 restart trl-backend --update-env
-sudo -u trl pm2 logs trl-backend --lines 100 | grep -iE "popularity|nest.*bootstrap"
+sudo -u trl pm2 logs trl-backend --lines 100 | grep -iE "popularity|nest.*bootstrap|cron"
 ```
 
-`--update-env` is mandatory — without it, PM2 keeps the old env and doesn't see `GOOGLE_BOOKS_API_KEY`.
+`--update-env` is mandatory — without it PM2 keeps the environment from the previous start and never sees `.env` edits.
 
-Watch the logs for:
-- Normal Nest startup, routes mounted (look for `/admin/popularity`, `/admin/popularity/status`, `/admin/popularity/regenerate`, `/admin/popularity/export`, `/admin/popularity/:sku`)
-- Possibly a benign warn line on first boot: `audio_popularity_scores is empty and no successful run recorded. Trigger the first "Refresh Now" from Admin > AI Recommendation > Popularity.`
-- **No** `column does not exist`, `ModuleNotFoundError`, or `Failed to load` errors.
+Watch for:
+- Normal Nest startup with the popularity routes mounted: `/admin/popularity`, `/admin/popularity/status`, `/admin/popularity/regenerate`, `/admin/popularity/export`, `/admin/popularity/:sku`
+- `popularity_tick` cron registered
+- Possibly benign on a fresh database: `audio_popularity_scores is empty and no successful run recorded.`
+- **No** `column does not exist`, `ModuleNotFoundError`, or `Failed to load`
 
-Ctrl+C when clean.
+A `column "source_match_counts" does not exist` here means Step 3 did not actually migrate — almost always the skipped build.
 
-## Step 7 — Seed the first popularity batch (CLI, one-shot)
+## Step 5 — Seed the first batch (CLI, one-shot)
 
-Rather than waiting for the daily 04:00 UTC cron or clicking through the admin UI, run:
+Faster than waiting for the 04:00 UTC cron or clicking through the UI:
 
 ```bash
 cd /mnt/trl_dev_backend_volume/app
@@ -119,30 +124,31 @@ sudo -u trl npm run popularity:seed
 [popularity-seed] bootstrapping Nest context (no HTTP server)…
 [popularity-seed] starting popularity run (triggered_by=manual)…
 [popularity-seed] …still running (30s elapsed)
-[popularity-seed] …still running (60s elapsed)
 …
 📊 Popularity seed result:
    Status:           success
    Batch ID:         <uuid>
-   Audios processed: ~2500
-   Audios matched:   ~2000+
-   Started at:       2026-08-18T18:22:31.123Z
-   Completed at:     2026-08-18T18:29:47.891Z
+   Audios processed: ~2000
+   Audios matched:   ~900
+   Started at:       …
+   Completed at:     …
 [popularity-seed] ✅ popularity seed completed successfully.
 ```
 
-Exit code 0 = success; 1 = failure (with reason logged).
+**`Audios matched` is expected to be roughly half of `processed`.** Open Library covers the trade/literary catalogue well and Christian, academic and small-press titles poorly. The unmatched ones are stored with `popularity_score = NULL` and `confidence = 0` — *unmeasured*, not unpopular — and the UI renders them as **No data**. A score of `0` would mean a source looked and found nothing notable; nothing currently produces that.
 
-**Runtime expectations:**
-| Scenario | Duration |
-|---|---|
-| Cold cache, WITH `GOOGLE_BOOKS_API_KEY` | 5–10 min |
-| Cold cache, WITHOUT the key | ~15 min (Google may throttle) |
-| Warm cache (24h since last run) | ~30 s |
+**If the status is `partial`** the run completed and committed a batch, but a source matched **zero** titles across the whole catalogue, which is a broken fetcher rather than an unlucky night. The exit code is still 0 so a deploy isn't blocked, but fix it before trusting the scores:
 
-**Idempotent** — safe to re-run. Each invocation adds a new batch to `audio_popularity_history` and upserts `audio_popularity_scores` on `sku`.
+```bash
+psql "$DATABASE_URL" -c "SELECT status, source_match_counts, audios_processed
+  FROM audio_popularity_runs ORDER BY started_at DESC LIMIT 1;"
+```
 
-## Step 8 — Build + restart admin-portal
+Then curl Open Library directly from the dev server (Step "All titles show No data" in Troubleshooting).
+
+**Runtime:** ~10–15 min cold, ~30 s warm (24h cache). Idempotent — each run appends a batch to `audio_popularity_history` and upserts `audio_popularity_scores` on `sku`.
+
+## Step 6 — Build + restart admin-portal
 
 ```bash
 cd <admin-portal-path>
@@ -153,71 +159,74 @@ sudo -u trl pm2 logs trl-admin-portal --lines 30
 
 Wait for `ready started server on …`, then Ctrl+C.
 
+## Step 7 — Elasticsearch
+
+The runner syncs the scored audios itself after every run, so a normal deploy needs nothing here.
+
+**One exception:** if you ran migration 1788 against a database whose rows were already scored, the index still holds `popularity_score: 0` for the rows the migration turned into `NULL`, and the admin audio list reads `hit._source`. The next popularity run fixes it; to fix it immediately, re-run the seed (Step 5) — it rewrites every scored document.
+
 ---
 
 # Testing / Smoke Test
 
 ## Step 1 — UI walk-through
 
-Hard-refresh the browser (Ctrl+Shift+R) to bust Next.js asset cache. Then:
+Hard-refresh (Ctrl+Shift+R) to bust the Next.js asset cache. Then:
 
-1. **Sidebar** — hover **AI Recommendation** → confirm three children: *By Prompt*, *Active-Based List*, *Popularity*.
-2. **Configuration page** → scroll to the bottom → new **Popularity** section shows 4 inputs pre-filled: Interval `1`, Min Confidence `1+ source`, Weights (Open Library `0.60`, Google `0.40`).
-3. **AI Recommendation → Popularity** page loads:
-   - Status card top shows: Status pill, Last Run, Next Scheduled, Interval, Audios Matched (`X / Y`)
-   - Amber info card below explains score semantics (all-time cultural relevance, not trending today)
-   - Filter card (Min Score, Max Score, Min Confidence, Search)
-   - Table of ranked audios: **Cover, SKU, Title, Authors, Popularity (score badge + confidence dots + tooltip), Last Computed**
-   - **Download CSV** and **Refresh Now** buttons at top-right
+1. **Sidebar** — hover **AI Recommendation** → three children: *By Prompt*, *Active-Based List*, *Popularity*.
+2. **Configuration page** → bottom → **Popularity** section with 3 inputs pre-filled: Interval `1`, Min Confidence `1+ source`, Source Weight — Open Library `1.00`. There is no Google weight input.
+3. **AI Recommendation → Popularity** loads:
+   - Status card: Status pill, Last Run, Next Scheduled, Interval, Audios Matched (`X / Y`) with the per-source tally beneath it (`openlibrary: 917`)
+   - Amber info card explaining score semantics (all-time cultural relevance, not trending today)
+   - Filters: Min Score, Max Score, Min Confidence, Search
+   - Table: Cover, SKU, Title, Authors, Popularity (score badge + confidence dots + tooltip, or **No data**), Last Computed
+   - **Download CSV** and **Refresh Now** top-right
+
+**Scored titles must sort above `No data` ones.** Postgres sorts `NULL` first on `DESC`, so [`popularity.service.ts`](./services/popularity.service.ts) pins `NULLS LAST`. If page 1 is a wall of **No data**, that ordering regressed.
 
 ## Step 2 — Sanity-check a specific audio
 
-Get one SKU from the table, then check via API:
 ```bash
 curl -H "Authorization: Bearer <admin-token>" \
   "https://<dev-admin-url>/api/v1/admin/popularity/<SKU>" | jq
 ```
 
-Response contains `sources.openlibrary` and `sources.google` with:
-- `matched: true/false`
-- `sub_score` (0-100)
-- `weight` (from app_configs)
-- `raw` — actual API evidence (reading_log_count for OL; average_rating + ratings_count for Google) + `matched_by: "isbn" | "title_author"`
+`sources.openlibrary` carries `matched`, `sub_score` (0-100), `weight`, and `raw` — the actual evidence (`reading_log_count`, plus `matched_by: "isbn" | "title_author"`). There is no `sources.google`. Hovering the badge in the UI shows the same breakdown.
 
-Hovering the popularity badge in the UI shows the same breakdown as a tooltip.
+For an unmatched title, `popularity_score` is `null` and `sources.openlibrary.matched` is `false`.
 
-## Step 3 — Test manual regenerate + polling
+## Step 3 — Manual regenerate + polling
 
-1. Click **Refresh Now** on the Popularity page.
-2. Toast: *"Popularity refresh started"*. Status pill flips to `Running`.
-3. UI polls status every 5 s. Progress logs on the backend:
+1. **Refresh Now** → toast *"Popularity refresh started"*, pill flips to `Running`.
+2. UI polls every 5 s. Backend progress:
    ```bash
    sudo -u trl pm2 logs trl-backend --lines 500 | grep -iE "Popularity|OpenLibrary"
    ```
-4. When done, status flips to `Success`; toast: *"Popularity refresh complete — X of Y audios matched"*. Table auto-reloads.
-5. Try clicking **Refresh Now** twice quickly → second call returns 409 (`ConflictException` — single-flight mutex). No new row created.
+   Progress lines include the live per-source tally: `progress: 500/2025 (matched=220, {"openlibrary":220})`.
+3. On completion the pill flips to `Success` (or amber `Partial`), a toast reports `X of Y matched`, and the table reloads.
+4. Click **Refresh Now** twice quickly → the second returns 409 (`ConflictException`, single-flight mutex) and creates no row.
 
-## Step 4 — Test filters
+## Step 4 — Filters
 
-On the Popularity page:
-1. Set **Min Score = 70**, click Apply → only high-popularity audios shown.
-2. Set **Min Confidence = 2+ sources** → only audios where BOTH OL and Google matched. Confirms confidence-based filtering works.
-3. Type a title in the search box, click Apply → results narrow.
-4. Click **Clear** → filters reset, full list shown again.
+1. **Min Score = 70** → Apply → only high-popularity titles. Note `No data` rows disappear: `popularity_score >= 70` excludes `NULL`, which is correct — an unmeasured title does not satisfy a score floor.
+2. **Min Confidence = 1+ source** → only measured titles. With one source, confidence is 0 or 1, so `2+` and `3+` legitimately return nothing.
+3. Search a title → Apply → narrows.
+4. **Clear** → full list.
 
 ## Step 5 — Verify config changes take effect
 
-1. Configuration → change **Source Weight — Open Library** from `0.60` to `0.90` → Save.
+With a single source at weight `1.00`, the weighted average equals the Open Library sub-score, so **changing the weight alone will not move any score** — it cancels out of numerator and denominator. Verify the plumbing instead of the arithmetic:
+
+1. Configuration → set **Source Weight — Open Library** to `0.50` → Save.
 2. Popularity page → **Refresh Now**.
-3. When done, spot-check a row: the popularity score should have moved (up if the audio's OL sub-score was higher than the Google one, down if lower).
-4. Check DB:
+3. Check that the new weight was recorded:
    ```sql
    SELECT sku, popularity_score, source_weights_version
    FROM audio_popularity_scores
    ORDER BY computed_at DESC LIMIT 5;
    ```
-   The `source_weights_version` column should now include `openlibrary=0.9`.
-5. Restore weights afterwards.
+   `source_weights_version` should read `openlibrary=0.5` while `popularity_score` is unchanged. **That is the correct result.**
+4. Setting the weight to `0` is the real behavioural test: the source stops contributing, every score becomes `NULL`, and the run is marked `partial`. Restore to `1.00` and re-run afterwards.
 
 ## Step 6 — Verify cron is registered
 
@@ -225,11 +234,13 @@ On the Popularity page:
 sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "Cron|popularity_tick"
 ```
 
-Expect a NestJS log line registering `popularity_tick`. Fires at 04:00 UTC daily; checks the interval config and either runs or skips silently.
+`popularity_tick` fires at **04:00 UTC daily** (`@Cron('0 4 * * *')`), checks `popularity_interval_days` against the last completed run, and either runs or skips silently.
+
+A `partial` run counts as completed for that gate (`COMPLETED_RUN_STATUSES`). If it did not, the scheduler would never see its own last run and would re-trigger the full job on every tick.
 
 ## Step 7 — CSV export
 
-Click **Download CSV** on the Popularity page → a file `popularity_scores_YYYY-MM-DD.csv` downloads with columns: `SKU, Title, Popularity Score, Confidence, Computed At`, sorted by score descending.
+**Download CSV** → `popularity_scores_YYYY-MM-DD.csv` with `SKU, Title, Popularity Score, Confidence, Computed At`, score descending. Unmeasured titles appear last with an **empty** Popularity Score cell — not `0`, and not the text `null`.
 
 ---
 
@@ -238,35 +249,34 @@ Click **Download CSV** on the Popularity page → a file `popularity_scores_YYYY
 | Symptom | Fix |
 |---|---|
 | `Refresh Now` gives 409 | A run is in-flight — wait, or `sudo -u trl pm2 restart trl-backend` to kill the child |
-| Status stays `Running` > 30 min | Tail logs — check for rate-limit failures. Circuit breaker will trip after 5 consecutive failures per source and skip that source. 3-hour hard timeout is the ultimate ceiling. |
-| Confidence for most audios is 1, not 2 | One source is under-matching. Check backend logs for `NytBooksFetcher`/`OpenLibrary` warnings. Common causes: `GOOGLE_BOOKS_API_KEY` not set (Google throttles); or `POPULARITY_USER_AGENT` not set (Open Library at 1 rps instead of 3). |
-| All audios get score 0 | Sources both returning null. Verify with a direct curl to `openlibrary.org/search.json?q=isbn:<known-good-isbn>&fields=readinglog_count&limit=1` from the dev server. |
-| `Refresh Now` fails with 500 | Check backend logs. Common: DB migration not applied (`table "audio_popularity_scores" does not exist`) — run Step 4 again. |
-| Cron never fires | Check `sudo -u trl pm2 logs trl-backend` at 04:00 UTC. Also verify the interval hasn't elapsed already (scheduler skips silently if `now - last_success < interval_days`). |
-| Config page won't save | Zod validation error on new Popularity fields (they all require values). If seed didn't run, DB has no rows for those keys — check with the SELECT in Step 4. |
+| Status stays `Running` > 30 min | Tail logs for rate-limit failures. The circuit breaker trips after 5 consecutive failures per source and skips it; the 3-hour hard timeout is the ceiling |
+| Run status is `Partial` | A source matched 0 titles catalogue-wide. `SELECT source_match_counts FROM audio_popularity_runs ORDER BY started_at DESC LIMIT 1` names it. Then curl that source directly from the dev server |
+| About half of titles show **No data** | Expected. Open Library covers trade/literary well, Christian/academic/small-press poorly. Confirm the proportion is stable run-to-run, not growing |
+| **All** titles show **No data** | Open Library is unreachable or the fetcher is broken. Verify from the dev server: `curl -A "TRL/1.0 (+admin@therentallibrary.com)" "https://openlibrary.org/search.json?q=isbn:9780441013593&fields=readinglog_count&limit=1"`. Also check `popularity_source_weight_openlibrary` is not `0` — weight 0 produces NULL for everything |
+| Page 1 is all **No data** | `NULLS LAST` was lost from the list ordering. Postgres sorts NULL first on `DESC` |
+| CSV cells read `null` | The export is interpolating the value directly instead of `?? ''` |
+| `Refresh Now` fails with 500 | Usually an unapplied migration — `table "audio_popularity_scores" does not exist` or `column "source_match_counts" does not exist`. Redo Step 3, build included |
+| `No migrations are pending` but the schema is old | `npm run build` was skipped. `data_source.ts` reads `dist/`, not `src/` |
+| Cron never fires | Check logs at 04:00 UTC. The scheduler skips silently when `now - last_completed < interval_days` |
+| Config page won't save | Zod requires values for all Popularity fields. If the seed never ran, those `app_configs` rows are missing — check with the SELECT in Step 3 |
 
 ---
 
 # Rollback
 
+Code rolls back cleanly. **The data migration does not fully reverse:** `down()` on 1788 must set `popularity_score = 0` to restore `NOT NULL`, which re-creates the exact unmeasured/unpopular conflation the migration removed. The distinction survives in `confidence = 0`, so re-running `up()` restores it — but avoid a round trip unless the schema change is itself the problem.
+
 ```bash
 cd /mnt/trl_dev_backend_volume/app
-git checkout <previous-commit-hash>
+sudo -u trl git checkout <previous-commit-hash>
 sudo -u trl npm ci && sudo -u trl npm run build
-sudo -u trl npm run migration:rollback        # drops the 3 new tables; app_configs rows preserved
+sudo -u trl npm run migration:rollback        # reverts 1788 only — one step per invocation
 sudo -u trl pm2 restart trl-backend --update-env
 
 cd <admin-portal-path>
-git checkout <previous-commit-hash>
+sudo -u trl git checkout <previous-commit-hash>
 sudo -u trl npm ci && sudo -u trl npm run build
 sudo -u trl pm2 restart trl-admin-portal --update-env
 ```
 
-Rollback keeps the 4 `popularity_*` rows in `app_configs` (harmless when the tables aren't there; ready to go if you re-apply).
-
----
-
-# See also
-
-- [`docs/CURRENT_IMPLEMENTATION.md`](./docs/CURRENT_IMPLEMENTATION.md) — architecture, score formula, file map, config knobs, resilience details
-- [`docs/AVAILABLE_SOURCES.md`](./docs/AVAILABLE_SOURCES.md) — every popularity source we evaluated, pricing URLs, signup steps, roadmap for future additions
+To drop the tables as well, run `migration:rollback` a second time to revert 1787. `app_configs` rows are preserved either way.
