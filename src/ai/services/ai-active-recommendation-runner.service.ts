@@ -28,11 +28,17 @@ const CONFIG_KEY_TOP_K = 'ai_recommendation_top_k_per_active';
 const DEFAULT_TOP_N = 1000;
 const DEFAULT_TOP_K = 50;
 
-// Hard ceiling to protect against a hung Python job. Now that embedding has
-// moved out, this pipeline only ranks — minutes of work over ~1,900 active
-// titles — so an hour is generous and still frees the mutex if something
-// deadlocks. It is deliberately NOT a budget the job is expected to use.
-const SCRIPT_TIMEOUT_MS = 60 * 60 * 1000;
+// Hard ceiling to protect against a hung Python job.
+//
+// Sized from measurement, not intuition. Ranking issues one ANN query per
+// active title; with 1,913 active titles and the HNSW index on a box whose
+// shared_buffers (780 MB) is a sixth of the index (4.8 GB), 25 distinct probe
+// vectors measured p50 1,294 ms / p90 2,012 ms — so a run lands between 41 and
+// 64 minutes depending on how much of the index is resident. An hour would
+// SIGKILL the slow nights, and active_recommendations.py commits once at the
+// end, so a kill discards the whole run. Three hours leaves real headroom
+// while still freeing the mutex on a genuine hang.
+const SCRIPT_TIMEOUT_MS = 3 * 60 * 60 * 1000;
 
 interface RunOptions {
   triggeredBy: AiRecommendationRunTrigger;
@@ -285,7 +291,10 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
       });
       child.on('exit', (code, signal) => {
         cleanup();
-        if (code === 0) {
+        // A zero exit alone is not success: the script handles SIGTERM by
+        // committing and exiting 0, so a timeout kill would otherwise be
+        // recorded as a clean run.
+        if (code === 0 && !errorPayload) {
           resolve(finalPayload);
         } else {
           reject(

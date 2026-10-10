@@ -40,14 +40,34 @@ export class AdminCompanyCatalogService {
     });
   }
 
-  async show(companyId: string, id: number, query: any = {}) {
+  /**
+   * Throw unless this catalog is actually assigned to this company.
+   *
+   * Extracted because show(), update() and the PDF route all need it and the
+   * PDF route was the one that silently didn't have it — it would render
+   * catalog 99 into a file named after whichever company was in the URL.
+   * Calling show() just to borrow its check would also load the catalog, its
+   * categories and a paginated response, all discarded.
+   */
+  private async assertCatalogBelongsToCompany(companyId: string, id: number) {
     const company = await this.companyService.findById(companyId);
-
     if (!company.catalogs.includes(id)) {
       throw new BadRequestException(
         'The catalog is not assigned to the company',
       );
     }
+    // Returned so update(), which mutates company.catalogs, does not have to
+    // fetch it a second time.
+    return company;
+  }
+
+  /** Public entry point for callers that only need the check. */
+  async assertCatalogAccess(companyId: string, id: number): Promise<void> {
+    await this.assertCatalogBelongsToCompany(companyId, id);
+  }
+
+  async show(companyId: string, id: number, query: any = {}) {
+    await this.assertCatalogBelongsToCompany(companyId, id);
 
     const catalog = await this.catalogService.findOne(id);
     const categoryIds = catalog.categories;
@@ -89,13 +109,7 @@ export class AdminCompanyCatalogService {
   }
 
   async update(companyId: string, id: number, payload: UpdateCatalogDto) {
-    const company = await this.companyService.findById(companyId);
-
-    if (!company.catalogs.includes(id)) {
-      throw new BadRequestException(
-        'The catalog is not assigned to the company',
-      );
-    }
+    const company = await this.assertCatalogBelongsToCompany(companyId, id);
 
     const catalog = await this.catalogService.findOne(id);
 

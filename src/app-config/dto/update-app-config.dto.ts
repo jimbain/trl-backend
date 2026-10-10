@@ -92,6 +92,9 @@ export class UpdateAppConfigDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  // Capped: this is the row count written per batch to
+  // ai_recommended_active_audios, which has no retention.
+  @Max(10000)
   ai_recommendation_top_n: number;
 
   @Transform(({ value }) =>
@@ -102,6 +105,13 @@ export class UpdateAppConfigDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  // Capped hard. rank_candidates builds a (candidates x active) float32 matrix
+  // plus an np.partition copy; at the default 50 that is already ~722 MB on a
+  // pool of 95,000 against 1,913 active titles. The Configuration page invites
+  // raising it ("larger values improve coverage"), and a four-figure value
+  // would make the pool the whole inactive catalogue and OOM the 8 GB box that
+  // also serves the API.
+  @Max(500)
   ai_recommendation_top_k_per_active: number;
 
   @Transform(({ value }) =>
@@ -144,6 +154,8 @@ export class UpdateAppConfigDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(3)
+  // Two sources exist (Open Library, Google Books), so confidence is 0, 1 or 2.
+  // The previous @Max(3) let an admin set a threshold that hides every row.
+  @Max(2)
   popularity_min_confidence_display: number;
 }

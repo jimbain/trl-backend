@@ -129,6 +129,10 @@ def get_similar_inactive(conn, active_embedding, top_k):
         'SELECT sku '
         'FROM audios '
         'WHERE is_active = false AND is_excluded = false AND deleted_at IS NULL '
+        # load_active_books filters this; these two did not. While a backfill is
+        # partway through, a NULL vector reaches np.vstack and dies with an
+        # opaque numpy shape error instead of simply not being a candidate.
+        '  AND "AI_Class_Vector" IS NOT NULL '
         'ORDER BY "AI_Class_Vector" <=> %s::vector '
         'LIMIT %s',
         (active_embedding, top_k),
@@ -149,7 +153,8 @@ def load_candidate_embeddings(conn, candidate_ids):
         batch = candidate_ids[start:start + CANDIDATE_LOAD_BATCH_SIZE]
         cur.execute(
             'SELECT sku, display_title, "AI_Class_Vector" '
-            'FROM audios WHERE sku = ANY(%s) AND deleted_at IS NULL',
+            'FROM audios WHERE sku = ANY(%s) AND deleted_at IS NULL '
+            '  AND "AI_Class_Vector" IS NOT NULL',
             (batch,),
         )
         for sku, title, vec in cur.fetchall():

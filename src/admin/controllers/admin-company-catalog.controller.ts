@@ -51,6 +51,17 @@ export class AdminCompanyCatalogController {
     @Param('id') id: number,
     @Res() res: Response,
   ) {
+    // Assert the catalog actually belongs to this company before rendering.
+    // show() and update() both enforce this; only the PDF route skipped it, so
+    // /companies/ACME/catalogs/99/pdf would return catalog 99 in a file named
+    // after ACME. Not privilege escalation — every admin route shares one
+    // guard and there is no role system — but a mislabelled catalog sent to a
+    // client is a commercial problem.
+    await this.adminCompanyCatalogService.assertCatalogAccess(
+      companyId,
+      Number(id),
+    );
+
     const buffer = await this.adminCatalogPdfService.generateCompanyCatalogPdf(
       Number(id),
     );

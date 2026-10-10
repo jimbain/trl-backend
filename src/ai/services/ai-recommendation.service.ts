@@ -58,8 +58,14 @@ export class AiRecommendationService {
     if (matches.length === 0) return [];
 
     const skus = matches.map((m) => m.sku);
+    // Exclude at read time as well as at index time. FAISS has no tombstone
+    // path and ingest_delta only appends, so a title excluded or deleted after
+    // it was indexed keeps surfacing until someone rebuilds the index from
+    // scratch — recommender.py's own stream_rows docstring says so. The rows
+    // are being loaded anyway, so filtering here costs nothing and closes the
+    // window without a rebuild.
     const audios = await this.audioRepository.find({
-      where: { sku: In(skus) },
+      where: { sku: In(skus), is_excluded: false },
       relations: ['metadata'],
     });
     const bySku = new Map(audios.map((a) => [a.sku, a]));

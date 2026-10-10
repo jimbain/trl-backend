@@ -69,7 +69,12 @@ export class Audio extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true, default: [] })
   categories: string[]; // categories.id[]
 
-  @Column({ type: 'text', nullable: true })
+  // varchar(250), not text: migration 1785 creates it that way and asserts the
+  // type, and backfill.py's verify_column demands the same. Declaring `text`
+  // here made migration:generate emit a spurious ALTER forever, and would have
+  // widened the column — breaking both checks — the first time anyone ran with
+  // POSTGRES_SYNCHRONIZE=true.
+  @Column({ type: 'varchar', length: 250, nullable: true })
   ai_categories: string | null;
 
   @Column({ type: 'jsonb', nullable: false, default: [] })

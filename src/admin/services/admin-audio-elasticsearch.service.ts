@@ -330,7 +330,18 @@ export class AdminAudioElasticsearchService {
       const column = orderByMap[order_by_column];
       const order = order_by.toLowerCase() === 'desc' ? 'desc' : 'asc';
 
-      if (column) sortArray.push({ [column]: { order } });
+      if (column) {
+        // Only ~2,500 of ~1.4M documents carry popularity_score / ai_rank, and
+        // neither mapping declares a null_value — so Elasticsearch's default
+        // puts missing values FIRST on desc. "Highest popularity first", the
+        // only direction an admin wants, would otherwise return a page of
+        // unscored titles. Missing always sorts last, in both directions.
+        const missing =
+          column === 'popularity_score' || column === 'ai_rank'
+            ? { missing: '_last' as const }
+            : {};
+        sortArray.push({ [column]: { order, ...missing } });
+      }
     }
 
     sortArray.push({ id: { order: 'asc' } });

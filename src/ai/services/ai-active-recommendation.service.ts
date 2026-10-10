@@ -289,10 +289,16 @@ export class AiActiveRecommendationService implements OnModuleInit {
   }
 
   private csvEscape(v: string): string {
-    if (v.includes(',') || v.includes('"') || v.includes('\n')) {
-      return `"${v.replace(/"/g, '""')}"`;
+    // Neutralise spreadsheet formula injection before quoting. A title
+    // beginning =, +, - or @ is executed as a formula when the export is
+    // opened in Excel or Sheets; titles come from publisher metadata, so the
+    // content is not ours to trust. Prefixing a single quote is the standard
+    // mitigation and is invisible in the cell.
+    const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+    if (safe.includes(',') || safe.includes('"') || safe.includes('\n')) {
+      return `"${safe.replace(/"/g, '""')}"`;
     }
-    return v;
+    return safe;
   }
 
   private parsePositiveInt(raw: unknown, fallback: number): number {

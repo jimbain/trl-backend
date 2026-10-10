@@ -949,10 +949,24 @@ export class AudioElasticsearchSyncService {
 
         while (retryCount < maxRetries) {
           try {
+            // These two joins mirror buildBaseAudioQuery. Without them
+            // transformAudio maps the absent columns to null, so re-syncing one
+            // category silently blanks Popularity and Match Quality for every
+            // document in it until a full elastic:sync-audios runs.
             let batchQuery = this.audioRepo
               .createQueryBuilder('audio')
               .innerJoin('audio.metadata', 'metadata')
+              .leftJoin('audio_popularity_scores', 'pop', 'pop.sku = audio.sku')
+              .leftJoin(
+                'ai_recommended_active_audios',
+                'airec',
+                `airec.sku = audio.sku AND airec.batch_id = (SELECT batch_id FROM ai_recommendation_runs WHERE status = 'success' ORDER BY completed_at DESC LIMIT 1)`,
+              )
               .select([
+                'pop.popularity_score AS popularity_score',
+                'pop.confidence AS popularity_confidence',
+                'airec.rank AS ai_rank',
+                'airec.ai_similarity_score AS ai_similarity_score',
                 'audio.id AS id',
                 'audio.sku AS sku',
                 'audio.display_title AS display_title',

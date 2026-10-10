@@ -120,7 +120,11 @@ export class PythonScriptRunnerService implements OnModuleDestroy {
 
       child.on('exit', (code, signal) => {
         cleanup();
-        if (code === 0) {
+        // A zero exit is not sufficient on its own. The scripts handle SIGTERM
+        // gracefully — they commit the chunk in flight and exit 0 — so a run we
+        // killed on timeout, or one that emitted {"error": ...} before exiting
+        // cleanly, would otherwise be recorded as a success.
+        if (code === 0 && !errorPayload) {
           resolve(finalPayload);
           return;
         }
