@@ -14,19 +14,18 @@ recommendation pipeline (FAISS + Ollama), and the Popularity module.
 **Phase 1 (this deploy).** Code, migrations, Elasticsearch, popularity. When it
 finishes, `ai_embedding`, `ai_categories` and `AI_Class_Vector` exist on prod
 and are **completely empty**. The FAISS index is therefore empty and
-prompt-based AI recommendations return a 503. That is expected, not a failure.
+prompt-based AI recommendations return no results. That is expected, not a
+failure.
 
-Steps 1 and 2 (Python, Ollama) are written as part of Phase 1 for operators who
-want the box fully prepared on day one, but **they can be deferred to Phase 2**
-with no loss — with empty columns the recommender cannot come up whether Python
-is installed or not. See "Expected noise during Phase 1" after Step 4.
+Python and Ollama are installed in Phase 1 (Steps 1 and 2) so the recommender
+is live and idle, holding an empty index, from day one. That is what lets
+Phase 2 be a pure data job finished with the admin panel's reindex button.
 
 **Phase 2 (later, after the AI developer finishes the dev fill).**
 `trl-migration/scripts/14_sync_ai_columns_dev_to_prod.py` copies the column
 values dev → prod in resumable batches, syncing prod Elasticsearch as it goes.
-Then the backend is **restarted** — not merely reindexed from the admin panel,
-which cannot work until a live Python child exists — and recommendations come
-alive.
+Then the reindex button in the admin panel loads them into FAISS and
+recommendations come alive.
 
 Popularity does **not** depend on either phase — it only needs Open Library —
 so it can be seeded and verified on the day of Phase 1.
@@ -305,25 +304,17 @@ Two schedules are hardcoded. Know that they exist, because they will fire:
 
 ### Expected noise during Phase 1
 
-Both AI entry points fail while the columns are empty. Neither is a defect, but
-both are loud, and knowing which log lines are expected is the difference
+The AI features return nothing while the columns are empty. Only one of them
+is noisy about it, and knowing which log lines are expected is the difference
 between a calm deploy and an hour of chasing nothing:
 
 | Where | What you will see | Why |
 |---|---|---|
-| Backend boot | `recommender startup failed: no embeddings found in audios.ai_embedding`, repeated, then `restart limit reached (5); giving up` | `full_build()` finds no vectors, returns a null index, and reports `ready: false`. The child exits cleanly; the service retries 5 times, each retry re-loading the model, then stops. |
-| `POST /admin/ai-recommendations` | `503 recommender unavailable: no embeddings found in audios.ai_embedding` | Correct and truthful. |
+| Backend boot | `no embeddings in audios.ai_embedding — serving an empty index (dim 768)`, then `recommender ready (indexed=0)` | The child stays alive on an empty index so the reindex button works later. It used to exit here, which stranded the feature until a restart. |
+| `POST /admin/ai-recommendations` | `200` with an empty result list | The index is empty; there is nothing to match. Not an error. |
 | 03:00 UTC daily | A `failed` row in `ai_recommendation_runs`, message `no active books with AI_Class_Vector found.` | `active_recommendations.py` raises rather than writing an empty ranking. |
 
-Two consequences worth deciding about up front:
-
-**You can skip Steps 1 and 2 entirely for a Phase 1-only deploy.** With empty
-columns the recommender cannot come up whether Python is installed or not — it
-fails on missing vectors instead of on a missing interpreter, with the same
-bounded give-up. Installing a ~2.5 GB dependency stack and a 1 GB model that
-provably cannot do anything yet buys nothing, and it defers the 8 GB RAM
-question in Step 0b to the point where it actually bites. Doing Steps 1 and 2
-as the opening move of Phase 2 is the cleaner sequence.
+One consequence worth deciding about up front:
 
 **The nightly failure is the exact pattern we just removed from popularity.**
 Google Books failed silently for 37 consecutive nights; the AI pipeline failed
@@ -628,41 +619,68 @@ issue it on its own. Expect this to take a while — dev's equivalent index is
 The default 266 MB `maintenance_work_mem` forces a slower disk-based build, so
 the `SET` is worth it. It applies to the session only.
 
-### 2d. Restart the backend, then verify
+### 2d. Reindex from the admin panel
 
-**Restart the backend before anything else — the admin reindex button will not
-work yet.**
+`recommender.py` now comes up **ready with an empty index** when the columns
+hold no vectors, instead of reporting a startup failure and exiting. That is
+what makes this step work: the Python child is alive and waiting, so the admin
+panel's reindex button has something to talk to.
 
-While the columns were empty, `recommender.py` exited at startup with
-`no embeddings found in audios.ai_embedding`, the service retried it 5 times
-and then logged `restart limit reached (5); giving up`. `spawnChild()` is only
-reachable from `onModuleInit` and the child's own exit handler, so there is no
-live Python process left for a refresh command to reach; the admin trigger
-returns 503 until the process is restarted.
+Press **reindex** in the admin panel. It sends `refresh`, and `ingest_delta`
+runs with a null watermark, which streams *every* row — so the first refresh
+after a bulk load does the work of a full build.
+
+**Expect the first click to report a timeout. The work does not stop.**
+
+`POST /admin/ai-recommendations/refresh` awaits the Python reply inside the
+HTTP request, with a 10-minute ceiling — and any reverse proxy in front will
+give up well before that. Ingesting ~1.35M vectors into an HNSW graph takes far
+longer. What actually happens:
+
+1. You click. The browser eventually shows a failed request.
+2. Python keeps ingesting, unaffected. The timeout only discards the pending
+   reply on the Node side; the child is never killed.
+3. It finishes, extends its SKU list, and persists the index.
+4. Click reindex again. It returns immediately with `added: 0` and the true
+   indexed count, because the watermark has advanced.
+
+**Do not restart the backend while step 2 is in progress.** The index is only
+persisted *after* the ingest completes, so a restart throws away everything
+ingested so far and starts over. Someone who reads the first timeout as a
+failure and restarts can loop on this indefinitely.
+
+Watch the actual progress instead — `ingest_delta` logs every 5,000 rows:
 
 ```bash
-sudo -u trl pm2 restart trl-backend --update-env
-sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "faiss|indexed|recommender"
+sudo -u trl pm2 logs trl-backend --lines 500 | grep -iE "streamed|ingested|indexed|faiss"
 ```
 
-On this boot the recommender finds a populated column, runs a full build, and
-reports `recommender ready (indexed=N)`. Expect the build to take a while — it
-streams every vector in batches of 10,000.
+A backend restart is a valid alternative to the button: on boot with populated
+columns the recommender runs a full build, which logs progress the same way and
+has no HTTP timeout attached. Same end state. The button is better for top-ups
+afterwards, where the delta is small and returns in seconds.
 
-The admin reindex button is for *subsequent* top-ups, once a live child exists.
-Then:
+### Verify
 
 ```bash
-sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "faiss|indexed|recommender"
+sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "recommender ready|indexed"
 ```
 
-The indexed count should climb toward the row count. Then test a prompt from
-**AI Recommendation → By Prompt** and confirm results come back.
+Expect `recommender ready (indexed=N)` on the next boot, with N matching:
 
 ```sql
--- the two counts should agree
-SELECT count(*) FILTER (WHERE "AI_Class_Vector" IS NOT NULL) FROM audios;
+SELECT count(*) FROM audios a
+JOIN audio_metadata m ON m.sku = a.sku
+WHERE a.ai_embedding IS NOT NULL AND a.deleted_at IS NULL
+  AND a.is_excluded = false AND m.language ILIKE '%english%';
 ```
+
+The filters matter — the index deliberately excludes non-English titles (the
+BGE model is English-only) and `is_excluded` ones, so the index count is
+expected to be lower than the raw non-null count.
+
+Then test a prompt from **AI Recommendation → By Prompt** and confirm results
+come back.
 
 ### 2e. Turn on the nightly top-up
 

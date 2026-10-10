@@ -341,6 +341,12 @@ def _iso(value):
 # --- Request handling --------------------------------------------------------
 
 def recommend(model, index, skus, prompt, limit):
+    # An empty index is a legitimate state before the first vector load, and
+    # faiss.search(..., k=0) is not: return early rather than encoding the
+    # prompt and asking for zero neighbours.
+    if not skus:
+        return []
+
     user_embedding = model.encode([prompt]).astype('float32')
     faiss.normalize_L2(user_embedding)
 
@@ -383,12 +389,40 @@ def main():
             log('no persisted index — running full build')
             skus, index, max_updated_at = full_build()
             if index is None:
-                emit({'ready': False, 'error': 'no embeddings found in audios.ai_embedding'})
-                return
-            state['skus'] = skus
-            state['index'] = index
-            state['max_updated_at'] = max_updated_at
-            save_persisted(skus, index, max_updated_at)
+                # No vectors yet. Come up READY with an empty index rather than
+                # reporting a startup failure and exiting.
+                #
+                # Exiting here used to strand the whole feature: the service
+                # retries the child 5 times and then gives up permanently, and
+                # spawnChild() is only reachable from onModuleInit and the
+                # child's own exit handler. So once the vectors arrived there
+                # was no live process for the admin "reindex" button to talk
+                # to, and the only way back was restarting the backend.
+                #
+                # Staying alive makes the intended operational sequence work:
+                # deploy against empty columns, copy the vectors in later, then
+                # press reindex. That sends `refresh`, and ingest_delta with a
+                # null watermark streams every row, so the first refresh after
+                # a bulk load behaves exactly like a full build.
+                #
+                # Nothing is persisted: an empty snapshot on disk would only
+                # make the next boot skip the full build and lean on the delta
+                # path for no gain.
+                dimension = model.get_sentence_embedding_dimension()
+                index = build_empty_index(dimension)
+                log(
+                    f'no embeddings in audios.ai_embedding — serving an empty '
+                    f'index (dim {dimension}). Recommendations return no '
+                    f'results until vectors are loaded and a refresh is run.'
+                )
+                state['skus'] = []
+                state['index'] = index
+                state['max_updated_at'] = None
+            else:
+                state['skus'] = skus
+                state['index'] = index
+                state['max_updated_at'] = max_updated_at
+                save_persisted(skus, index, max_updated_at)
     except Exception as e:
         log(f'startup failed: {e}\n{traceback.format_exc()}')
         emit({'ready': False, 'error': str(e)})
