@@ -73,8 +73,8 @@ hours of CPU inference, so the job must survive being killed:
     correct inside Docker) and scale up on their own if the box is resized.
 
 Env (all optional — every one has a derived default):
-    AI_EMBED_BATCH_SIZE, AI_EMBED_CHUNK_SIZE, AI_EMBED_THREADS,
-    AI_EMBED_MAX_RUNTIME_MIN, AI_EMBED_THROTTLE_MS
+    AI_BACKFILL_BATCH_SIZE, AI_BACKFILL_CHUNK_SIZE, AI_BACKFILL_THREADS,
+    AI_BACKFILL_MAX_RUNTIME_MIN, AI_BACKFILL_THROTTLE_MS
     DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE, POSTGRES_SSL
 """
 
@@ -268,13 +268,13 @@ def derive_settings(args):
     cpus = detect_cpus()
     available_mb = detect_available_mb()
 
-    threads = args.threads or _env_int('AI_EMBED_THREADS')
+    threads = args.threads or _env_int('AI_BACKFILL_THREADS')
     if not threads:
         # Leave one core for the DB client, the OS, and the co-located API
         # process. On a 4 vCPU box that is 3; resize to 16 and it becomes 15.
         threads = max(1, cpus - 1)
 
-    batch_size = args.batch_size or _env_int('AI_EMBED_BATCH_SIZE')
+    batch_size = args.batch_size or _env_int('AI_BACKFILL_BATCH_SIZE')
     if not batch_size:
         # BGE-base at 512 tokens costs roughly 50 MB of activations per unit of
         # batch. Reserve ~1 GB for the model itself and spend a third of what is
@@ -282,7 +282,7 @@ def derive_settings(args):
         spendable = max(0, available_mb - 1024) / 3
         batch_size = int(min(128, max(8, spendable / 50)))
 
-    chunk_size = args.chunk_size or _env_int('AI_EMBED_CHUNK_SIZE')
+    chunk_size = args.chunk_size or _env_int('AI_BACKFILL_CHUNK_SIZE')
     if not chunk_size:
         # One DB round trip should carry many encode batches, but a chunk is
         # also the unit of lost work on a crash — keep it minutes, not hours.
@@ -556,12 +556,12 @@ def main():
 
     max_runtime_min = args.max_runtime_min
     if max_runtime_min is None:
-        max_runtime_min = _env_int('AI_EMBED_MAX_RUNTIME_MIN')
+        max_runtime_min = _env_int('AI_BACKFILL_MAX_RUNTIME_MIN')
     if max_runtime_min is None:
         max_runtime_min = DEFAULT_MAX_RUNTIME_MIN
     deadline = time.monotonic() + max_runtime_min * 60 if max_runtime_min > 0 else None
 
-    throttle_ms = _env_int('AI_EMBED_THROTTLE_MS') or 0
+    throttle_ms = _env_int('AI_BACKFILL_THROTTLE_MS') or 0
 
     settings = derive_settings(args)
     log(

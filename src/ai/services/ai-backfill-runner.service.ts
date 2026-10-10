@@ -6,7 +6,7 @@ import {
 
 const SCRIPT = 'backfill.py';
 
-/** Matches the script's own default budget (AI_EMBED_MAX_RUNTIME_MIN). */
+/** Matches the script's own default budget (AI_BACKFILL_MAX_RUNTIME_MIN). */
 const DEFAULT_MAX_RUNTIME_MIN = 300;
 
 /**
@@ -97,7 +97,7 @@ export class AiBackfillRunnerService {
     const maxRuntimeMin =
       options.maxRuntimeMin ??
       this.parseNonNegativeInt(
-        process.env.AI_EMBED_MAX_RUNTIME_MIN,
+        process.env.AI_BACKFILL_MAX_RUNTIME_MIN,
         DEFAULT_MAX_RUNTIME_MIN,
       );
 
