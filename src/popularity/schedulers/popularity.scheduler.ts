@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AppConfigService } from 'src/app-config/app-config.service';
-import { AudioPopularityRun } from '../entities/audio-popularity-run.entity';
+import {
+  AudioPopularityRun,
+  COMPLETED_RUN_STATUSES,
+} from '../entities/audio-popularity-run.entity';
 import { PopularityRunnerService } from '../services/popularity-runner.service';
 
 const CONFIG_INTERVAL = 'popularity_interval_days';
@@ -40,7 +43,7 @@ export class PopularityScheduler {
         DEFAULT_INTERVAL_DAYS,
       );
       lastSuccess = await this.runsRepo.findOne({
-        where: { status: 'success' },
+        where: { status: In(COMPLETED_RUN_STATUSES) },
         order: { completed_at: 'DESC' },
       });
     } catch (err: any) {

@@ -8,7 +8,15 @@ export interface SourceContribution {
 }
 
 export interface ComposedScore {
-  popularity_score: number; // 0-100 integer
+  /**
+   * 0-100 integer, or null when no source could measure the title.
+   *
+   * NULL rather than 0 is deliberate: 0 is a real measurement (a source
+   * matched and found nothing notable), and admins read this column to
+   * decide what to license. Conflating "unknown" with "unpopular" buries
+   * titles that were never looked at.
+   */
+  popularity_score: number | null;
   confidence: number; // count of sources that matched
   sources: PopularitySourceBreakdown;
 }
@@ -18,7 +26,7 @@ export class PopularityComposerService {
   /**
    * Weighted average of matched sources only. A missing source doesn't drag
    * the score to zero — it's excluded from both numerator and denominator.
-   * If nothing matched, score = 0 and confidence = 0.
+   * If nothing matched, score = null and confidence = 0.
    */
   compose(
     contributions: SourceContribution[],
@@ -45,11 +53,15 @@ export class PopularityComposerService {
       }
     }
 
+    // weightSum === 0 means every source either missed or carries weight 0 —
+    // there is nothing to average, so there is no score.
     const popularity_score =
-      weightSum > 0 ? Math.round(weightedSum / weightSum) : 0;
+      weightSum > 0
+        ? Math.max(0, Math.min(100, Math.round(weightedSum / weightSum)))
+        : null;
 
     return {
-      popularity_score: Math.max(0, Math.min(100, popularity_score)),
+      popularity_score,
       confidence,
       sources,
     };

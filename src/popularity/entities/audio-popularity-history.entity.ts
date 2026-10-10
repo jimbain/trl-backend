@@ -23,8 +23,10 @@ export class AudioPopularityHistory extends BaseEntity {
   @Column({ type: 'uuid' })
   batch_id: string;
 
-  @Column({ type: 'smallint' })
-  popularity_score: number;
+  @Column({ type: 'smallint', nullable: true })
+  // NULL = no source could measure this title. Distinct from 0,
+  // which means a source matched and reported nothing notable.
+  popularity_score: number | null;
 
   @Column({ type: 'smallint' })
   confidence: number;

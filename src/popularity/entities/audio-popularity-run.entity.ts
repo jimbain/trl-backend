@@ -9,9 +9,28 @@ import {
 } from 'typeorm';
 import { ulid } from 'ulidx';
 
-export type PopularityRunStatus = 'pending' | 'running' | 'success' | 'failed';
+export type PopularityRunStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  /** Completed, but a configured source contributed nothing. */
+  | 'partial'
+  | 'failed';
 
 export type PopularityRunStage = 'fetching' | 'writing' | 'done';
+
+/**
+ * Statuses that mean "this run finished and committed a batch".
+ *
+ * `partial` belongs here: it is a completed run that happens to have found a
+ * dead source. Every "has popularity ever been computed?" check must accept
+ * both, or the nightly scheduler never sees its own last run and re-triggers
+ * on every tick.
+ */
+export const COMPLETED_RUN_STATUSES: PopularityRunStatus[] = [
+  'success',
+  'partial',
+];
 
 export type PopularityRunTrigger = 'cron' | 'manual';
 
@@ -48,6 +67,16 @@ export class AudioPopularityRun extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   error_message: string | null;
+
+  /**
+   * Rows matched per source, e.g. `{ "openlibrary": 889 }`.
+   *
+   * Exists because Google Books matched nothing for 37 consecutive nights
+   * while every run reported success. A per-source count makes a dead source
+   * visible on the first run rather than whenever someone happens to look.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  source_match_counts: Record<string, number> | null;
 
   @BeforeInsert()
   generateUlid() {

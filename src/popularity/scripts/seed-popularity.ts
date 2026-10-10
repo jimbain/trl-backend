@@ -63,7 +63,17 @@ async function main() {
     ];
     summary.forEach((line) => (line ? logger.log(line) : console.log()));
 
-    if (run.status !== 'success') {
+    if (run.status === 'partial') {
+      // Completed and committed a batch, so the seed itself succeeded — but a
+      // configured source matched nothing at all, which is a broken fetcher,
+      // not an unlucky night. Exit 0 so a deploy isn't blocked; shout so it
+      // doesn't go unnoticed for 37 nights the way Google Books did.
+      const counts = JSON.stringify(run.source_match_counts ?? {});
+      logger.warn(
+        `⚠️  popularity seed completed, but a source matched ZERO audios: ${counts}. ` +
+          'Check that fetcher and its upstream API before trusting these scores.',
+      );
+    } else if (run.status !== 'success') {
       logger.error(
         `run did not succeed: ${run.error_message ?? '(no message)'}`,
       );

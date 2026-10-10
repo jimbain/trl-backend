@@ -141,6 +141,11 @@ export class PopularityRunnerService {
       const audios = await this.audioRepo.find({
         where: { is_active: true },
         relations: ['metadata'],
+        // Deterministic. Without it Postgres returns rows in whatever order it
+        // likes, so a run that stops early — hard timeout, circuit breaker,
+        // restart — covers a different arbitrary subset each night and scores
+        // jitter with no change in the underlying data.
+        order: { sku: 'ASC' },
       });
       this.logger.log(`scoring ${audios.length} active audios`);
 
@@ -148,6 +153,13 @@ export class PopularityRunnerService {
       const historyRows: AudioPopularityHistory[] = [];
       let processed = 0;
       let matched = 0;
+      // Per source, not just the total. `matched` only says "something
+      // matched"; with more than one source it cannot distinguish a healthy
+      // run from one where a source has died, which is how Google Books went
+      // 37 nights contributing nothing while every run reported success.
+      const sourceMatches: Record<string, number> = Object.fromEntries(
+        fetchers.map((f) => [f.name, 0]),
+      );
 
       // Process audios in small concurrent batches — bounded parallelism.
       for (let i = 0; i < audios.length; i += AUDIO_CONCURRENCY) {
@@ -163,6 +175,9 @@ export class PopularityRunnerService {
           const composed = this.composer.compose(contributions[j], weights);
           processed += 1;
           if (composed.confidence > 0) matched += 1;
+          for (const [name, detail] of Object.entries(composed.sources)) {
+            if (detail?.matched) sourceMatches[name] += 1;
+          }
 
           scoreRows.push(
             this.scoresRepo.create({
@@ -187,7 +202,8 @@ export class PopularityRunnerService {
 
         if ((i / AUDIO_CONCURRENCY) % 25 === 0) {
           this.logger.debug(
-            `progress: ${processed}/${audios.length} (matched=${matched})`,
+            `progress: ${processed}/${audios.length} (matched=${matched}, ` +
+              `${JSON.stringify(sourceMatches)})`,
           );
         }
       }
@@ -228,12 +244,26 @@ export class PopularityRunnerService {
         }
       });
 
+      // A source that matched nothing across the whole catalogue is broken,
+      // not unlucky. Reporting that as `success` is what let Google Books fail
+      // silently for 37 nights.
+      const deadSources = Object.entries(sourceMatches)
+        .filter(([, n]) => n === 0)
+        .map(([name]) => name);
+      if (deadSources.length) {
+        this.logger.error(
+          `source(s) matched ZERO of ${processed} audios: ${deadSources.join(', ')} ` +
+            '— run marked partial. Check the fetcher and its upstream API.',
+        );
+      }
+
       await this.updateRun(run, {
-        status: 'success',
+        status: deadSources.length ? 'partial' : 'success',
         stage: 'done',
         completed_at: new Date(),
         audios_processed: processed,
         audios_matched: matched,
+        source_match_counts: sourceMatches,
       });
 
       // Fresh batch committed — drop cached list pages + status so the next

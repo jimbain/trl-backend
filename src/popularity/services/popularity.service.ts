@@ -19,7 +19,10 @@ import {
   PopularityStatusDto,
 } from '../dto/popularity-response.dto';
 import { AudioPopularityScore } from '../entities/audio-popularity-score.entity';
-import { AudioPopularityRun } from '../entities/audio-popularity-run.entity';
+import {
+  AudioPopularityRun,
+  COMPLETED_RUN_STATUSES,
+} from '../entities/audio-popularity-run.entity';
 import { PopularityRunnerService } from './popularity-runner.service';
 
 const CONFIG_INTERVAL = 'popularity_interval_days';
@@ -61,7 +64,7 @@ export class PopularityService implements OnModuleInit {
       const [count, lastSuccess] = await Promise.all([
         this.scoresRepo.count(),
         this.runsRepo.findOne({
-          where: { status: 'success' },
+          where: { status: In(COMPLETED_RUN_STATUSES) },
           order: { completed_at: 'DESC' },
         }),
       ]);
@@ -105,8 +108,14 @@ export class PopularityService implements OnModuleInit {
 
     const qb = this.scoresRepo
       .createQueryBuilder('score')
-      .orderBy('score.popularity_score', 'DESC')
-      .addOrderBy('score.confidence', 'DESC');
+      // NULLS LAST is required, not cosmetic: Postgres sorts NULL first on
+      // DESC, so without it the ~1,100 unmeasured titles would occupy page 1
+      // of the Popularity list ahead of every real score.
+      .orderBy('score.popularity_score', 'DESC', 'NULLS LAST')
+      .addOrderBy('score.confidence', 'DESC')
+      // Stable tiebreak so OFFSET paging can't repeat or skip rows across
+      // pages — large blocks now share a score (or share NULL).
+      .addOrderBy('score.sku', 'ASC');
 
     if (typeof min_score === 'number')
       qb.andWhere('score.popularity_score >= :min_score', { min_score });
@@ -162,7 +171,7 @@ export class PopularityService implements OnModuleInit {
     });
 
     const latestRun = await this.runsRepo.findOne({
-      where: { status: 'success' },
+      where: { status: In(COMPLETED_RUN_STATUSES) },
       order: { completed_at: 'DESC' },
     });
 
@@ -246,7 +255,7 @@ export class PopularityService implements OnModuleInit {
     const [latestRuns, lastSuccessRuns, configs] = await Promise.all([
       this.runsRepo.find({ order: { started_at: 'DESC' }, take: 1 }),
       this.runsRepo.find({
-        where: { status: 'success' },
+        where: { status: In(COMPLETED_RUN_STATUSES) },
         order: { completed_at: 'DESC' },
         take: 1,
       }),
@@ -295,6 +304,7 @@ export class PopularityService implements OnModuleInit {
         completed_at: latestRun?.completed_at ?? null,
         audios_processed: latestRun?.audios_processed ?? null,
         audios_matched: latestRun?.audios_matched ?? null,
+        source_match_counts: latestRun?.source_match_counts ?? null,
         error_message: latestRun?.error_message ?? null,
         batch_id: latestRun?.batch_id ?? null,
         interval_days: intervalDays,
@@ -340,7 +350,11 @@ export class PopularityService implements OnModuleInit {
     let offset = 0;
     while (true) {
       const rows = await this.scoresRepo.find({
-        order: { popularity_score: 'DESC' },
+        // See executeList: NULLS LAST, plus sku to keep OFFSET paging stable.
+        order: {
+          popularity_score: { direction: 'DESC', nulls: 'LAST' },
+          sku: 'ASC',
+        },
         skip: offset,
         take: chunkSize,
       });
@@ -356,7 +370,7 @@ export class PopularityService implements OnModuleInit {
       for (const row of rows) {
         const title = titleBySku.get(row.sku) ?? '';
         write(
-          `${row.sku},${this.csvEscape(title)},${row.popularity_score},${row.confidence},${row.computed_at.toISOString()}\n`,
+          `${row.sku},${this.csvEscape(title)},${row.popularity_score ?? ''},${row.confidence},${row.computed_at.toISOString()}\n`,
         );
       }
       offset += rows.length;

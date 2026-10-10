@@ -20,7 +20,7 @@ export class PopularityAudioDto {
   image_url: string | null;
 
   @Expose()
-  popularity_score: number;
+  popularity_score: number | null;
 
   @Expose()
   confidence: number;
@@ -57,7 +57,14 @@ export class PopularityListDto {
 
 export class PopularityStatusDto {
   @Expose()
-  status: 'idle' | 'pending' | 'running' | 'success' | 'failed';
+  status:
+    | 'idle'
+    | 'pending'
+    | 'running'
+    | 'success'
+    /** Completed, but a configured source matched nothing at all. */
+    | 'partial'
+    | 'failed';
 
   @Expose()
   stage: string | null;
@@ -76,6 +83,10 @@ export class PopularityStatusDto {
 
   @Expose()
   audios_matched: number | null;
+
+  /** Rows matched per source, e.g. `{ openlibrary: 889 }`. */
+  @Expose()
+  source_match_counts: Record<string, number> | null;
 
   @Expose()
   error_message: string | null;
