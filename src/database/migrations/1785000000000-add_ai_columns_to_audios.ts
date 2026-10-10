@@ -244,7 +244,9 @@ export class AddAiColumnsToAudios1785000000000 implements MigrationInterface {
           `Building the HNSW index here would hold a write lock on audios for hours ` +
           `inside the deploy transaction, so it has been SKIPPED.\n` +
           `Run this out of band, outside any transaction, once the deploy has settled:\n` +
-          `    SET maintenance_work_mem = '512MB';\n` +
+          `    -- size this to the instance; too large a value fails the parallel\n` +
+          `    -- build with "could not resize shared memory segment".\n` +
+          `    SET maintenance_work_mem = '1GB';\n` +
           `    CREATE INDEX CONCURRENTLY ${INDEX_NAME}\n` +
           `      ON ${TABLE} USING hnsw ("AI_Class_Vector" vector_cosine_ops);\n` +
           `Until then the Active-Based List pipeline still works, but every ANN query ` +
@@ -253,27 +255,38 @@ export class AddAiColumnsToAudios1785000000000 implements MigrationInterface {
       return;
     }
 
-    // Small enough to build inline. Raise maintenance_work_mem for the build so
-    // the graph is assembled in memory rather than spilling to disk, then put it
-    // back — SET LOCAL would otherwise leak into the migrations that follow,
-    // since TypeORM wraps the whole run in a single transaction.
-    const [{ maintenance_work_mem: previousWorkMem }]: Array<{
-      maintenance_work_mem: string;
-    }> = await queryRunner.query(`SHOW maintenance_work_mem`);
+    // Small enough to build inline.
+    //
+    // Deliberately NOT raising maintenance_work_mem here. An earlier revision
+    // set it to 512MB for the build, which failed on a 4 GB managed instance
+    // with:
+    //
+    //   could not resize shared memory segment to 533767424 bytes:
+    //   No space left on device
+    //
+    // That is dynamic shared memory, not disk. pgvector sizes the DSM segment
+    // for a parallel HNSW build from maintenance_work_mem, and a container's
+    // /dev/shm is typically far smaller than the host's RAM would suggest. The
+    // bump was also pointless on the path that hit it: a fresh deployment has
+    // zero vectors, so it was reserving half a gigabyte to index nothing.
+    //
+    // The threshold above already caps this path at a small build, so the
+    // server's configured default is adequate. The out-of-band CONCURRENTLY
+    // build for the large case is where tuning belongs, and there the operator
+    // sets it against a known instance size.
+    //
+    // Parallel maintenance is disabled for the same reason: it is what
+    // allocates the DSM segment at all. A serial build of at most
+    // INLINE_INDEX_BUILD_MAX_ROWS rows uses backend-local memory and cannot
+    // fail this way.
+    await queryRunner.query(`SET LOCAL max_parallel_maintenance_workers = 0`);
 
-    await queryRunner.query(`SET LOCAL maintenance_work_mem = '512MB'`);
-    try {
-      await queryRunner.query(
-        `CREATE INDEX IF NOT EXISTS ${INDEX_NAME}
-           ON "${TABLE}" USING hnsw ("AI_Class_Vector" vector_cosine_ops)`,
-      );
-      console.log(
-        `[1785000000000] built HNSW index ${INDEX_NAME} over ${populatedRows.toLocaleString()} vectors.`,
-      );
-    } finally {
-      await queryRunner.query(
-        `SET LOCAL maintenance_work_mem = '${previousWorkMem}'`,
-      );
-    }
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS ${INDEX_NAME}
+         ON "${TABLE}" USING hnsw ("AI_Class_Vector" vector_cosine_ops)`,
+    );
+    console.log(
+      `[1785000000000] built HNSW index ${INDEX_NAME} over ${populatedRows.toLocaleString()} vectors.`,
+    );
   }
 }
