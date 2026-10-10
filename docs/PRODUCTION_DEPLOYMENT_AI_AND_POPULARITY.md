@@ -11,15 +11,22 @@ recommendation pipeline (FAISS + Ollama), and the Popularity module.
 
 ## The two phases, and why they are separate
 
-**Phase 1 (this deploy).** Code, migrations, Python, Ollama. When it finishes,
-`ai_embedding`, `ai_categories` and `AI_Class_Vector` exist on prod and are
-**completely empty**. The FAISS index is therefore empty and prompt-based AI
-recommendations return nothing. That is expected, not a failure.
+**Phase 1 (this deploy).** Code, migrations, Elasticsearch, popularity. When it
+finishes, `ai_embedding`, `ai_categories` and `AI_Class_Vector` exist on prod
+and are **completely empty**. The FAISS index is therefore empty and
+prompt-based AI recommendations return a 503. That is expected, not a failure.
+
+Steps 1 and 2 (Python, Ollama) are written as part of Phase 1 for operators who
+want the box fully prepared on day one, but **they can be deferred to Phase 2**
+with no loss — with empty columns the recommender cannot come up whether Python
+is installed or not. See "Expected noise during Phase 1" after Step 4.
 
 **Phase 2 (later, after the AI developer finishes the dev fill).**
 `trl-migration/scripts/14_sync_ai_columns_dev_to_prod.py` copies the column
 values dev → prod in resumable batches, syncing prod Elasticsearch as it goes.
-Then a reindex is triggered from the admin panel and recommendations come alive.
+Then the backend is **restarted** — not merely reindexed from the admin panel,
+which cannot work until a live Python child exists — and recommendations come
+alive.
 
 Popularity does **not** depend on either phase — it only needs Open Library —
 so it can be seeded and verified on the day of Phase 1.
@@ -293,8 +300,39 @@ Two schedules are hardcoded. Know that they exist, because they will fire:
 
 | Cron | When (UTC) | What it does on a fresh prod |
 |---|---|---|
-| `ai_active_recommendation_tick` | 03:00 daily | Ranks active titles against `AI_Class_Vector`. **Until Phase 2 populates vectors this will produce an empty or near-empty ranking.** It is harmless but will log runs. |
+| `ai_active_recommendation_tick` | 03:00 daily | Ranks active titles against `AI_Class_Vector`. **Until Phase 2 populates vectors this FAILS every night**, by design: `active_recommendations.py` raises `no active books with AI_Class_Vector found.` and exits 1, so a `failed` row lands in `ai_recommendation_runs` once a day. See "Expected noise during Phase 1" below. |
 | `popularity_tick` | 04:00 daily | Scores active titles from Open Library. Works immediately — no AI dependency. |
+
+### Expected noise during Phase 1
+
+Both AI entry points fail while the columns are empty. Neither is a defect, but
+both are loud, and knowing which log lines are expected is the difference
+between a calm deploy and an hour of chasing nothing:
+
+| Where | What you will see | Why |
+|---|---|---|
+| Backend boot | `recommender startup failed: no embeddings found in audios.ai_embedding`, repeated, then `restart limit reached (5); giving up` | `full_build()` finds no vectors, returns a null index, and reports `ready: false`. The child exits cleanly; the service retries 5 times, each retry re-loading the model, then stops. |
+| `POST /admin/ai-recommendations` | `503 recommender unavailable: no embeddings found in audios.ai_embedding` | Correct and truthful. |
+| 03:00 UTC daily | A `failed` row in `ai_recommendation_runs`, message `no active books with AI_Class_Vector found.` | `active_recommendations.py` raises rather than writing an empty ranking. |
+
+Two consequences worth deciding about up front:
+
+**You can skip Steps 1 and 2 entirely for a Phase 1-only deploy.** With empty
+columns the recommender cannot come up whether Python is installed or not — it
+fails on missing vectors instead of on a missing interpreter, with the same
+bounded give-up. Installing a ~2.5 GB dependency stack and a 1 GB model that
+provably cannot do anything yet buys nothing, and it defers the 8 GB RAM
+question in Step 0b to the point where it actually bites. Doing Steps 1 and 2
+as the opening move of Phase 2 is the cleaner sequence.
+
+**The nightly failure is the exact pattern we just removed from popularity.**
+Google Books failed silently for 37 consecutive nights; the AI pipeline failed
+24 nights in a row and went unnoticed for six weeks. A daily `failed` row that
+is *expected* for the duration of Phase 1 trains everyone to ignore the one
+place that reports real failures. If Phase 1 will sit in production for more
+than a few days, make the scheduler skip the tick when the vector count is zero
+and log why — self-correcting, with no env flag anyone has to remember to flip
+once the data lands.
 
 ---
 
@@ -590,9 +628,29 @@ issue it on its own. Expect this to take a while — dev's equivalent index is
 The default 266 MB `maintenance_work_mem` forces a slower disk-based build, so
 the `SET` is worth it. It applies to the session only.
 
-### 2d. Trigger the reindex and verify
+### 2d. Restart the backend, then verify
 
-From the admin panel, trigger the reindex. Then:
+**Restart the backend before anything else — the admin reindex button will not
+work yet.**
+
+While the columns were empty, `recommender.py` exited at startup with
+`no embeddings found in audios.ai_embedding`, the service retried it 5 times
+and then logged `restart limit reached (5); giving up`. `spawnChild()` is only
+reachable from `onModuleInit` and the child's own exit handler, so there is no
+live Python process left for a refresh command to reach; the admin trigger
+returns 503 until the process is restarted.
+
+```bash
+sudo -u trl pm2 restart trl-backend --update-env
+sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "faiss|indexed|recommender"
+```
+
+On this boot the recommender finds a populated column, runs a full build, and
+reports `recommender ready (indexed=N)`. Expect the build to take a while — it
+streams every vector in batches of 10,000.
+
+The admin reindex button is for *subsequent* top-ups, once a live child exists.
+Then:
 
 ```bash
 sudo -u trl pm2 logs trl-backend --lines 200 | grep -iE "faiss|indexed|recommender"
