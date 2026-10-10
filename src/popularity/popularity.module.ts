@@ -9,7 +9,6 @@ import { AudioModule } from 'src/audios/audio.module';
 import { AudioPopularityHistory } from './entities/audio-popularity-history.entity';
 import { AudioPopularityRun } from './entities/audio-popularity-run.entity';
 import { AudioPopularityScore } from './entities/audio-popularity-score.entity';
-import { GoogleBooksFetcher } from './services/fetchers/google-books.fetcher';
 import { OpenLibraryFetcher } from './services/fetchers/open-library.fetcher';
 import { PopularityComposerService } from './services/popularity-composer.service';
 import { PopularityRunnerService } from './services/popularity-runner.service';
@@ -35,7 +34,6 @@ import { PopularityScheduler } from './schedulers/popularity.scheduler';
   ],
   providers: [
     OpenLibraryFetcher,
-    GoogleBooksFetcher,
     PopularityComposerService,
     PopularityRunnerService,
     PopularityService,

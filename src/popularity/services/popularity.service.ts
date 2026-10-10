@@ -24,10 +24,7 @@ import { PopularityRunnerService } from './popularity-runner.service';
 
 const CONFIG_INTERVAL = 'popularity_interval_days';
 const CONFIG_MIN_CONF = 'popularity_min_confidence_display';
-const CONFIG_WEIGHTS = [
-  'popularity_source_weight_openlibrary',
-  'popularity_source_weight_google',
-];
+const CONFIG_WEIGHTS = ['popularity_source_weight_openlibrary'];
 const DEFAULT_INTERVAL_DAYS = 1;
 
 // Read-path caching. These endpoints are polled heavily by the admin panel
@@ -275,11 +272,11 @@ export class PopularityService implements OnModuleInit {
     }
 
     const weights: Record<string, number> = {
-      openlibrary: this.parseFloatConfig(configs[CONFIG_WEIGHTS[0]], 0.6),
-      google: this.parseFloatConfig(configs[CONFIG_WEIGHTS[1]], 0.4),
+      openlibrary: this.parseFloatConfig(configs[CONFIG_WEIGHTS[0]], 1),
     };
     // min_confidence_display=0 (show all) is a valid value, so use a
-    // separate parser that accepts >= 0 within [0, 3].
+    // separate parser that accepts >= 0. With Open Library as the only
+    // source, confidence is 0 or 1.
     const minConfidenceDisplay = this.parseNonNegativeInt(
       configs[CONFIG_MIN_CONF],
       1,

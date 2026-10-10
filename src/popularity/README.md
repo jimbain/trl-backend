@@ -192,7 +192,7 @@ Hovering the popularity badge in the UI shows the same breakdown as a tooltip.
 2. Toast: *"Popularity refresh started"*. Status pill flips to `Running`.
 3. UI polls status every 5 s. Progress logs on the backend:
    ```bash
-   sudo -u trl pm2 logs trl-backend --lines 500 | grep -iE "Popularity|OpenLibrary|GoogleBooks"
+   sudo -u trl pm2 logs trl-backend --lines 500 | grep -iE "Popularity|OpenLibrary"
    ```
 4. When done, status flips to `Success`; toast: *"Popularity refresh complete — X of Y audios matched"*. Table auto-reloads.
 5. Try clicking **Refresh Now** twice quickly → second call returns 409 (`ConflictException` — single-flight mutex). No new row created.

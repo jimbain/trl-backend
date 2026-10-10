@@ -12,7 +12,6 @@ import {
   AudioPopularityRun,
   PopularityRunTrigger,
 } from '../entities/audio-popularity-run.entity';
-import { GoogleBooksFetcher } from './fetchers/google-books.fetcher';
 import { OpenLibraryFetcher } from './fetchers/open-library.fetcher';
 import { PopularityFetcher } from './fetchers/popularity-fetcher.interface';
 import {
@@ -26,7 +25,6 @@ const CACHE_KEY_STATUS = 'popularity:status';
 const CACHE_KEY_LIST_INDEX = 'popularity:list:_keys';
 
 const CONFIG_WEIGHT_OPENLIBRARY = 'popularity_source_weight_openlibrary';
-const CONFIG_WEIGHT_GOOGLE = 'popularity_source_weight_google';
 
 // Bounded per-audio concurrency. Each source has its own token-bucket
 // limiter, so this only controls how many audios we start simultaneously.
@@ -57,7 +55,6 @@ export class PopularityRunnerService {
     private readonly appConfigService: AppConfigService,
     private readonly composer: PopularityComposerService,
     private readonly openLibrary: OpenLibraryFetcher,
-    private readonly google: GoogleBooksFetcher,
     private readonly cache: CacheService,
     private readonly audioEsSync: AudioElasticsearchSyncService,
   ) {}
@@ -135,9 +132,9 @@ export class PopularityRunnerService {
       // Reset per-run circuit state and warm any snapshot fetchers.
       // Both fetchers are per-title (no chart snapshot); warm() is a no-op
       // for both but we call it to keep the interface honest.
-      const fetchers: PopularityFetcher[] = [this.openLibrary, this.google];
+      const fetchers: PopularityFetcher[] = [this.openLibrary];
       fetchers.forEach((f) => f.resetCircuit());
-      await Promise.all([this.openLibrary.warm(), this.google.warm()]);
+      await this.openLibrary.warm();
 
       // Load only active audios — per user's decision, popularity is about
       // "what of our current catalog is trending", not discovery.
@@ -328,14 +325,29 @@ export class PopularityRunnerService {
     );
   }
 
+  /**
+   * Open Library is the only source.
+   *
+   * Google Books was removed rather than weighted to zero. Its field-scoped
+   * operators — isbn:, intitle:, inauthor: — all return zero results from the
+   * public v1 API, which is why it matched 0 of 2,025 titles across 37 runs.
+   * Free text does return, but only ~36% of results carry a rating and a third
+   * of those are the wrong book (one title resolved to "Catalog of Copyright
+   * Entries"), and the ratings that do exist have counts in the single digits.
+   * A rating from four people is not a popularity signal worth a second
+   * external dependency, its quota, circuit breaker and match-verification
+   * gate. Open Library returns reading-log counts in the tens of thousands.
+   *
+   * The weight is retained as a config knob so the value stays visible and
+   * auditable on each score row, even though a single source normalises to
+   * itself: compose() divides by the matched weight sum.
+   */
   private async loadWeights(): Promise<Record<string, number>> {
     const configs = await this.appConfigService.getAppConfigs([
       CONFIG_WEIGHT_OPENLIBRARY,
-      CONFIG_WEIGHT_GOOGLE,
     ]);
     return {
-      openlibrary: this.parseWeight(configs[CONFIG_WEIGHT_OPENLIBRARY], 0.6),
-      google: this.parseWeight(configs[CONFIG_WEIGHT_GOOGLE], 0.4),
+      openlibrary: this.parseWeight(configs[CONFIG_WEIGHT_OPENLIBRARY], 1),
     };
   }
 

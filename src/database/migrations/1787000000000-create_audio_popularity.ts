@@ -8,7 +8,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   2. audio_popularity_history — append-only per (audio, batch) for trend / audit
  *   3. audio_popularity_runs    — pipeline run tracker (mirrors ai_recommendation_runs)
  *
- * Plus five new app_configs keys (interval + 3 source weights + min-confidence).
+ * Plus three app_configs keys: interval, the Open Library source weight, and
+ * min-confidence. The header previously claimed five keys and three source
+ * weights; it seeded four, and an iTunes source named in an early draft was
+ * never built. Google Books was dropped before this ever reached production —
+ * its field-scoped query operators return nothing from the public v1 API, so
+ * it matched 0 of 2,025 titles across 37 dev runs.
  *
  * Idempotent: all DDL uses IF NOT EXISTS; seeds use ON CONFLICT DO NOTHING so
  * admin-tuned values are preserved across re-applies. down() drops only the
@@ -89,8 +94,7 @@ export class CreateAudioPopularity1787000000000 implements MigrationInterface {
     await queryRunner.query(`
       INSERT INTO app_configs (key, value) VALUES
         ('popularity_interval_days',              '1'),
-        ('popularity_source_weight_openlibrary',  '0.60'),
-        ('popularity_source_weight_google',       '0.40'),
+        ('popularity_source_weight_openlibrary',  '1.00'),
         ('popularity_min_confidence_display',     '1')
       ON CONFLICT (key) DO NOTHING
     `);

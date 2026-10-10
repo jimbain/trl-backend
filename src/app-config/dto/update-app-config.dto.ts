@@ -138,17 +138,6 @@ export class UpdateAppConfigDto {
   @Transform(({ value }) =>
     value === '' || value === null || value === undefined
       ? undefined
-      : Number(value),
-  )
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(1)
-  popularity_source_weight_google: number;
-
-  @Transform(({ value }) =>
-    value === '' || value === null || value === undefined
-      ? undefined
       : parseInt(value, 10),
   )
   @IsOptional()

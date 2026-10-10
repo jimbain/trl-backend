@@ -8,14 +8,31 @@ For sources we could add in the future (with pricing / signup URLs), see [`AVAIL
 
 ## Sources actually used
 
-Two, both fully free, no user-facing keys strictly required:
+One, free, no key required:
 
 | # | Source | Auth | Weight (default) | Signal |
 |---|---|---|---|---|
-| 1 | **Open Library** | none (`User-Agent` recommended) | `0.60` | `readinglog_count` — cumulative users who logged the book |
-| 2 | **Google Books** | optional free API key (recommended) | `0.40` | `averageRating × log(ratingsCount)` |
+| 1 | **Open Library** | none (`User-Agent` recommended) | `1.00` | `readinglog_count` — cumulative users who logged the book |
 
-Both are **per-title, ISBN-first** with a title+author fallback when the ISBN lookup returns zero results.
+Per-title, **ISBN-first** with a title+author fallback when the ISBN lookup returns zero results.
+
+> ### Google Books was removed
+>
+> It shipped as a second source at weight `0.40` and **matched 0 of 2,025
+> titles across 37 nightly runs**. Measured against the live API:
+>
+> - the field-scoped operators it relied on — `isbn:`, `intitle:`, `inauthor:`
+>   — all return `totalItems: 0` from the public v1 API. A valid key and an
+>   unlimited quota would not have changed this.
+> - free-text `title author` does return, but only ~36% of results carry a
+>   rating, and **a third of those are the wrong book** — one title resolved
+>   to *Catalog of Copyright Entries*.
+> - the ratings that do exist have counts in the single digits. Open Library
+>   returns reading-log counts in the tens of thousands.
+>
+> A second external dependency — with its own quota, circuit breaker and
+> match-verification gate — was not worth ratings from four people. Sections
+> below that still describe two sources are historical.
 
 ### Why these two
 
@@ -137,18 +154,16 @@ If Open Library had missed (title fallback also returned 0 docs):
                                               └──────────────────────────────┘
                                                              │
                                      ┌────── per batch of 8 audios ──────┐
-                                     ▼                                    ▼
-                        ┌────────────────────────┐         ┌────────────────────────┐
-                        │  OpenLibraryFetcher    │         │  GoogleBooksFetcher    │
-                        │  ‣ token-bucket 3rps   │         │  ‣ token-bucket 5rps   │
-                        │  ‣ 24h Redis cache     │         │  ‣ 24h Redis cache     │
-                        │  ‣ ISBN → title fall.  │         │  ‣ ISBN → title fall.  │
-                        │  ‣ withRetry (3×,BOff) │         │  ‣ withRetry (3×,BOff) │
-                        │  ‣ 429 → cooldown 30s  │         │  ‣ 429 → cooldown 30s  │
-                        │  ‣ circuit breaker     │         │  ‣ circuit breaker     │
-                        └───────────┬────────────┘         └───────────┬────────────┘
-                                    │                                   │
-                                    └─────────────┬─────────────────────┘
+                                                  ▼
+                                     ┌────────────────────────┐
+                                     │  OpenLibraryFetcher    │
+                                     │  ‣ token-bucket 3rps   │
+                                     │  ‣ 24h Redis cache     │
+                                     │  ‣ ISBN → title fall.  │
+                                     │  ‣ withRetry (3×,BOff) │
+                                     │  ‣ 429 → cooldown 30s  │
+                                     │  ‣ circuit breaker     │
+                                     └───────────┬────────────┘
                                                   ▼
                                     ┌──────────────────────────────┐
                                     │  PopularityComposerService   │
@@ -186,7 +201,6 @@ If Open Library had missed (title fallback also returned 0 docs):
 | Fetcher interface | [`services/fetchers/popularity-fetcher.interface.ts`](../services/fetchers/popularity-fetcher.interface.ts) |
 | Fetcher base class (cache + circuit breaker) | [`services/fetchers/base-fetcher.ts`](../services/fetchers/base-fetcher.ts) |
 | Open Library fetcher | [`services/fetchers/open-library.fetcher.ts`](../services/fetchers/open-library.fetcher.ts) |
-| Google Books fetcher | [`services/fetchers/google-books.fetcher.ts`](../services/fetchers/google-books.fetcher.ts) |
 | Token-bucket rate limiter + cooldown | [`services/fetchers/rate-limiter.ts`](../services/fetchers/rate-limiter.ts) |
 | Retry with backoff + Retry-After | [`services/fetchers/retry.helper.ts`](../services/fetchers/retry.helper.ts) |
 | Weighted-average composer | [`services/popularity-composer.service.ts`](../services/popularity-composer.service.ts) |
@@ -219,9 +233,8 @@ All admin-tunable via `Admin panel → Configuration → Popularity`. Stored as 
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `popularity_interval_days` | int | `1` | Cron gate: pipeline runs at most every N days |
-| `popularity_source_weight_openlibrary` | float 0–1 | `0.60` | Weight of Open Library sub-score in composite |
-| `popularity_source_weight_google` | float 0–1 | `0.40` | Weight of Google Books sub-score in composite |
-| `popularity_min_confidence_display` | int 0–3 | `1` | Default filter on the Popularity page — audios with fewer matched sources are hidden by default (user can override in UI) |
+| `popularity_source_weight_openlibrary` | float 0–1 | `1.00` | Weight of Open Library sub-score in composite |
+| `popularity_min_confidence_display` | int 0–1 | `1` | Default filter on the Popularity page — audios with fewer matched sources are hidden by default (user can override in UI) |
 
 Weights don't need to sum to 1 — the composer normalizes by the sum of matched-source weights. Changing a weight to `0` effectively disables that source.
 
@@ -229,7 +242,6 @@ Weights don't need to sum to 1 — the composer normalizes by the sum of matched
 
 | Var | Required? | What it does |
 |---|---|---|
-| `GOOGLE_BOOKS_API_KEY` | Optional but recommended | Raises Google Books quota from ~1k/day per IP to ≥100k/day per project |
 | `POPULARITY_USER_AGENT` | Optional | Identifies our app to Open Library (raises rate limit 1→3 rps). Default: `TRL/1.0 (+admin@therentallibrary.com)` |
 
 ---
@@ -309,7 +321,7 @@ Takes effect at the next cron tick (04:00 UTC daily) — no restart needed.
 ### Re-tune source weights (without deploy)
 
 ```
-Admin panel → Configuration → Popularity → Source Weight — Open Library / Google
+Admin panel → Configuration → Popularity → Source Weight — Open Library
 ```
 
 Weights are re-read at the start of every run. New scores written after the change are tagged with a new `source_weights_version` so history rows show which weight set produced them.
@@ -333,7 +345,7 @@ The migration's `down()` drops `audio_popularity_scores`, `audio_popularity_hist
 Honest about the limits:
 
 - **Not a "trending today" signal.** Both current sources measure cumulative all-time engagement. A 1995 title with 500 log entries outranks a 2024 hit with 50. See [`AVAILABLE_SOURCES.md`](./AVAILABLE_SOURCES.md) for the P0 "add time-decay weighting" recommendation to fix this without a new source.
-- **Not audiobook-specific.** Open Library and Google Books both surface primarily print-edition data. Audio-only ISBNs frequently miss (recovered by title fallback).
+- **Not audiobook-specific.** Open Library surfaces primarily print-edition data. Audio-only ISBNs frequently miss (recovered by title fallback).
 - **Not comprehensive.** The best audiobook popularity signals (Audible rank, Bookscan sales, Findaway sales) require paid/partner access we didn't include. See the "Business questions" section of [`AVAILABLE_SOURCES.md`](./AVAILABLE_SOURCES.md).
 
 The MVP is a **B/C signal with A+ engineering** — reliable, scalable, honest about what it measures. Follow-up work to lift it toward "A" signal quality is scoped in [`AVAILABLE_SOURCES.md`](./AVAILABLE_SOURCES.md).
