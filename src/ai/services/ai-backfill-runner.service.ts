@@ -52,6 +52,18 @@ export interface BackfillResult {
   updated: number;
   interrupted: boolean;
   reason: string;
+  /**
+   * The SKUs this run actually wrote, so the caller can re-index exactly those
+   * in Elasticsearch instead of reindexing the catalogue.
+   *
+   * Empty when `skusTruncated` is set — see SKU_REPORT_CAP in backfill.py.
+   */
+  skus: string[];
+  /**
+   * The run wrote more rows than it will enumerate. Per-document syncing is the
+   * wrong tool at that size; use `npm run elastic:sync-audios`.
+   */
+  skusTruncated: boolean;
 }
 
 /**
@@ -145,6 +157,12 @@ export class AiBackfillRunnerService {
       interrupted: payload?.interrupted === true,
       reason:
         typeof payload?.reason === 'string' ? payload.reason : 'completed',
+      skus: Array.isArray(payload?.skus)
+        ? (payload.skus as unknown[]).filter(
+            (v): v is string => typeof v === 'string',
+          )
+        : [],
+      skusTruncated: payload?.skus_truncated === true,
     };
 
     this.logger.log(

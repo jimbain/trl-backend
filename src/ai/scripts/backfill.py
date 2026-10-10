@@ -44,7 +44,9 @@ Stdout — one JSON object per line (parsed by the Node runner service):
     {"stage":"model_loading","model":"...","to_embed":N}  (before the model loads)
     {"stage":"embedding","processed":N,"updated":M,"remaining":R,
      "rate_per_min":X,"eta_min":Y}            (progress, one per chunk)
-    {"done":true,"processed":N,"updated":M,"interrupted":bool,"reason":"..."}
+    {"done":true,"processed":N,"updated":M,"interrupted":bool,"reason":"...",
+     "skus":[...],"skus_truncated":bool}   (skus: written rows, capped — see
+                                            SKU_REPORT_CAP)
     {"error":"<message>"}                     (failure — non-zero exit)
 
 Stderr — free-form human logs.
@@ -161,6 +163,15 @@ OLLAMA_URL = os.environ.get('AI_OLLAMA_URL', 'http://localhost:11434/api/generat
 OLLAMA_MODEL = os.environ.get('AI_OLLAMA_MODEL', 'qwen2.5:1.5b')
 OLLAMA_TIMEOUT_S = 60
 CATEGORIES_MAX_LEN = 250  # audios.ai_categories is varchar(250)
+
+# How many written SKUs to report back for a targeted Elasticsearch re-sync.
+# The nightly top-up is a handful of rows, so the caller can sync exactly those.
+# A bulk run is hundreds of thousands, where per-document syncing is the wrong
+# tool entirely (that is what `npm run elastic:sync-audios` is for) and the list
+# would be megabytes of pointless stdout — so past the cap we stop collecting
+# and say so, rather than silently emitting a truncated list the caller would
+# mistake for the whole set.
+SKU_REPORT_CAP = 5000
 
 DEFAULT_MAX_RUNTIME_MIN = 300
 
@@ -615,6 +626,8 @@ def main():
 
         processed = 0
         updated = 0
+        written_skus = []
+        skus_truncated = False
         last_sku = ''
         started = time.monotonic()
         reason = 'completed'
@@ -675,6 +688,12 @@ def main():
             updated += cur.rowcount
             conn.commit()
 
+            if not skus_truncated:
+                written_skus.extend(sku for sku, _ in payload)
+                if len(written_skus) > SKU_REPORT_CAP:
+                    written_skus = []
+                    skus_truncated = True
+
             processed += len(rows)
             last_sku = rows[-1][0]
 
@@ -704,6 +723,8 @@ def main():
             'updated': updated,
             'interrupted': reason != 'completed',
             'reason': reason,
+            'skus': written_skus,
+            'skus_truncated': skus_truncated,
         })
     finally:
         try:

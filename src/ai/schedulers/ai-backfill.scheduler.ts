@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
 import { CronJob } from 'cron';
+import { In, Repository } from 'typeorm';
+import { AudioElasticsearchSyncService } from 'src/audios/audio-elasticsearch-sync.service';
+import { Audio } from 'src/audios/entities/audio.entity';
 import {
   AiBackfillRunnerService,
   BACKFILL_JOBS,
@@ -23,6 +27,16 @@ const CRON_ENV: Record<BackfillJob, string> = {
 
 /** Only this job's column feeds the FAISS index, so only it triggers a refresh. */
 const FAISS_BACKED_JOB: BackfillJob = 'embedding';
+
+/**
+ * Only this job's column is part of the Elasticsearch document, so only it
+ * triggers a re-index. The vector columns are served by pgvector and FAISS and
+ * have no business in the search index.
+ */
+const ES_BACKED_JOB: BackfillJob = 'categories';
+
+/** Same concurrency the admin bulk-update path uses for this call. */
+const ES_SYNC_CHUNK = 10;
 
 /**
  * Nightly top-up of the three AI columns on `audios`.
@@ -57,6 +71,9 @@ export class AiBackfillScheduler implements OnModuleInit {
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly runner: AiBackfillRunnerService,
     private readonly recommender: PythonRecommenderService,
+    private readonly audioEsSync: AudioElasticsearchSyncService,
+    @InjectRepository(Audio)
+    private readonly audioRepo: Repository<Audio>,
   ) {}
 
   onModuleInit() {
@@ -137,6 +154,9 @@ export class AiBackfillScheduler implements OnModuleInit {
             'rows — the remainder is picked up on the next run.',
         );
       }
+      if (job === ES_BACKED_JOB) {
+        await this.reindexWrittenRows(result.skus, result.skusTruncated);
+      }
     } catch (err: any) {
       // Never let a batch failure bubble into the scheduler — it would take the
       // job registration down with it. The next tick retries from the committed
@@ -146,6 +166,70 @@ export class AiBackfillScheduler implements OnModuleInit {
 
     if (job === FAISS_BACKED_JOB) {
       await this.refreshFaissIndex();
+    }
+  }
+
+  /**
+   * Re-index exactly the rows this run wrote.
+   *
+   * `ai_categories` is part of the Elasticsearch document, and the admin audio
+   * list is served from that index rather than from Postgres — so a title whose
+   * categories were just generated keeps showing the old value until its
+   * document is rewritten. Syncing only the written SKUs keeps the nightly cost
+   * proportional to the handful of titles ingested that day, rather than to the
+   * 1.4M-document catalogue.
+   *
+   * Uses the same per-id call and chunk size as the admin bulk-update path, and
+   * allSettled so one bad document cannot abandon the rest of the batch.
+   */
+  private async reindexWrittenRows(
+    skus: string[],
+    truncated: boolean,
+  ): Promise<void> {
+    if (truncated) {
+      this.logger.warn(
+        'categories: too many rows written to re-index one at a time. ' +
+          'Run `npm run elastic:sync-audios` for a bulk re-index.',
+      );
+      return;
+    }
+    if (skus.length === 0) return;
+
+    try {
+      // syncAudioById takes audios.id; the script reports sku.
+      const rows = await this.audioRepo.find({
+        where: { sku: In(skus) },
+        select: ['id'],
+      });
+      const ids = rows.map((r) => r.id);
+
+      let failed = 0;
+      for (let i = 0; i < ids.length; i += ES_SYNC_CHUNK) {
+        const settled = await Promise.allSettled(
+          ids
+            .slice(i, i + ES_SYNC_CHUNK)
+            .map((id) => this.audioEsSync.syncAudioById(id)),
+        );
+        failed += settled.filter((r) => r.status === 'rejected').length;
+      }
+
+      this.logger.log(
+        `categories: re-indexed ${ids.length - failed}/${ids.length} audios`,
+      );
+      if (failed > 0) {
+        // These rows already have their categories committed, so the next tick
+        // will not pick them up again — the index is what is behind, not the data.
+        this.logger.warn(
+          `categories: ${failed} document(s) failed to index. ` +
+            'Run `npm run elastic:sync-audios` to reconcile.',
+        );
+      }
+    } catch (err: any) {
+      // Never fail the tick over a search-index problem; the categories are
+      // committed in Postgres either way.
+      this.logger.error(
+        `categories: Elasticsearch re-index failed: ${err?.message}`,
+      );
     }
   }
 

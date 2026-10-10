@@ -19,6 +19,7 @@ interface RawAudioQueryResult {
   is_active: boolean;
   is_only_for_purchase: boolean;
   category_ids: string[];
+  ai_categories: string | null;
   bookshelf_credit_cost: string | number;
   purchased_rental_license_limit: string | number;
   total_rented: string | number;
@@ -91,6 +92,7 @@ interface AudioTransformed {
   is_active: boolean;
   is_only_for_purchase: boolean;
   category_ids: string[];
+  ai_categories: string[];
   bookshelf_credit_cost: number;
   purchased_rental_license_limit: number;
   total_rented: number;
@@ -208,6 +210,7 @@ export class AudioElasticsearchSyncService {
         'audio.is_active AS is_active',
         'audio.is_only_for_purchase AS is_only_for_purchase',
         'audio.categories AS category_ids',
+        'audio.ai_categories AS ai_categories',
         'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
         'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
         'audio.total_rented AS total_rented',
@@ -399,6 +402,16 @@ export class AudioElasticsearchSyncService {
       is_active: Boolean(audio.is_active),
       is_only_for_purchase: Boolean(audio.is_only_for_purchase),
       category_ids: audio.category_ids || [],
+      // Stored as a comma-joined varchar, but ElasticAudio, the admin DTO and
+      // the Curation table all expect string[]. Splitting here means _source is
+      // already an array, so the DTO needs no @Transform and the UI's .map()
+      // works on what it is actually given.
+      ai_categories: audio.ai_categories
+        ? audio.ai_categories
+            .split(',')
+            .map((c) => c.trim())
+            .filter(Boolean)
+        : [],
       bookshelf_credit_cost: parseInt(String(audio.bookshelf_credit_cost)) || 0,
       purchased_rental_license_limit:
         parseInt(String(audio.purchased_rental_license_limit)) || 0,
@@ -482,6 +495,7 @@ export class AudioElasticsearchSyncService {
       is_active: { type: 'boolean' },
       is_only_for_purchase: { type: 'boolean' },
       category_ids: { type: 'keyword' },
+      ai_categories: { type: 'keyword' },
       bookshelf_credit_cost: { type: 'integer' },
       purchased_rental_license_limit: { type: 'integer' },
       total_rented: { type: 'integer' },
@@ -950,6 +964,7 @@ export class AudioElasticsearchSyncService {
                 'audio.is_active AS is_active',
                 'audio.is_only_for_purchase AS is_only_for_purchase',
                 'audio.categories AS category_ids',
+                'audio.ai_categories AS ai_categories',
                 'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
                 'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
                 'audio.total_rented AS total_rented',
