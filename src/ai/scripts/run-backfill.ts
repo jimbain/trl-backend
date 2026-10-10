@@ -1,16 +1,17 @@
 /**
- * Manual backfill of one `audios` vector column.
+ * Manual backfill of one `audios` AI column.
  *
- * Invocation — the column is required, because the two feed different features:
+ * Invocation — the job is required, because the three feed different features:
  *   npm run ai:backfill-class-vector        # AI_Class_Vector, Active-Based List
  *   npm run ai:backfill-embedding           # ai_embedding, prompt search
+ *   npm run ai:backfill-categories          # ai_categories, needs Ollama
  *
- * Both accept the same flags after `--`:
+ * All three accept the same flags after `--`:
  *   -- --limit 200            # smoke test
  *   -- --max-runtime-min 0    # run to completion
- *   -- --all                  # rebuild every vector in the column
+ *   -- --all                  # regenerate every row in the column
  *
- * This run starts NOW; AI_EMBEDDING_BACKFILL_CRON only governs the nightly tick.
+ * This run starts NOW; the AI_BACKFILL_*_CRON vars only govern the nightly ticks.
  *
  * Deliberately boots a two-provider module rather than AppModule. Booting the
  * whole application here would also start PythonRecommenderService, whose
@@ -18,9 +19,9 @@
  * of 768-dim vectors resident in memory. Running that next to the BGE model
  * this job loads is what the kernel OOM killer reaches for first on an 8 GB
  * box, and it would take the recommender down repeatedly while the backfill
- * ran. AiEmbeddingBackfillRunnerService needs only PythonScriptRunnerService,
- * which has no dependencies of its own, so none of TypeORM, Redis,
- * Elasticsearch or FAISS has to be loaded to run a batch job.
+ * ran. AiBackfillRunnerService needs only PythonScriptRunnerService, which has
+ * no dependencies of its own, so none of TypeORM, Redis, Elasticsearch or FAISS
+ * has to be loaded to run a batch job.
  *
  * Safe to run while the API is up: the python script takes a Postgres advisory
  * lock, so if the nightly cron is mid-run this exits immediately rather than
@@ -32,29 +33,29 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { config } from 'dotenv';
 import {
-  AiEmbeddingBackfillRunnerService,
-  EmbeddingColumn,
-} from 'src/ai/services/ai-embedding-backfill-runner.service';
+  AiBackfillRunnerService,
+  BACKFILL_JOBS,
+  BackfillJob,
+} from 'src/ai/services/ai-backfill-runner.service';
 import { PythonScriptRunnerService } from 'src/ai/services/python-script-runner.service';
 
 @Module({
-  providers: [PythonScriptRunnerService, AiEmbeddingBackfillRunnerService],
+  providers: [PythonScriptRunnerService, AiBackfillRunnerService],
 })
-class EmbeddingBackfillCliModule {}
+class AiBackfillCliModule {}
 
-const COLUMNS: EmbeddingColumn[] = ['AI_Class_Vector', 'ai_embedding'];
-
-function columnArg(argv: string[]): EmbeddingColumn {
-  const i = argv.indexOf('--column');
+function jobArg(argv: string[]): BackfillJob {
+  const i = argv.indexOf('--job');
   const value = i === -1 ? undefined : argv[i + 1];
-  if (!value || !COLUMNS.includes(value as EmbeddingColumn)) {
+  if (!value || !BACKFILL_JOBS.includes(value as BackfillJob)) {
     throw new Error(
-      `--column is required and must be one of: ${COLUMNS.join(', ')}. ` +
-        'They are not interchangeable — AI_Class_Vector drives the ' +
-        'Active-Based List pipeline, ai_embedding drives prompt search.',
+      `--job is required and must be one of: ${BACKFILL_JOBS.join(', ')}. ` +
+        'They are not interchangeable — class-vector drives the Active-Based ' +
+        'List pipeline, embedding drives prompt search, categories writes ' +
+        'genre labels.',
     );
   }
-  return value as EmbeddingColumn;
+  return value as BackfillJob;
 }
 
 function intArg(argv: string[], flag: string): number | undefined {
@@ -77,16 +78,16 @@ async function main() {
   // a different database than the API.
   config({ path: ['.env', '.env.dev', '.env.stage', '.env.prod'] });
 
-  const logger = new Logger('ai-embed-backfill');
+  const logger = new Logger('ai-backfill');
   const argv = process.argv.slice(2);
 
-  const column = columnArg(argv);
+  const job = jobArg(argv);
   const limit = intArg(argv, '--limit');
   const maxRuntimeMin = intArg(argv, '--max-runtime-min');
   const all = argv.includes('--all');
 
   const app = await NestFactory.createApplicationContext(
-    EmbeddingBackfillCliModule,
+    AiBackfillCliModule,
     // 'debug' included on purpose: the python child's stderr — resource
     // detection, model load, per-chunk counts — is logged at debug level. A
     // manual run that prints nothing for minutes is indistinguishable from a
@@ -99,18 +100,18 @@ async function main() {
   // a long backfill throws away up to a chunk of completed inference.
   app.enableShutdownHooks();
 
-  const runner = app.get(AiEmbeddingBackfillRunnerService);
+  const runner = app.get(AiBackfillRunnerService);
 
   try {
     const result = await runner.run({
       triggeredBy: 'cli',
-      column,
+      job,
       limit,
       maxRuntimeMin,
       all,
     });
     logger.log(
-      `done — column=${column} processed=${result.processed} updated=${result.updated} ` +
+      `done — job=${job} processed=${result.processed} updated=${result.updated} ` +
         `interrupted=${result.interrupted} reason="${result.reason}"`,
     );
     if (result.interrupted) {

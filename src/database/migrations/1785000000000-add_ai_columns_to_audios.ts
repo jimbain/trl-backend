@@ -35,7 +35,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *      built here would be trained on zero rows and be worthless (pgvector even
  *      warns about it). HNSW needs no training set and accepts rows incrementally.
  *   2. IVFFlat recall decays as the catalogue grows away from those centroids and
- *      needs periodic REINDEX. `backfill_embeddings.py` adds vectors on every run,
+ *      needs periodic REINDEX. `backfill.py` adds vectors on every run,
  *      so that decay is continuous. HNSW has no such maintenance.
  *   3. `lists = 1000` is mistuned for this table anyway: pgvector recommends
  *      sqrt(rows) above 1M rows — sqrt(1.35M) ≈ 1160 — and the server default

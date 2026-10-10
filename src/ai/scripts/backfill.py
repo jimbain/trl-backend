@@ -8,18 +8,20 @@ hardcoded credentials, no CSV round-trip, bounded memory, and a one-shot script
 becomes a job that can be stopped and resumed at any point.
 
 Invocation:
-    python3 backfill_embeddings.py --column {ai_embedding|AI_Class_Vector}
-                                  [--limit N] [--max-runtime-min N]
-                                  [--batch-size N] [--chunk-size N]
-                                  [--threads N] [--all]
+    python3 backfill.py --job {class-vector|embedding|categories}
+                        [--limit N] [--max-runtime-min N]
+                        [--batch-size N] [--chunk-size N]
+                        [--threads N] [--all]
 
-Two columns, one engine. They feed different features and are NOT
+Three jobs, one engine. They feed different features and are NOT
 interchangeable:
 
-    AI_Class_Vector  the Active-Based List pipeline — find inactive titles
-                     similar to the ones already on the shelf
-    ai_embedding     "recommendations from a book description" — the prompt
-                     search in the admin panel
+    class-vector  audios."AI_Class_Vector" — the Active-Based List pipeline,
+                  finding inactive titles similar to those already on the shelf
+    embedding     audios.ai_embedding — prompt search in the admin panel
+                  ("recommendations from a book description")
+    categories    audios.ai_categories — three genre labels per title, from a
+                  local LLM rather than an embedding model
 
 Both hold a 768-dim BGE embedding, but from DIFFERENT source text:
 
@@ -79,6 +81,7 @@ Env (all optional — every one has a derived default):
 import argparse
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -90,47 +93,35 @@ SSL_CA_PATH = 'cert/db-ca-certificate.crt'
 # Per-column config. The advisory lock keys differ so a backfill of one column
 # never blocks the other — they are independent work. They do contend for CPU on
 # a small box, which is a scheduling concern, not a correctness one.
+# One engine, three jobs. Each fills a different column of `audios` and they
+# are NOT interchangeable — a vector built from the wrong source text looks
+# valid and quietly degrades every similarity result against the rows already
+# stored.
+#
+#   kind       which generator produces the value
+#   column     bare column name, for the catalogue type check
 #   sql        column identifier, quoted where the mixed case demands it
-#   lock       advisory lock key
-#   source     SQL predicate for "this row has the text this column needs"
-#   text       how that text is assembled before encoding
-#   normalize  passed to model.encode as normalize_embeddings
+#   type       expected Postgres type — a mismatch fails the run, loudly
+#   cast       SQL cast applied to the generated value
+#   lock       advisory lock key; distinct per job so jobs never block each other
+#   source     SQL predicate for "this row has the text this job needs"
+#   text       how that text is assembled before generation
+#   normalize  embedding jobs only: normalize_embeddings
 #
-# The SOURCE TEXT is carried over verbatim from the AI developer's scripts,
-# because that is what decides where a vector lands. Produce ai_embedding from
-# title+description and it would sit in a different space from the 518k rows
-# already stored, quietly degrading every similarity result against them:
+# Source text is carried over verbatim from the AI developer's scripts:
+#   class-vector  AIEmbedding.py:37    row[1] + ' ' + row[2]
+#   embedding     CronDBUpdate.py:39   row[1]   (display_description alone)
+#   categories    AICatV3.ipynb        display_description
 #
-#   AI_Class_Vector   AIEmbedding.py:37    row[1] + ' ' + row[2]
-#   ai_embedding      CronDBUpdate.py:39   row[1]        (description alone)
-#
-# The `or ''` guards are the one deviation, and they change nothing for a row
-# that has its text — the originals simply raise TypeError on a NULL instead.
-#
-# Two things are deliberately NOT carried over, both operational rather than
-# mathematical:
-#
-#   Row scope. AIEmbedding.py filters `is_active is false`, which permanently
-#   strands the ~63 active titles that have no vector — and `load_active_books`
-#   drops exactly those rows, so they contribute nothing to recommendations.
-#   Here, every non-excluded, non-deleted row with the needed text is eligible.
-#
-#   Normalisation. CronDBUpdate.py omits normalize_embeddings for ai_embedding.
-#   Both columns are normalised here. This cannot change results — pgvector's
-#   `<=>` and FAISS's add_to_index both normalise internally, so only direction
-#   has ever mattered — but it keeps magnitudes uniform, which is what stops a
-#   future inner-product index from silently mis-ranking. See the header note
-#   about normalising the legacy rows to match.
-COLUMNS = {
-    'ai_embedding': {
-        'sql': 'ai_embedding',
-        'lock': 8471120250001,
-        'source': "coalesce(display_description, '') <> ''",
-        'text': lambda title, desc: desc or '',
-        'normalize': True,
-    },
-    'AI_Class_Vector': {
+# The `or ''` guards are the one deviation, and change nothing for a row that
+# has its text — the originals simply raise TypeError on a NULL.
+JOBS = {
+    'class-vector': {
+        'kind': 'embedding',
+        'column': 'AI_Class_Vector',
         'sql': '"AI_Class_Vector"',
+        'type': 'vector(768)',
+        'cast': '::vector',
         'lock': 8471120250002,
         'source': (
             "(coalesce(display_title, '') <> '' "
@@ -139,7 +130,37 @@ COLUMNS = {
         'text': lambda title, desc: (title or '') + ' ' + (desc or ''),
         'normalize': True,
     },
+    'embedding': {
+        'kind': 'embedding',
+        'column': 'ai_embedding',
+        'sql': 'ai_embedding',
+        'type': 'vector(768)',
+        'cast': '::vector',
+        'lock': 8471120250001,
+        'source': "coalesce(display_description, '') <> ''",
+        'text': lambda title, desc: desc or '',
+        'normalize': True,
+    },
+    'categories': {
+        'kind': 'categories',
+        'column': 'ai_categories',
+        'sql': 'ai_categories',
+        'type': 'character varying(250)',
+        'cast': '',
+        'lock': 8471120250003,
+        'source': "coalesce(display_description, '') <> ''",
+        'text': lambda title, desc: desc or '',
+        'normalize': None,
+    },
 }
+
+# Categories are generated by a local LLM over HTTP rather than a local model.
+# The endpoint is configurable because the AI developer's notebook hardcodes
+# localhost, which only ever existed on his machine.
+OLLAMA_URL = os.environ.get('AI_OLLAMA_URL', 'http://localhost:11434/api/generate')
+OLLAMA_MODEL = os.environ.get('AI_OLLAMA_MODEL', 'qwen2.5:1.5b')
+OLLAMA_TIMEOUT_S = 60
+CATEGORIES_MAX_LEN = 250  # audios.ai_categories is varchar(250)
 
 DEFAULT_MAX_RUNTIME_MIN = 300
 
@@ -152,7 +173,7 @@ def emit(payload):
 
 
 def log(msg):
-    sys.stderr.write(f'[backfill_embeddings] {msg}\n')
+    sys.stderr.write(f'[backfill] {msg}\n')
     sys.stderr.flush()
 
 
@@ -308,7 +329,7 @@ def db_connect():
     return psycopg2.connect(**kwargs)
 
 
-def verify_column(cur, column):
+def verify_column(cur, column, expected_type):
     cur.execute(
         "SELECT format_type(a.atttypid, a.atttypmod) "
         "FROM pg_attribute a "
@@ -322,10 +343,9 @@ def verify_column(cur, column):
             f'audios.{column} is missing. Run migrations first '
             '(AddAiColumnsToAudios1785000000000).'
         )
-    if row[0] != 'vector(768)':
+    if row[0] != expected_type:
         raise RuntimeError(
-            f'audios.{column} is {row[0]}, expected vector(768). '
-            f'{MODEL_NAME} emits 768 dimensions.'
+            f'audios.{column} is {row[0]}, expected {expected_type}.'
         )
 
 
@@ -351,6 +371,156 @@ COUNT_SQL = """
 """
 
 
+def make_embedding_generator(job, settings, remaining):
+    """Batch-encode with BGE. Returns texts -> list of pgvector literals."""
+    import numpy as np
+    import torch
+    from sentence_transformers import SentenceTransformer
+
+    torch.set_num_threads(settings['threads'])
+    # First run on a cold HF cache downloads ~440 MB here; without a line on
+    # stdout the job looks hung for minutes.
+    emit({'stage': 'model_loading', 'model': MODEL_NAME,
+          'column': job['column'], 'to_embed': remaining})
+    log(f'loading model {MODEL_NAME} (torch threads={torch.get_num_threads()})…')
+    model = SentenceTransformer(MODEL_NAME)
+
+    def generate(texts):
+        vectors = model.encode(
+            texts,
+            batch_size=settings['batch_size'],
+            normalize_embeddings=job['normalize'],
+            show_progress_bar=False,
+            convert_to_numpy=True,
+        ).astype(np.float32)
+        return [vec_to_pgtext(v) for v in vectors]
+
+    return generate
+
+
+def make_categories_generator(job, settings, remaining):
+    """Three genres per row from a local LLM. Returns texts -> list of strings.
+
+    Prompt, fallback and parsing are carried over from the AI developer's
+    AICatV3.ipynb so labels stay consistent with the rows already stored. Two
+    things are added: the endpoint is configurable rather than hardcoded to
+    localhost, and the result is clamped to the column width — the original
+    would raise a StringDataRightTruncation the first time the model returned
+    three long genre names.
+
+    One HTTP round trip per row, so this is the slow job by a wide margin. It
+    is a separate cron for exactly that reason.
+    """
+    import requests
+
+    emit({'stage': 'model_loading', 'model': OLLAMA_MODEL,
+          'column': job['column'], 'to_embed': remaining})
+    log(f'using Ollama at {OLLAMA_URL} (model {OLLAMA_MODEL})')
+
+    def ask(prompt, json_mode):
+        body = {'model': OLLAMA_MODEL, 'prompt': prompt, 'stream': False}
+        if json_mode:
+            body['format'] = 'json'
+            body['options'] = {'temperature': 0.1, 'num_predict': 30}
+        r = requests.post(OLLAMA_URL, json=body, timeout=OLLAMA_TIMEOUT_S)
+        r.raise_for_status()
+        return r.json()['response']
+
+    def parse_json_array(text):
+        for candidate in (text.strip(), None):
+            if candidate is None:
+                match = re.search(r'\[.*?\]', text, re.DOTALL)
+                if not match:
+                    return []
+                candidate = match.group()
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, list):
+                items = [str(i).strip() for i in parsed if str(i).strip()]
+                if items:
+                    return items[:3]
+        return []
+
+    def parse_lines(text):
+        genres = []
+        for line in text.splitlines():
+            line = re.sub(r'^[\-\*\d\.\)\s]+', '', line.strip())
+            if ':' in line:
+                line = line.split(':')[0].strip()
+            if line and len(line) < 40:
+                genres.append(line)
+        return list(dict.fromkeys(genres))[:3]
+
+    def one(description):
+        try:
+            genres = parse_json_array(ask(description_prompt(description), True))
+            if genres:
+                return genres
+        except requests.RequestException as exc:
+            log(f'ollama json-mode call failed: {exc}')
+        try:
+            return parse_lines(ask(loose_prompt(description), False))
+        except requests.RequestException as exc:
+            log(f'ollama fallback call failed: {exc}')
+            return []
+
+    def generate(texts):
+        out = []
+        for text in texts:
+            joined = ','.join(one(text))
+            if len(joined) > CATEGORIES_MAX_LEN:
+                # Trim whole genres rather than mid-word, so a truncated value
+                # is still a valid comma-separated list.
+                kept = []
+                for part in joined.split(','):
+                    if len(','.join(kept + [part])) > CATEGORIES_MAX_LEN:
+                        break
+                    kept.append(part)
+                joined = ','.join(kept)
+            out.append(joined)
+        return out
+
+    return generate
+
+
+def description_prompt(description):
+    return f"""
+    Return a JSON array of exactly 3 book genres.
+
+    Rules:
+    - Return ONLY valid JSON
+    - No explanation
+    - No markdown
+    - No additional text
+    - Each genre must be concise
+
+    Description:
+    {description}
+    """
+
+
+def loose_prompt(description):
+    return f"""
+    Return 3 book genres.
+
+    Rules:
+    - One genre per line
+    - No numbering
+    - No explanations
+
+    Description:
+    {description}
+    """
+
+
+GENERATORS = {
+    'embedding': make_embedding_generator,
+    'categories': make_categories_generator,
+}
+
+
 def vec_to_pgtext(vec):
     return '[' + ','.join(f'{float(x):.6f}' for x in vec) + ']'
 
@@ -359,9 +529,9 @@ def vec_to_pgtext(vec):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description='Backfill an audios pgvector column')
-    p.add_argument('--column', required=True, choices=sorted(COLUMNS),
-                   help='which column to fill — they serve different features')
+    p = argparse.ArgumentParser(description='Backfill an audios AI column')
+    p.add_argument('--job', required=True, choices=sorted(JOBS),
+                   help='which column to fill — the jobs serve different features')
     p.add_argument('--limit', type=int, default=0,
                    help='stop after N rows (0 = no limit). Useful for a smoke test.')
     p.add_argument('--max-runtime-min', type=int, default=None,
@@ -370,7 +540,7 @@ def parse_args():
     p.add_argument('--chunk-size', type=int, default=None, help='rows per DB round trip (default: derived)')
     p.add_argument('--threads', type=int, default=None, help='torch threads (default: cpus - 1)')
     p.add_argument('--all', action='store_true',
-                   help='re-embed every row, not just the NULL ones (full rebuild of the column)')
+                   help='regenerate every row, not just the NULL ones (full rebuild)')
     return p.parse_args()
 
 
@@ -378,11 +548,11 @@ def main():
     args = parse_args()
     _install_signal_handlers()
 
-    column_cfg = COLUMNS[args.column]
-    # argparse restricts --column to the keys of COLUMNS, so this identifier is
-    # never attacker-controlled; it is interpolated rather than bound because a
-    # column name cannot be a query parameter.
-    column_sql = column_cfg['sql']
+    job = JOBS[args.job]
+    # argparse restricts --job to the keys of JOBS, so this identifier is never
+    # attacker-controlled; it is interpolated rather than bound because a column
+    # name cannot be a query parameter.
+    column_sql = job['sql']
 
     max_runtime_min = args.max_runtime_min
     if max_runtime_min is None:
@@ -414,28 +584,26 @@ def main():
 
     # Session-level advisory lock. Released implicitly when this connection
     # closes, including on a hard kill — no stale lock to clean up by hand.
-    cur.execute('SELECT pg_try_advisory_lock(%s)', (column_cfg['lock'],))
+    cur.execute('SELECT pg_try_advisory_lock(%s)', (job['lock'],))
     if not cur.fetchone()[0]:
         conn.rollback()
         cur.close()
         conn.close()
-        log(f'another {args.column} backfill holds the advisory lock — exiting without work')
+        log(f'another {args.job} backfill holds the advisory lock — exiting without work')
         emit({'done': True, 'processed': 0, 'updated': 0,
               'interrupted': False, 'reason': 'already running elsewhere'})
         return
 
     try:
-        verify_column(cur, args.column)
+        verify_column(cur, job['column'], job['type'])
         predicate = 'TRUE' if args.all else f'{column_sql} IS NULL'
 
         cur.execute(
-            COUNT_SQL.format(
-                predicate=predicate, source=column_cfg['source']
-            )
+            COUNT_SQL.format(predicate=predicate, source=job['source'])
         )
         remaining = cur.fetchone()[0]
         conn.commit()
-        log(f'{remaining} rows to embed into {args.column} '
+        log(f'{remaining} rows to fill into audios.{job["column"]} '
             f'(mode={"all" if args.all else "missing-only"})')
 
         if remaining == 0:
@@ -443,17 +611,7 @@ def main():
                   'interrupted': False, 'reason': 'nothing to do'})
             return
 
-        import numpy as np
-        import torch
-        from sentence_transformers import SentenceTransformer
-
-        torch.set_num_threads(settings['threads'])
-        # First run on a cold HF cache downloads ~440 MB here; without a line
-        # on stdout the job looks hung for minutes.
-        emit({'stage': 'model_loading', 'model': MODEL_NAME,
-              'column': args.column, 'to_embed': remaining})
-        log(f'loading model {MODEL_NAME} (torch threads={torch.get_num_threads()})…')
-        model = SentenceTransformer(MODEL_NAME)
+        generate = GENERATORS[job['kind']](job, settings, remaining)
 
         processed = 0
         updated = 0
@@ -479,9 +637,7 @@ def main():
                 limit = min(limit, left)
 
             cur.execute(
-                SELECT_SQL.format(
-                    predicate=predicate, source=column_cfg['source']
-                ),
+                SELECT_SQL.format(predicate=predicate, source=job['source']),
                 (last_sku, limit),
             )
             rows = cur.fetchall()
@@ -489,18 +645,11 @@ def main():
             if not rows:
                 break
 
-            build_text = column_cfg['text']
+            build_text = job['text']
             texts = [build_text(title, desc) for _, title, desc in rows]
-            vectors = model.encode(
-                texts,
-                batch_size=settings['batch_size'],
-                normalize_embeddings=column_cfg['normalize'],
-                show_progress_bar=False,
-                convert_to_numpy=True,
-            ).astype(np.float32)
-
+            values = generate(texts)
             payload = [
-                (sku, vec_to_pgtext(vec)) for (sku, _, _), vec in zip(rows, vectors)
+                (sku, value) for (sku, _, _), value in zip(rows, values)
             ]
             # updated_at is bumped deliberately. recommender.py's delta ingest
             # selects `WHERE a.updated_at > <watermark>`, and audios has no
@@ -516,8 +665,9 @@ def main():
             # updated_at values come from audio_user_statuses, not here.
             execute_values(
                 cur,
-                f'UPDATE audios AS a SET {column_sql} = v.vec::vector, updated_at = now() '
-                'FROM (VALUES %s) AS v(sku, vec) WHERE a.sku = v.sku',
+                f'UPDATE audios AS a SET {column_sql} = v.val{job["cast"]}, '
+                'updated_at = now() '
+                'FROM (VALUES %s) AS v(sku, val) WHERE a.sku = v.sku',
                 payload,
                 template='(%s::varchar, %s::text)',
                 page_size=len(payload),
@@ -558,7 +708,7 @@ def main():
     finally:
         try:
             conn.rollback()
-            cur.execute('SELECT pg_advisory_unlock(%s)', (column_cfg['lock'],))
+            cur.execute('SELECT pg_advisory_unlock(%s)', (job['lock'],))
             conn.commit()
         except Exception:
             pass

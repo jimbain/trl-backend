@@ -114,7 +114,7 @@ export class AiActiveRecommendationRunnerService implements OnModuleDestroy {
       // committed once at the very end — so every run was killed before it
       // committed and rolled back a full night of inference.
       //
-      // Vectors are now owned by AiEmbeddingBackfillScheduler, which fills them
+      // Vectors are now owned by AiBackfillScheduler, which fills them
       // in resumable chunks on its own budget. This pipeline ranks whatever
       // vectors exist when it runs, which is also what makes "Generate" usable:
       // an admin gets a fresh ranking in minutes instead of waiting on a job

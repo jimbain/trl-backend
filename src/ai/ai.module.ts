@@ -12,8 +12,8 @@ import { AiActiveRecommendationService } from './services/ai-active-recommendati
 import { AiRecommendationService } from './services/ai-recommendation.service';
 import { PythonRecommenderService } from './services/python-recommender.service';
 import { AiActiveRecommendationScheduler } from './schedulers/ai-active-recommendation.scheduler';
-import { AiEmbeddingBackfillScheduler } from './schedulers/ai-embedding-backfill.scheduler';
-import { AiEmbeddingBackfillRunnerService } from './services/ai-embedding-backfill-runner.service';
+import { AiBackfillScheduler } from './schedulers/ai-backfill.scheduler';
+import { AiBackfillRunnerService } from './services/ai-backfill-runner.service';
 import { PythonScriptRunnerService } from './services/python-script-runner.service';
 
 @Module({
@@ -35,14 +35,14 @@ import { PythonScriptRunnerService } from './services/python-script-runner.servi
     AiActiveRecommendationService,
     AiActiveRecommendationScheduler,
     PythonScriptRunnerService,
-    AiEmbeddingBackfillRunnerService,
-    AiEmbeddingBackfillScheduler,
+    AiBackfillRunnerService,
+    AiBackfillScheduler,
   ],
   exports: [
     AiRecommendationService,
     PythonRecommenderService,
     AiActiveRecommendationService,
-    AiEmbeddingBackfillRunnerService,
+    AiBackfillRunnerService,
   ],
 })
 export class AiModule {}

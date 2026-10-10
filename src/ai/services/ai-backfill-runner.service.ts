@@ -4,7 +4,7 @@ import {
   PythonRunOptions,
 } from './python-script-runner.service';
 
-const SCRIPT = 'backfill_embeddings.py';
+const SCRIPT = 'backfill.py';
 
 /** Matches the script's own default budget (AI_EMBED_MAX_RUNTIME_MIN). */
 const DEFAULT_MAX_RUNTIME_MIN = 300;
@@ -15,31 +15,39 @@ const DEFAULT_MAX_RUNTIME_MIN = 300;
  */
 const TIMEOUT_GRACE_MIN = 30;
 
-export type EmbeddingBackfillTrigger = 'cron' | 'manual' | 'cli';
+export type BackfillTrigger = 'cron' | 'manual' | 'cli';
 
 /**
- * The two pgvector columns on `audios`. They are not interchangeable:
+ * The three AI columns on `audios`, named as backfill.py's `--job` values.
+ * They are not interchangeable:
  *
- *   AI_Class_Vector  drives the Active-Based List pipeline
- *   ai_embedding     drives prompt search ("recommend from a description")
+ *   class-vector  audios."AI_Class_Vector"  Active-Based List pipeline
+ *   embedding     audios.ai_embedding       prompt search
+ *   categories    audios.ai_categories      genre labels, via a local LLM
  *
- * Same embedding model and same source text, different consumers — so one
- * engine fills both, but a caller always says which.
+ * Each takes its own advisory lock, so they never block each other — but they
+ * do contend for CPU, which is why each has its own cron rather than running
+ * back to back.
  */
-export type EmbeddingColumn = 'AI_Class_Vector' | 'ai_embedding';
+export const BACKFILL_JOBS = [
+  'class-vector',
+  'embedding',
+  'categories',
+] as const;
+export type BackfillJob = (typeof BACKFILL_JOBS)[number];
 
-export interface EmbeddingBackfillOptions {
-  triggeredBy: EmbeddingBackfillTrigger;
-  column: EmbeddingColumn;
+export interface BackfillOptions {
+  triggeredBy: BackfillTrigger;
+  job: BackfillJob;
   /** Stop after N rows. 0/undefined = no limit. */
   limit?: number;
   /** Override the script's time budget, in minutes. 0 = unlimited. */
   maxRuntimeMin?: number;
-  /** Re-embed every row rather than only the NULL ones. */
+  /** Regenerate every row rather than only the NULL ones. */
   all?: boolean;
 }
 
-export interface EmbeddingBackfillResult {
+export interface BackfillResult {
   processed: number;
   updated: number;
   interrupted: boolean;
@@ -47,7 +55,7 @@ export interface EmbeddingBackfillResult {
 }
 
 /**
- * Orchestrates `backfill_embeddings.py` for either vector column.
+ * Orchestrates `backfill.py` for any of the three AI columns.
  *
  * Deliberately thin: it owns no run table and no progress state of its own.
  * The script is the single source of truth for what still needs embedding
@@ -57,13 +65,13 @@ export interface EmbeddingBackfillResult {
  * so the two columns never block each other.
  *
  * The in-process guard below is narrower on purpose: it serialises this
- * process's own runs regardless of column, because two concurrent backfills
- * would each load a BGE model and contend for the same few cores.
+ * process's own runs regardless of job, because two concurrent backfills would
+ * each load a model and contend for the same few cores.
  */
 @Injectable()
-export class AiEmbeddingBackfillRunnerService {
-  private readonly logger = new Logger(AiEmbeddingBackfillRunnerService.name);
-  private inFlight: Promise<EmbeddingBackfillResult> | null = null;
+export class AiBackfillRunnerService {
+  private readonly logger = new Logger(AiBackfillRunnerService.name);
+  private inFlight: Promise<BackfillResult> | null = null;
 
   constructor(private readonly pythonRunner: PythonScriptRunnerService) {}
 
@@ -72,9 +80,7 @@ export class AiEmbeddingBackfillRunnerService {
   }
 
   /** Resolves only when the backfill finishes — this is a batch job, not a request. */
-  async run(
-    options: EmbeddingBackfillOptions,
-  ): Promise<EmbeddingBackfillResult> {
+  async run(options: BackfillOptions): Promise<BackfillResult> {
     if (this.inFlight) {
       throw new ConflictException(
         'An embedding backfill is already in progress in this process.',
@@ -87,9 +93,7 @@ export class AiEmbeddingBackfillRunnerService {
     return this.inFlight;
   }
 
-  private async execute(
-    options: EmbeddingBackfillOptions,
-  ): Promise<EmbeddingBackfillResult> {
+  private async execute(options: BackfillOptions): Promise<BackfillResult> {
     const maxRuntimeMin =
       options.maxRuntimeMin ??
       this.parseNonNegativeInt(
@@ -98,8 +102,8 @@ export class AiEmbeddingBackfillRunnerService {
       );
 
     const args = [
-      '--column',
-      options.column,
+      '--job',
+      options.job,
       '--max-runtime-min',
       String(maxRuntimeMin),
     ];
@@ -123,19 +127,19 @@ export class AiEmbeddingBackfillRunnerService {
       onProgress: (message) => {
         if (message.stage !== 'embedding') return;
         this.logger.log(
-          `${options.column}: ${message.processed} done, ${message.remaining} left ` +
+          `${options.job}: ${message.processed} done, ${message.remaining} left ` +
             `(${message.rate_per_min}/min, eta ${message.eta_min ?? '?'} min)`,
         );
       },
     };
 
     this.logger.log(
-      `starting ${options.column} backfill (trigger=${options.triggeredBy}, ` +
+      `starting ${options.job} backfill (trigger=${options.triggeredBy}, ` +
         `budget=${maxRuntimeMin || 'unlimited'} min)`,
     );
 
     const payload = await this.pythonRunner.run(runOptions);
-    const result: EmbeddingBackfillResult = {
+    const result: BackfillResult = {
       processed: this.parseNonNegativeInt(payload?.processed, 0),
       updated: this.parseNonNegativeInt(payload?.updated, 0),
       interrupted: payload?.interrupted === true,
@@ -144,7 +148,7 @@ export class AiEmbeddingBackfillRunnerService {
     };
 
     this.logger.log(
-      `${options.column} backfill finished — ${result.updated} rows updated ` +
+      `${options.job} backfill finished — ${result.updated} rows updated ` +
         `(${result.reason})`,
     );
     return result;
