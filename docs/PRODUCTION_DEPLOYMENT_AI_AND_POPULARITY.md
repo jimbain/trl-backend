@@ -102,9 +102,36 @@ itself, add transient bloat: every `UPDATE` writes a new row version, so filling
 1.35M rows rewrites the 2 GB `audios` table and leaves up to that much in dead
 tuples until autovacuum catches up. **Budget ~22 GB peak.**
 
-Check the plan's disk in the DigitalOcean console. If it is under ~30 GB, resize
-before Phase 2 — a managed Postgres that hits its disk limit goes read-only, and
-recovering means a resize anyway, just with an outage attached.
+**Confirmed sufficient: the node has 60 GiB.** Current usage is 6.7 GiB, so
+Phase 2 takes it to roughly 17.7 GiB steady state and ~22 GiB at peak — about
+37% of the disk at its worst. **No resize is needed.**
+
+Re-check this only if the catalogue grows substantially before Phase 2 runs; a
+managed Postgres that hits its disk limit goes read-only.
+
+### 0a-bis. Database node RAM and CPU — adequate, but it sets the pace
+
+The node is **4 GB RAM / 2 vCPU**. Nothing in this deployment requires more,
+but one number is worth knowing before anyone reports the nightly ranking as
+"hanging".
+
+`active_recommendations.py` issues one pgvector ANN query per active title
+against the 4.8 GB HNSW index, while `shared_buffers` is 780 MB — under a sixth
+of the index. Measured on dev across 25 distinct probe vectors: **p50 1,294 ms,
+p90 2,012 ms** per query. With ~2,157 active titles on prod that puts a nightly
+run at roughly **46-72 minutes**. It fits inside the 3-hour `SCRIPT_TIMEOUT_MS`
+with real headroom, which is why that ceiling was raised from one hour.
+
+Upgrading RAM is a performance choice, not a correctness one:
+
+| Node RAM | `shared_buffers` | Effect on the 4.8 GB index |
+|---|---|---|
+| 4 GB (current) | ~780 MB | Under a sixth resident; the measured 1.3-2.0 s per query |
+| 8 GB | ~1.6 GB | Still only a third; a partial improvement |
+| 16 GB | ~3.9 GB | Most of the index resident; this is the size that actually changes the number |
+
+So 8 GB is a half-measure. Stay at 4 GB unless the nightly window becomes a
+problem, and then go to 16 GB rather than 8.
 
 ### 0b. Application server RAM
 
@@ -118,7 +145,11 @@ resident for the lifetime of the backend process. At the full 1.35M vectors:
 | `sentence-transformers` + torch + bge-base | ~1.2 GB |
 | **Python total** | **~5.7 GB** |
 
-Plus Node. **On an 8 GB box this is tight enough to matter.** The build itself
+**This is the application server, not the database node** — the 4 GB / 2 vCPU
+figures above are the managed Postgres instance and have no bearing here.
+
+Plus Node. **On an 8 GB box this is tight enough to matter, and it does not fit
+in 4 GB at all.** The build itself
 is safe — vectors are added in batches of 10,000 so peak build RAM is ~92 MB
 over steady state — but steady state is the problem.
 
@@ -607,10 +638,16 @@ How it behaves, and why:
 ### 2c. Rebuild the ANN index
 
 ```sql
-SET maintenance_work_mem = '2GB';   -- verified settable on this role
+SET maintenance_work_mem = '1GB';
 CREATE INDEX CONCURRENTLY idx_audios_ai_class_vector_cos
   ON audios USING hnsw ("AI_Class_Vector" vector_cosine_ops);
 ```
+
+**1 GB, not more.** The role accepts `2GB`, but the database node has 4 GB of
+RAM total and `shared_buffers` already claims 780 MB of it; a 2 GB maintenance
+allocation on top is half the machine and risks the connection being killed
+mid-build. 1 GB is ~4x the 266 MB default and is the sensible ceiling here.
+It applies to the session only.
 
 `CONCURRENTLY` keeps the table writable; it cannot run inside a transaction, so
 issue it on its own. Expect this to take a while — dev's equivalent index is
