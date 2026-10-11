@@ -1,5 +1,10 @@
+import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from 'src/app.module';
+import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
+import * as path from 'path';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { getDataSourceOptions } from 'src/database/data_source';
 import { DataSource } from 'typeorm';
 import { Audio } from '../entities/audio.entity';
 import { Company } from 'src/companies/entities/company.entity';
@@ -33,10 +38,54 @@ import { DomainHelper } from 'src/common/helpers/domain.helper';
  * - DEEP_LINK_BATCH_SIZE: Number of audios to process per batch (default: 50)
  * - DEEP_LINK_BATCH_DELAY_MS: Delay between batches in milliseconds (default: 2000)
  */
+/**
+ * Deliberately NOT AppModule.
+ *
+ * Booting the whole application here also starts PythonRecommenderService,
+ * whose onModuleInit spawns the long-lived FAISS recommender — on production
+ * that is a 2.7 GB index plus a 1.2 GB embedding model, loaded a SECOND time
+ * alongside the copy the running API already holds. On an 8 GB box with no
+ * swap that is an OOM kill, and the kernel takes the largest process, which
+ * is the live recommender serving requests.
+ *
+ * This script needs exactly two things: a DataSource for the Audio and
+ * Company repositories, and BranchService, which itself needs only
+ * ConfigService and HttpService. DomainHelper is static. So none of FAISS,
+ * Redis or Elasticsearch has to be loaded to generate a deep link.
+ *
+ * Same reasoning as AiBackfillCliModule in run-backfill.ts, which exists
+ * because this exact mistake already took the recommender down once.
+ *
+ * TypeOrmModule.forRoot directly rather than DatabaseModule: that module
+ * imports AudioModule, NotificationModule and CompanyModule, which between
+ * them pull in Elasticsearch, storage and the audio sync service. None of it
+ * is needed to write a jsonb column.
+ */
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    HttpModule,
+    // The entity glob is anchored to this file rather than to the working
+    // directory. getDataSourceOptions uses 'dist/**/entities/*.entity.js',
+    // which only resolves when the process is launched from the application
+    // root — fine for npm scripts, brittle for anything scheduled. Listing
+    // Audio and Company explicitly does not work either: Audio has a
+    // `metadata` relation, so the whole transitive set has to be present.
+    TypeOrmModule.forRoot({
+      ...getDataSourceOptions(),
+      entities: [
+        path.join(__dirname, '..', '..', '**', 'entities', '*.entity{.js,.ts}'),
+      ],
+    }),
+  ],
+  providers: [BranchService],
+})
+class DeepLinkCliModule {}
+
 async function bootstrap() {
   const startTime = Date.now();
 
-  const app = await NestFactory.createApplicationContext(AppModule);
+  const app = await NestFactory.createApplicationContext(DeepLinkCliModule);
   const dataSource = app.get(DataSource);
   const branchService = app.get(BranchService);
 
