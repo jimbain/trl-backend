@@ -561,28 +561,22 @@ export class PharmaService {
 
     // ─────────────── Handle pause event ───────────────
     if (eventType === 'pause') {
-      // Save or update user's video position
-      const existingPharmaUserVideoPosition =
-        await this.pharmaUserVideoplayerPositionRepository.findOne({
-          where: { pharma_id: pharma.id, user_id: user.id },
-        });
-
-      const updatedPharmaUserVideoplayerPosition =
-        existingPharmaUserVideoPosition
-          ? {
-              ...existingPharmaUserVideoPosition,
-              play_position: payload.play_position,
-              updated_at: new Date(),
-            }
-          : this.pharmaUserVideoplayerPositionRepository.create({
-              user_id: user.id,
-              pharma_id: id,
-              play_position: payload.play_position,
-              updated_at: new Date(),
-            });
-
-      await this.pharmaUserVideoplayerPositionRepository.save(
-        updatedPharmaUserVideoplayerPosition,
+      // Atomic upsert — see the equivalent in AudioService.triggerPlayerEvent.
+      // The read-then-insert this replaces produced a 500 from
+      // UQ_PHARMA_USER_VIDEOPLAYER_POSITIONS_PHARMA_USER whenever two pause
+      // events for the same user and pharma raced each other.
+      //
+      // Note this also fixes a latent inconsistency: the lookup used
+      // pharma.id while the insert used the raw route parameter `id`. They
+      // agree today, but only because one is derived from the other.
+      await this.pharmaUserVideoplayerPositionRepository.upsert(
+        {
+          user_id: user.id,
+          pharma_id: pharma.id,
+          play_position: payload.play_position,
+          updated_at: new Date(),
+        },
+        { conflictPaths: ['pharma_id', 'user_id'] },
       );
 
       // Update user activity log (pause → update last PLAY record)

@@ -26,6 +26,7 @@ import { UserAudioStatus } from 'src/users/entities/user_audio_status.entity';
 import { AudioEngineService } from 'src/common/services/audio_engine.service';
 import { PaginatedResult, PaginationMeta } from 'src/common/interfaces';
 import { TriggerAudioPlayerEventDto } from './dto/trigger_audio_player_event.dto';
+import { ulid } from 'ulidx';
 import { UserAudioplayerPosition } from 'src/users/entities/user_audioplayer_position.entity';
 import { MEDIA, USER_ACTIVITY, USER_MEDIA_STATUS } from 'src/constants';
 import { AppConfigService } from 'src/app-config/app-config.service';
@@ -1182,32 +1183,48 @@ export class AudioService {
 
     // Handle pause event
     if (eventType === 'pause') {
-      // Update user audio position
-      const existingUserAudioPosition =
-        await this.userAudioplayerPositionRepository.findOne({
-          where: { audio_id: audioId, user_id: user.id },
-        });
-
-      const updatedUserAudioplayerPosition = existingUserAudioPosition
-        ? {
-            ...existingUserAudioPosition,
-            part_number: payload.part_number,
-            chapter_number: payload.chapter_number,
-            play_position: payload.play_position,
-            updated_at: new Date(),
-          }
-        : this.userAudioplayerPositionRepository.create({
-            user_id: user.id,
-            audio_id: audioId,
-            part_number: payload.part_number,
-            chapter_number: payload.chapter_number,
-            play_position: payload.play_position,
-            updated_at: new Date(),
-          });
-
-      await this.userAudioplayerPositionRepository.save(
-        updatedUserAudioplayerPosition,
-      );
+      // Single atomic statement, not read-then-insert.
+      //
+      // The previous version did findOne() and then either updated the row it
+      // found or created a new one. Two pause events for the same user and
+      // audio arriving close together both saw no row and both inserted, and
+      // the second lost:
+      //
+      //   duplicate key value violates unique constraint
+      //   "UQ_USER_AUDIOPLAYER_POSITIONS_USER_AUDIO"
+      //
+      // surfacing to the client as a 500. It needs no unusual timing — a
+      // double tap, a client retry after a slow response, or the same account
+      // on two devices is enough, and the player sends a pause on nearly every
+      // transition.
+      //
+      // ON CONFLICT closes the window entirely: the database decides whether
+      // this is an insert or an update, so there is nothing between the check
+      // and the write for a second request to slip into.
+      // Written as an explicit INSERT .. ON CONFLICT rather than
+      // repository.upsert(). This entity's primary key comes from an
+      // @BeforeInsert() hook, and upsert() goes through the query builder,
+      // which does not run entity listeners — the insert then fails with
+      // 'null value in column "id" violates not-null constraint'. The id is
+      // supplied here instead, and deliberately left out of the update list
+      // so a conflicting row keeps the key it already has.
+      await this.userAudioplayerPositionRepository
+        .createQueryBuilder()
+        .insert()
+        .values({
+          id: 'user_audioplayer_position_' + ulid(),
+          user_id: user.id,
+          audio_id: audioId,
+          part_number: payload.part_number,
+          chapter_number: payload.chapter_number,
+          play_position: payload.play_position,
+          updated_at: new Date(),
+        })
+        .orUpdate(
+          ['part_number', 'chapter_number', 'play_position', 'updated_at'],
+          ['user_id', 'audio_id'],
+        )
+        .execute();
 
       // Find latest play activity for pause event
       const latestPlayActivity = await this.userActivityLogRepository.findOne({
