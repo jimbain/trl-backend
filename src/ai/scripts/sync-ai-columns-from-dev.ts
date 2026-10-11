@@ -14,6 +14,13 @@
  * ── Required environment (the dev database, read-only) ────────────────────
  *   SOURCE_DB_HOST  SOURCE_DB_PORT  SOURCE_DB_DATABASE
  *   SOURCE_DB_USERNAME  SOURCE_DB_PASSWORD  SOURCE_POSTGRES_SSL
+ *   SOURCE_DB_CA_CERT   optional, default cert/source-db-ca-certificate.crt
+ *
+ * The source CA is a SEPARATE file from this deployment's own
+ * cert/db-ca-certificate.crt. Each managed cluster has its own certificate
+ * authority, so the local one cannot verify the dev cluster. Without the
+ * right CA present the connection still goes up, encrypted but unverified,
+ * and says so loudly.
  *
  * Everything else — the target database and Elasticsearch — comes from the
  * usual backend configuration, so this writes to whichever database the app
@@ -174,7 +181,26 @@ function sourceDataSource(): DataSource {
     );
   }
   const ssl = process.env.SOURCE_POSTGRES_SSL === 'true';
-  const caPath = process.env.SOURCE_DB_CA_CERT || 'cert/db-ca-certificate.crt';
+
+  // NOT cert/db-ca-certificate.crt — that is this deployment's OWN database
+  // CA. Every DigitalOcean cluster is issued its own certificate authority,
+  // so presenting the local one to verify the dev cluster fails with
+  // "unable to verify the first certificate". The dev CA has to be copied
+  // here as a separate file.
+  const caPath =
+    process.env.SOURCE_DB_CA_CERT || 'cert/source-db-ca-certificate.crt';
+  const caPresent = fs.existsSync(caPath);
+
+  if (ssl && caPresent) {
+    console.log(`[sync] source TLS verified against ${caPath}`);
+  } else if (ssl) {
+    console.warn(
+      `[sync] source CA not found at ${caPath} — connecting with TLS but ` +
+        'WITHOUT certificate verification. Encrypted, but not authenticated. ' +
+        'Copy the dev cluster CA there, or point SOURCE_DB_CA_CERT at it.',
+    );
+  }
+
   return new DataSource({
     type: 'postgres',
     host: process.env.SOURCE_DB_HOST,
@@ -183,7 +209,7 @@ function sourceDataSource(): DataSource {
     username: process.env.SOURCE_DB_USERNAME,
     password: process.env.SOURCE_DB_PASSWORD,
     ssl: ssl
-      ? fs.existsSync(caPath)
+      ? caPresent
         ? { rejectUnauthorized: true, ca: fs.readFileSync(caPath).toString() }
         : { rejectUnauthorized: false }
       : false,
