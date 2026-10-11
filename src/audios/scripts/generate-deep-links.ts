@@ -82,6 +82,18 @@ import { DomainHelper } from 'src/common/helpers/domain.helper';
 })
 class DeepLinkCliModule {}
 
+/** Key-order-independent comparison of two flat domain -> url maps. */
+function sameLinks(
+  a: Record<string, string> | null | undefined,
+  b: Record<string, string>,
+): boolean {
+  if (!a) return false;
+  const ka = Object.keys(a).sort();
+  const kb = Object.keys(b).sort();
+  if (ka.length !== kb.length) return false;
+  return ka.every((k, i) => kb[i] === k && a[k] === b[k]);
+}
+
 async function bootstrap() {
   const startTime = Date.now();
 
@@ -107,6 +119,7 @@ async function bootstrap() {
   let processedCount = 0;
   let successCount = 0;
   let failureCount = 0;
+  let unchangedCount = 0;
   let batchNumber = 0;
 
   try {
@@ -232,17 +245,33 @@ async function bootstrap() {
                 audioForLinks?.deep_link,
               );
 
-            // Only update if we have at least one deep link
-            if (Object.keys(deepLinks).length > 0) {
-              await dataSource
-                .getRepository(Audio)
-                .update(currentAudioId, { deep_link: deepLinks });
-              successCount++;
-            } else {
+            // Write only when the map actually changed.
+            //
+            // createOrUpdateDeepLinksForAudio returns the merged map, which
+            // for an already-complete title is byte-identical to what is
+            // stored — it skips the Branch API but still hands the links
+            // back. Writing that back unconditionally meant every active
+            // title took an UPDATE on every run, not just the handful that
+            // were missing links.
+            //
+            // That is no longer cheap. A row update is non-HOT, so it is
+            // inserted into every index on `audios`, including the 5 GB HNSW
+            // graph over AI_Class_Vector — measured at ~346 ms per row. For
+            // ~2,100 active titles that is roughly 12 minutes of index churn
+            // per run, plus a dead tuple each, plus an updated_at bump that
+            // makes the FAISS delta re-stream rows that have not changed.
+            if (Object.keys(deepLinks).length === 0) {
               console.warn(
                 `  ⚠️  No deep links generated for audio ${currentAudioId} (all domains failed)`,
               );
               failureCount++;
+            } else if (sameLinks(audioForLinks?.deep_link, deepLinks)) {
+              unchangedCount++;
+            } else {
+              await dataSource
+                .getRepository(Audio)
+                .update(currentAudioId, { deep_link: deepLinks });
+              successCount++;
             }
 
             processedCount++;
@@ -257,7 +286,7 @@ async function bootstrap() {
 
         // Log batch completion
         console.log(
-          `  ✓ Batch complete: ${successCount} successful, ${failureCount} failed`,
+          `  ✓ Batch complete: ${successCount} written, ${unchangedCount} already current, ${failureCount} failed`,
         );
 
         // Add delay between batches (except after the last batch)
@@ -278,7 +307,8 @@ async function bootstrap() {
     console.log(
       `  Total Processed: ${processedCount}/${fetchedAudioIds.length}`,
     );
-    console.log(`  ✓ Successful: ${successCount}`);
+    console.log(`  ✓ Written: ${successCount}`);
+    console.log(`  = Already current (no write): ${unchangedCount}`);
     console.log(`  ✗ Failed: ${failureCount}`);
     console.log(`  ⏱️  Duration: ${durationSec}s`);
     console.log(`  📍 Domains: ${domainArray.length}`);
