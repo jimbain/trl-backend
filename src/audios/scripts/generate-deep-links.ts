@@ -1,347 +1,113 @@
+/**
+ * Manual deep link generation.
+ *
+ *   npm run deep-links:generate
+ *
+ * Environment:
+ *   AUDIO_ID                 single audio id
+ *   AUDIO_IDS                comma-separated audio ids
+ *   DOMAIN                   restrict to one company domain
+ *   DEEP_LINK_BATCH_SIZE     titles per batch (default 50)
+ *   DEEP_LINK_BATCH_DELAY_MS pause between batches (default 2000)
+ *
+ * The generation itself lives in DeepLinkGeneratorService, which the nightly
+ * DeepLinkScheduler also calls. This file is only a command-line front end to
+ * it — one implementation, so the cron and a manual run cannot drift apart.
+ *
+ * Deliberately NOT AppModule. Booting the whole application also starts
+ * PythonRecommenderService, whose onModuleInit spawns the long-lived FAISS
+ * child — on production a 2.7 GB index plus a 1.2 GB embedding model, loaded
+ * a SECOND time alongside the copy the running API already holds. On an 8 GB
+ * box with no swap that is an OOM kill, and the kernel takes the largest
+ * process, which is the live recommender serving requests.
+ *
+ * DatabaseModule is not used either: it imports AudioModule, NotificationModule
+ * and CompanyModule, which between them pull in Elasticsearch, storage and the
+ * audio sync service. None of it is needed to write a jsonb column.
+ */
+import * as path from 'path';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
-import * as path from 'path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDataSourceOptions } from 'src/database/data_source';
-import { DataSource } from 'typeorm';
 import { Audio } from '../entities/audio.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { BranchService } from 'src/common/services/branch.service';
-import { DomainHelper } from 'src/common/helpers/domain.helper';
+import { DeepLinkGeneratorService } from '../services/deep-link-generator.service';
 
-/**
- * Deep Link Generation Script
- * Generates Branch deep links for audios across all company domains
- *
- * Usage:
- * - Generate for all active audios:
- *   npm run deep-links:generate
- *
- * - Generate for specific audio:
- *   AUDIO_ID=audio_xxx npm run deep-links:generate
- *
- * - Generate for multiple specific audios:
- *   AUDIO_IDS=audio_xxx,audio_yyy npm run deep-links:generate
- *
- * - Generate for specific domain only:
- *   DOMAIN=biz.therentallibrary.com npm run deep-links:generate
- *
- * - Combine with custom batch settings:
- *   AUDIO_ID=audio_xxx DEEP_LINK_BATCH_SIZE=10 npm run deep-links:generate
- *
- * Environment Variables:
- * - AUDIO_ID: Single audio ID to process
- * - AUDIO_IDS: Comma-separated audio IDs to process
- * - DOMAIN: Filter deep links generation for a specific domain (optional)
- * - DEEP_LINK_BATCH_SIZE: Number of audios to process per batch (default: 50)
- * - DEEP_LINK_BATCH_DELAY_MS: Delay between batches in milliseconds (default: 2000)
- */
-/**
- * Deliberately NOT AppModule.
- *
- * Booting the whole application here also starts PythonRecommenderService,
- * whose onModuleInit spawns the long-lived FAISS recommender — on production
- * that is a 2.7 GB index plus a 1.2 GB embedding model, loaded a SECOND time
- * alongside the copy the running API already holds. On an 8 GB box with no
- * swap that is an OOM kill, and the kernel takes the largest process, which
- * is the live recommender serving requests.
- *
- * This script needs exactly two things: a DataSource for the Audio and
- * Company repositories, and BranchService, which itself needs only
- * ConfigService and HttpService. DomainHelper is static. So none of FAISS,
- * Redis or Elasticsearch has to be loaded to generate a deep link.
- *
- * Same reasoning as AiBackfillCliModule in run-backfill.ts, which exists
- * because this exact mistake already took the recommender down once.
- *
- * TypeOrmModule.forRoot directly rather than DatabaseModule: that module
- * imports AudioModule, NotificationModule and CompanyModule, which between
- * them pull in Elasticsearch, storage and the audio sync service. None of it
- * is needed to write a jsonb column.
- */
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HttpModule,
-    // The entity glob is anchored to this file rather than to the working
-    // directory. getDataSourceOptions uses 'dist/**/entities/*.entity.js',
-    // which only resolves when the process is launched from the application
-    // root — fine for npm scripts, brittle for anything scheduled. Listing
-    // Audio and Company explicitly does not work either: Audio has a
-    // `metadata` relation, so the whole transitive set has to be present.
+    // The entity glob is anchored to this file rather than inherited from
+    // getDataSourceOptions, which uses 'dist/**/entities/*.entity.js' resolved
+    // against the working directory — fine for an npm script run from the
+    // application root, wrong for anything launched from elsewhere. Listing
+    // Audio and Company alone does not work: Audio has a `metadata` relation,
+    // so the whole transitive set has to be present.
     TypeOrmModule.forRoot({
       ...getDataSourceOptions(),
       entities: [
         path.join(__dirname, '..', '..', '**', 'entities', '*.entity{.js,.ts}'),
       ],
     }),
+    TypeOrmModule.forFeature([Audio, Company]),
   ],
-  providers: [BranchService],
+  providers: [BranchService, DeepLinkGeneratorService],
 })
 class DeepLinkCliModule {}
 
-/** Key-order-independent comparison of two flat domain -> url maps. */
-function sameLinks(
-  a: Record<string, string> | null | undefined,
-  b: Record<string, string>,
-): boolean {
-  if (!a) return false;
-  const ka = Object.keys(a).sort();
-  const kb = Object.keys(b).sort();
-  if (ka.length !== kb.length) return false;
-  return ka.every((k, i) => kb[i] === k && a[k] === b[k]);
-}
-
 async function bootstrap() {
-  const startTime = Date.now();
-
   const app = await NestFactory.createApplicationContext(DeepLinkCliModule);
-  const dataSource = app.get(DataSource);
-  const branchService = app.get(BranchService);
+  const generator = app.get(DeepLinkGeneratorService);
 
-  // Configuration
-  const batchSize = parseInt(process.env.DEEP_LINK_BATCH_SIZE || '50', 10);
-  const batchDelayMs = parseInt(
-    process.env.DEEP_LINK_BATCH_DELAY_MS || '2000',
-    10,
-  );
-
-  // Audio filtering options
-  const audioId = process.env.AUDIO_ID?.trim();
-  const audioIds = process.env.AUDIO_IDS?.trim()
+  const single = process.env.AUDIO_ID?.trim();
+  const many = process.env.AUDIO_IDS?.trim()
     .split(',')
     .map((id) => id.trim())
-    .filter((id) => id.length > 0);
-  const domainFilter = process.env.DOMAIN?.trim();
+    .filter(Boolean);
+  const audioIds = single ? [single] : many?.length ? many : undefined;
 
-  let processedCount = 0;
-  let successCount = 0;
-  let failureCount = 0;
-  let unchangedCount = 0;
-  let batchNumber = 0;
+  const int = (raw: string | undefined, fallback: number) => {
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : fallback;
+  };
+
+  console.log('🚀 Deep link generation');
+  if (audioIds) console.log(`📌 Restricted to ${audioIds.length} audio id(s)`);
 
   try {
-    console.log('🚀 Starting deep link generation...');
-    console.log(
-      `Configuration: Batch size=${batchSize}, Delay=${batchDelayMs}ms`,
-    );
-
-    // Display input filters if provided
-    if (audioId) {
-      console.log(`📌 Filtering by single audio ID: ${audioId}`);
-    } else if (audioIds && audioIds.length > 0) {
-      console.log(`📌 Filtering by multiple audio IDs: ${audioIds.join(', ')}`);
-    }
-    if (domainFilter) {
-      console.log(`📌 Filtering by domain: ${domainFilter}`);
-    }
-
-    // Step 1: Collect unique base domains from active companies
-    console.log(
-      '\n📍 Step 1: Collecting unique domains from active companies...',
-    );
-    const companies = await dataSource.getRepository(Company).find({
-      where: { is_active: true },
-      select: ['id', 'domain'],
+    const r = await generator.run({
+      audioIds,
+      domainFilter: process.env.DOMAIN?.trim(),
+      batchSize: int(process.env.DEEP_LINK_BATCH_SIZE, 50),
+      batchDelayMs: int(process.env.DEEP_LINK_BATCH_DELAY_MS, 2000),
+      onProgress: (m) => console.log(`  ${m}`),
     });
 
-    let domains = DomainHelper.extractUniqueDomains(
-      companies.map((c) => c.domain),
-    );
-
-    // Filter by specific domain if provided
-    if (domainFilter) {
-      const normalizedFilter = DomainHelper.extractBaseDomain(domainFilter);
-      if (domains.has(normalizedFilter)) {
-        domains = new Set([normalizedFilter]);
-        console.log(`✓ Filtered to domain: ${normalizedFilter}`);
-      } else {
-        console.warn(
-          `⚠️  Domain filter "${normalizedFilter}" not found in active companies. Available domains: ${Array.from(domains).join(', ')}`,
-        );
-        await app.close();
-        return;
-      }
-    }
-
-    console.log(`✓ Found ${companies.length} active companies`);
-    console.log(
-      `✓ Extracted ${domains.size} unique domains: ${Array.from(domains).join(', ')}`,
-    );
-
-    if (domains.size === 0) {
-      console.warn(
-        '⚠️  No valid domains found. Exiting without processing audios.',
-      );
+    if (!r.ran) {
+      console.warn('⚠️  Another run holds the lock — nothing was done.');
       await app.close();
-      return;
+      process.exit(0);
     }
 
-    const domainArray = Array.from(domains);
+    console.log('\n📊 Summary');
+    console.log(`  Domains:               ${r.domains.join(', ') || '(none)'}`);
+    console.log(`  Checked:               ${r.processed}/${r.found}`);
+    console.log(`  ✓ Written:             ${r.written}`);
+    console.log(`  = Already current:     ${r.unchanged}`);
+    console.log(`  ✗ Failed:              ${r.failed}`);
+    console.log(`  Duration:              ${Math.round(r.durationMs / 1000)}s`);
 
-    // Step 2: Fetch audios based on filters
-    console.log('\n📖 Step 2: Fetching audios and generating deep links...');
-
-    let query = dataSource
-      .getRepository(Audio)
-      .createQueryBuilder('audio')
-      .select('audio.id');
-
-    // Apply filters
-    if (audioId) {
-      query = query.where('audio.id = :audioId', { audioId });
-    } else if (audioIds && audioIds.length > 0) {
-      query = query.where('audio.id IN (:...audioIds)', { audioIds });
-    } else {
-      // Default: all active audios
-      query = query
-        .where('audio.is_active = :isActive', { isActive: true })
-        .andWhere('audio.deleted_at IS NULL');
-    }
-
-    const fetchedAudioIds = await query
-      .orderBy('audio.created_at', 'DESC')
-      .getRawMany()
-      .then((rows) => rows.map((row) => row.audio_id));
-
-    console.log(`✓ Found ${fetchedAudioIds.length} audios to process`);
-
-    // Step 3: Process audios in batches
-    console.log('\n⚙️  Step 3: Processing audios in batches...');
-
-    if (fetchedAudioIds.length === 0) {
-      console.warn('⚠️  No audios found to process.');
-      console.log(
-        'Try adjusting your filters (AUDIO_ID, AUDIO_IDS, or DOMAIN)',
-      );
-    } else {
-      for (let i = 0; i < fetchedAudioIds.length; i += batchSize) {
-        batchNumber++;
-        const batchIds = fetchedAudioIds.slice(i, i + batchSize);
-        const totalBatches = Math.ceil(fetchedAudioIds.length / batchSize);
-        const batchProgress = `[${batchNumber}/${totalBatches}]`;
-
-        console.log(
-          `\n📦 Processing batch ${batchProgress}: ${batchIds.length} audios`,
-        );
-
-        for (const currentAudioId of batchIds) {
-          try {
-            // Fetch existing deep links (if any) to skip regenerating
-            const audioForLinks = await dataSource
-              .getRepository(Audio)
-              .findOne({
-                where: { id: currentAudioId },
-                select: ['id', 'deep_link'],
-              });
-
-            // Generate deep links, skipping domains that already have one
-            const deepLinks =
-              await branchService.createOrUpdateDeepLinksForAudio(
-                currentAudioId,
-                domainArray,
-                audioForLinks?.deep_link,
-              );
-
-            // Write only when the map actually changed.
-            //
-            // createOrUpdateDeepLinksForAudio returns the merged map, which
-            // for an already-complete title is byte-identical to what is
-            // stored — it skips the Branch API but still hands the links
-            // back. Writing that back unconditionally meant every active
-            // title took an UPDATE on every run, not just the handful that
-            // were missing links.
-            //
-            // That is no longer cheap. A row update is non-HOT, so it is
-            // inserted into every index on `audios`, including the 5 GB HNSW
-            // graph over AI_Class_Vector — measured at ~346 ms per row. For
-            // ~2,100 active titles that is roughly 12 minutes of index churn
-            // per run, plus a dead tuple each, plus an updated_at bump that
-            // makes the FAISS delta re-stream rows that have not changed.
-            if (Object.keys(deepLinks).length === 0) {
-              console.warn(
-                `  ⚠️  No deep links generated for audio ${currentAudioId} (all domains failed)`,
-              );
-              failureCount++;
-            } else if (sameLinks(audioForLinks?.deep_link, deepLinks)) {
-              unchangedCount++;
-            } else {
-              await dataSource
-                .getRepository(Audio)
-                .update(currentAudioId, { deep_link: deepLinks });
-              successCount++;
-            }
-
-            processedCount++;
-          } catch (error) {
-            console.error(
-              `  ✗ Failed to process audio ${currentAudioId}: ${error instanceof Error ? error.message : String(error)}`,
-            );
-            failureCount++;
-            processedCount++;
-          }
-        }
-
-        // Log batch completion
-        console.log(
-          `  ✓ Batch complete: ${successCount} written, ${unchangedCount} already current, ${failureCount} failed`,
-        );
-
-        // Add delay between batches (except after the last batch)
-        if (i + batchSize < fetchedAudioIds.length) {
-          console.log(`  ⏳ Waiting ${batchDelayMs}ms before next batch...`);
-          await delay(batchDelayMs);
-        }
-      }
-    }
-
-    // Step 4: Display summary
-    const endTime = Date.now();
-    const durationSec = ((endTime - startTime) / 1000).toFixed(2);
-
-    console.log('\n✅ Deep link generation completed!');
-    console.log('━'.repeat(50));
-    console.log(`📊 Summary Statistics:`);
-    console.log(
-      `  Total Processed: ${processedCount}/${fetchedAudioIds.length}`,
-    );
-    console.log(`  ✓ Written: ${successCount}`);
-    console.log(`  = Already current (no write): ${unchangedCount}`);
-    console.log(`  ✗ Failed: ${failureCount}`);
-    console.log(`  ⏱️  Duration: ${durationSec}s`);
-    console.log(`  📍 Domains: ${domainArray.length}`);
-    console.log('━'.repeat(50));
-
-    if (processedCount > 0 && failureCount > 0) {
-      const failureRate = ((failureCount / processedCount) * 100).toFixed(1);
-      console.log(
-        `⚠️  ${failureRate}% of audios had generation failures (see logs above)`,
-      );
-    }
-  } catch (error) {
-    console.error(
-      '❌ Fatal error during deep link generation:',
-      error instanceof Error ? error.message : String(error),
-    );
-    if (error instanceof Error && error.stack) {
-      console.error(error.stack);
-    }
-    process.exit(1);
-  } finally {
     await app.close();
+    process.exit(r.failed > 0 && r.written === 0 && r.processed > 0 ? 1 : 0);
+  } catch (error) {
+    console.error('❌ Fatal error during deep link generation:', error);
+    await app.close();
+    process.exit(1);
   }
 }
 
-/**
- * Helper function to add delay
- */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-bootstrap().catch((error) => {
-  console.error('Script error:', error);
-  process.exit(1);
-});
+void bootstrap();

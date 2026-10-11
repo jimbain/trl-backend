@@ -20,7 +20,10 @@ import { Catalog } from 'src/catalog/entities/catalog.entity';
 import { CatalogModule } from 'src/catalog/catalog.module';
 import { CompanyModule } from 'src/companies/company.module';
 import { CategoryModule } from 'src/categories/category.module';
+import { Company } from 'src/companies/entities/company.entity';
 import { CommonModule } from 'src/common/common.module';
+import { DeepLinkGeneratorService } from './services/deep-link-generator.service';
+import { DeepLinkScheduler } from './schedulers/deep-link.scheduler';
 import { UserActivityLog } from 'src/users/entities/user_activity_log.entity';
 import { AudioElasticsearchSyncService } from './audio-elasticsearch-sync.service';
 import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.module';
@@ -38,6 +41,7 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
       UserAudioStatus,
       UserAudioplayerPosition,
       UserActivityLog,
+      Company,
     ]),
     forwardRef(() => UserModule),
     forwardRef(() => CompanyModule),
@@ -48,6 +52,8 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
   ],
   controllers: [AudioController],
   providers: [
+    DeepLinkGeneratorService,
+    DeepLinkScheduler,
     AudioService,
     AudioMetadataService,
     AudioSeedService,
@@ -56,6 +62,11 @@ import { AppElasticsearchModule } from 'src/app-elasticsearch/app-elasticsearch.
     AppConfigService,
     AudioElasticsearchSyncService,
   ],
-  exports: [AudioService, AudioSeedService, AudioElasticsearchSyncService],
+  exports: [
+    DeepLinkGeneratorService,
+    AudioService,
+    AudioSeedService,
+    AudioElasticsearchSyncService,
+  ],
 })
 export class AudioModule {}
