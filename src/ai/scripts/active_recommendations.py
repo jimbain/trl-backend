@@ -233,8 +233,18 @@ def main():
         raise ValueError('--top-n and --top-k-per-active must be positive')
 
     conn = db_connect()
-    register_vector(conn)
+    # Order matters. register_vector() issues a query to look up the vector
+    # type OID, which opens an implicit transaction, and psycopg2 refuses any
+    # session change once one is open:
+    #
+    #   ProgrammingError: set_session cannot be used inside a transaction
+    #
+    # It raises even when the new value equals the current one, which is what
+    # made this look impossible — the script was setting autocommit to the
+    # default it already had. Setting it before the first query avoids the
+    # transaction entirely.
     conn.autocommit = False
+    register_vector(conn)
 
     verify_cur = conn.cursor()
     verify_setup(verify_cur)

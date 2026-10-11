@@ -102,10 +102,16 @@ def index_paths():
     }
 
 
+def snapshot_exists():
+    """True when a complete snapshot is already on disk."""
+    paths = index_paths()
+    return all(os.path.exists(paths[k]) for k in ('index', 'skus', 'meta'))
+
+
 def load_persisted():
     """Return (skus, index, meta) if a persisted index is present, else None."""
     paths = index_paths()
-    if not all(os.path.exists(paths[k]) for k in ('index', 'skus', 'meta')):
+    if not snapshot_exists():
         return None
     try:
         log(f'loading persisted FAISS index from {paths["index"]}')
@@ -446,7 +452,29 @@ def main():
                 )
                 if added > 0:
                     state['max_updated_at'] = new_max
-                    save_persisted(state['skus'], state['index'], new_max)
+
+                # Persist when there is something new, and ALSO when no
+                # snapshot exists yet even though the index has content.
+                #
+                # Without that second condition a failed save can never be
+                # retried: the delta that would have triggered it has already
+                # been consumed, so every later refresh reports added = 0 and
+                # skips the save forever. That happened in production — a
+                # write to an unwritable directory left a complete 847k-vector
+                # index in memory with no way to get it to disk, and the only
+                # recovery was a restart that discarded it and rebuilt from
+                # scratch.
+                if state['skus'] and (added > 0 or not snapshot_exists()):
+                    try:
+                        save_persisted(
+                            state['skus'], state['index'], state['max_updated_at']
+                        )
+                    except Exception as e:
+                        # Report, but do not fail the refresh. The in-memory
+                        # index is still correct and usable; only its
+                        # durability is affected.
+                        log(f'WARNING: could not persist index: {e}')
+
                 emit({
                     'id': req_id,
                     'added': added,
