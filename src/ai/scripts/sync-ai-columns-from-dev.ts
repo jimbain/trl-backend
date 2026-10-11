@@ -307,9 +307,41 @@ async function main() {
     ? 'LEFT JOIN "recommendTemp" rt ON rt.sku_temp = a.sku'
     : '';
 
-  const [{ count: totalSource }] = await src.query(
-    `SELECT count(*)::text AS count FROM audios a ${joinRt} WHERE ${notNull}`,
-  );
+  // Counted WITHOUT the recommendTemp join, deliberately.
+  //
+  // With the join and no LIMIT, Postgres hashes recommendTemp — including its
+  // 3 KB vector column, ~2.2 GB — against a 4 MB work_mem, spills to disk and
+  // takes minutes before the first batch even starts. The per-batch queries
+  // do not have this problem: their LIMIT lets the planner do index lookups
+  // into recommendTemp's primary key instead.
+  //
+  // And the join cannot change the answer. A row qualifies if ANY requested
+  // column is set, and the staged vectors in recommendTemp belong to rows
+  // that already carry AI_Class_Vector, so they are counted either way. This
+  // figure only drives the progress ETA, so an exact match with the join
+  // would buy nothing even if it were cheap.
+  const notNullNoJoin = opts.columns
+    .map((c) =>
+      c === 'ai_categories'
+        ? `(a.ai_categories IS NOT NULL AND a.ai_categories <> '')`
+        : `${COLUMNS[c].source.replace('::text', '')} IS NOT NULL`,
+    )
+    .join(' OR ');
+
+  let totalSource = '0';
+  try {
+    await src.query(`SET statement_timeout = '120s'`);
+    [{ count: totalSource }] = await src.query(
+      `SELECT count(*)::text AS count FROM audios a WHERE ${notNullNoJoin}`,
+    );
+  } catch (err: any) {
+    // Not worth failing the run over a progress estimate.
+    console.warn(
+      `[sync] could not count source rows (${err?.message}); ETA disabled`,
+    );
+  } finally {
+    await src.query(`SET statement_timeout = 0`);
+  }
   console.log(`[sync] source rows carrying data: ${fmt(Number(totalSource))}`);
 
   // ── ANN index guard ─────────────────────────────────────────────────────
@@ -323,7 +355,7 @@ async function main() {
 
   if (
     annExists &&
-    Number(totalSource) > INDEX_GUARD_THRESHOLD &&
+    (Number(totalSource) > INDEX_GUARD_THRESHOLD || totalSource === '0') &&
     !opts.allowWithAnnIndex &&
     !opts.dryRun
   ) {
@@ -558,11 +590,14 @@ async function main() {
 
       const elapsedS = (Date.now() - t0) / 1000;
       const rate = seen / elapsedS;
-      const remaining = Math.max(0, Number(totalSource) - seen);
+      const total = Number(totalSource);
+      const progress = total
+        ? `${fmt(seen)}/${fmt(total)}  |  ${rate.toFixed(0)} rows/s  |  ` +
+          `ETA ${humanDuration(Math.max(0, total - seen) / rate)}`
+        : `${fmt(seen)} done  |  ${rate.toFixed(0)} rows/s`;
       console.log(
         `[sync] batch ${batches}: ${rows.length} read, ${n} updated${esNote}  |  ` +
-          `${fmt(seen)}/${fmt(Number(totalSource))}  |  ${rate.toFixed(0)} rows/s  |  ` +
-          `ETA ${humanDuration(remaining / rate)}  |  after ${after}`,
+          `${progress}  |  after ${after}`,
       );
     } catch (err: any) {
       consecutiveErrors += 1;
