@@ -22,7 +22,7 @@ is live and idle, holding an empty index, from day one. That is what lets
 Phase 2 be a pure data job finished with the admin panel's reindex button.
 
 **Phase 2 (later, after the AI developer finishes the dev fill).**
-`trl-migration/scripts/14_sync_ai_columns_dev_to_prod.py` copies the column
+`npm run ai:sync-from-dev`, run on this server, copies the column
 values dev → prod in resumable batches, syncing prod Elasticsearch as it goes.
 Then the reindex button in the admin panel loads them into FAISS and
 recommendations come alive.
@@ -590,50 +590,75 @@ prints these statements, so this is a guard rather than a trap.
 
 ### 2b. Rehearse, then run
 
-```bash
-cd trl-migration
-docker compose up -d --build
+The sync lives in the backend and runs **on the production application
+server**, so writes are local and only the read crosses the network.
 
-# nothing is written; reports batch sizes and how many SKUs are missing on prod
-docker compose exec migration_app python \
-  /app/scripts/14_sync_ai_columns_dev_to_prod.py --dry-run
+Add the dev database to production's `.env` (read-only credentials):
 
-# small real slice, end to end, including the Elasticsearch patch
-docker compose exec migration_app python \
-  /app/scripts/14_sync_ai_columns_dev_to_prod.py --limit 2000
-
-# the full run — resumable; re-running after a kill continues from the
-# last committed batch
-docker compose exec migration_app python \
-  /app/scripts/14_sync_ai_columns_dev_to_prod.py
+```
+SOURCE_DB_HOST=<dev host>
+SOURCE_DB_PORT=25060
+SOURCE_DB_DATABASE=<dev database>
+SOURCE_DB_USERNAME=<dev user>
+SOURCE_DB_PASSWORD=<dev password>
+SOURCE_POSTGRES_SSL=true
 ```
 
-Progress lives in `scripts/migration_14_tracking.json` (written atomically, so
-a kill mid-write cannot corrupt it). Logs land in `logs/sync_ai_columns_*.log`.
+Then:
+
+```bash
+cd <APP_PATH>
+npm run build
+
+# nothing written; reports batch sizes and how many SKUs are absent here
+npm run ai:sync-from-dev -- --dry-run
+
+# a real slice, end to end, including the Elasticsearch patch
+npm run ai:sync-from-dev -- --limit 2000
+
+# the full run — resumable
+npm run ai:sync-from-dev
+```
+
+Run it under `screen`. On interrupt it prints `--start-after <sku>`; passing
+that back continues from there, though a plain re-run is also safe — rows
+already holding the value are skipped.
+
+**`ai_embedding` has two sources on purpose.** Filling it on dev costs ~346 ms
+per row (see 2a), so that job runs for days and production should not wait on
+it. The AI developer's staged vectors live in dev's `recommendTemp`
+(`sku_temp`, `"AIVector"`), and the script reads:
+
+```sql
+COALESCE(audios.ai_embedding, recommendTemp."AIVector")
+```
+
+Whether a vector has already been merged into dev's `audios` or is still
+queued in `recommendTemp` makes no difference — production gets it either way
+on this pass. If `recommendTemp` has been dropped the fallback is skipped
+automatically.
 
 How it behaves, and why:
 
-- **Keyset pagination on `sku`**, not `OFFSET` — `OFFSET` re-scans everything it
-  skips, so late batches would re-read a million rows to produce 500.
-- **Text `COPY` through an `UNLOGGED` staging table on prod**, then one
-  `UPDATE … FROM`. Text rather than binary because this crosses PG 16 → PG 18
-  and pgvector 0.8.1 → 0.8.6, and binary send/recv formats are tied to versions.
+- **Keyset pagination on `sku`**, not `OFFSET` — `OFFSET` re-scans what it
+  skips, so late batches would re-read a million rows to produce a few hundred.
+- **Ordering is computed on the source only**; the target is matched by
+  explicit SKU through an `UNLOGGED` staging table, so the PG 16 / PG 18
+  collation difference cannot desynchronise the two sides.
 - **`COALESCE(new, existing)`** per column, so a NULL on dev never erases a
-  value on prod. Safe to re-run as more rows get filled.
-- **`IS DISTINCT FROM` guard**, so a re-run over already-synced SKUs writes
-  nothing — no dead tuples, no pointless `updated_at` bump, no Elasticsearch
-  churn.
-- **`updated_at` is bumped** on every touched row. This is load-bearing:
-  FAISS ingests new vectors by polling for rows past its watermark, so a sync
-  that leaves the timestamp alone is invisible to it and the index stays empty.
-- **Ordering is computed on dev only**; prod is matched by explicit SKU through
-  the staging table, so the PG 16 / PG 18 collation difference cannot
-  desynchronise the two sides.
+  value here.
+- **`IS DISTINCT FROM` guard**, so a re-run writes nothing — no dead tuples,
+  no `updated_at` churn, no Elasticsearch traffic.
+- **`updated_at` is bumped** on every row actually changed. Load-bearing: FAISS
+  ingests by polling past its watermark, so a sync that leaves the timestamp
+  alone is invisible and the index stays empty.
+- **Memory is bounded by one batch.** A 768-dim vector is ~9.5 KB as text, so
+  the default 250-row batch peaks near 5 MB and nothing accumulates across the
+  run. That matters because this runs beside the API.
 - **A Postgres advisory lock** prevents two operators running it at once.
 - **Elasticsearch** gets a partial `update` of `ai_categories` only — the
   vectors are not in the mapping at all. `doc_as_upsert` is off on purpose: a
-  missing prod document is reported, not replaced by a stub containing one
-  field. If any are reported missing, fix them with `elastic:sync-audios`.
+  missing document is reported, not replaced by a stub holding one field.
 
 ### 2c. Rebuild the ANN index
 
