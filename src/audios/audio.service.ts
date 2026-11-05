@@ -389,6 +389,7 @@ export class AudioService {
     user: User,
     limit: number = 10,
     page: number = 1,
+    randomOrder: boolean = false,
   ): Promise<{
     data: AudioListDto[];
     meta: PaginationMeta;
@@ -454,12 +455,20 @@ export class AudioService {
       queryBuilder.andWhere('audio.id NOT IN (:...audioIds)', { audioIds });
     }
 
-    // A total ordering is required: OFFSET/LIMIT without one lets Postgres
-    // return rows in any order per page, which duplicates/skips titles while
-    // the client pages through the list.
-    queryBuilder
-      .orderBy('audio.display_title', 'ASC')
-      .addOrderBy('audio.id', 'ASC');
+    if (randomOrder) {
+      // The home carousel is a single unpaginated draw, so there is no page to
+      // stay consistent with. A fresh shuffle per request gives every featured
+      // title a turn on the home page instead of only the alphabetically first
+      // ones, which is what made a featured title look missing there.
+      queryBuilder.orderBy('RANDOM()');
+    } else {
+      // A total ordering is required: OFFSET/LIMIT without one lets Postgres
+      // return rows in any order per page, which duplicates/skips titles while
+      // the client pages through the list.
+      queryBuilder
+        .orderBy('audio.display_title', 'ASC')
+        .addOrderBy('audio.id', 'ASC');
+    }
 
     const paginatedData = await paginate(queryBuilder, page, limit);
 
@@ -793,7 +802,7 @@ export class AudioService {
     );
 
     const [featuredAudios, popularAudios] = await Promise.all([
-      this.getFeaturedAudios(company, user, 10, 1),
+      this.getFeaturedAudios(company, user, 10, 1, true),
       this.getPopularAudios(company, user),
     ]);
 

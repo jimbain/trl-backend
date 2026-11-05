@@ -141,6 +141,10 @@ export class PharmaService {
   async findAll(
     query: QueryPharmaDto,
     user: User,
+    // Internal only: deliberately not part of QueryPharmaDto so a client cannot
+    // ask a paginated listing for a random order, which would duplicate and
+    // skip rows across pages.
+    options: { randomOrder?: boolean } = {},
   ): Promise<{
     data: PharmaListDto[];
     meta: PaginationMeta;
@@ -248,29 +252,39 @@ export class PharmaService {
     }
 
     // Add sorting
-    if (sort_by) {
-      const validSortFields = [
-        'title',
-        'created_at',
-        'updated_at',
-        'list_order',
-      ] as const;
-      const sortDirection = sort_order === 'desc' ? 'DESC' : 'ASC';
-
-      // If sorting by list_order, use pharmaUserStatus, otherwise use pharma
-      if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
-        queryBuilder.orderBy('pharmaUserStatus.list_order', sortDirection);
-      } else if (validSortFields.includes(sort_by)) {
-        queryBuilder.orderBy(`pharma.${sort_by}`, sortDirection);
-      } else {
-        queryBuilder.orderBy('pharma.created_at', sortDirection);
-      }
-    } else if (popular) {
-      // Popular sorting by rating
-      queryBuilder.orderBy('pharma.total_played', 'DESC');
+    if (options.randomOrder) {
+      // Single unpaginated draw for the home carousel: a fresh shuffle per
+      // request lets every featured title reach the home page.
+      queryBuilder.orderBy('RANDOM()');
     } else {
-      // Default sorting
-      queryBuilder.orderBy('pharma.created_at', 'DESC');
+      if (sort_by) {
+        const validSortFields = [
+          'title',
+          'created_at',
+          'updated_at',
+          'list_order',
+        ] as const;
+        const sortDirection = sort_order === 'desc' ? 'DESC' : 'ASC';
+
+        // If sorting by list_order, use pharmaUserStatus, otherwise use pharma
+        if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
+          queryBuilder.orderBy('pharmaUserStatus.list_order', sortDirection);
+        } else if (validSortFields.includes(sort_by)) {
+          queryBuilder.orderBy(`pharma.${sort_by}`, sortDirection);
+        } else {
+          queryBuilder.orderBy('pharma.created_at', sortDirection);
+        }
+      } else if (popular) {
+        // Popular sorting by rating
+        queryBuilder.orderBy('pharma.total_played', 'DESC');
+      } else {
+        // Default sorting
+        queryBuilder.orderBy('pharma.created_at', 'DESC');
+      }
+
+      // None of the columns above are unique, and OFFSET/LIMIT without a
+      // total ordering lets Postgres repeat and skip rows between pages.
+      queryBuilder.addOrderBy('pharma.id', 'ASC');
     }
 
     const paginatedData = await paginate(queryBuilder, page, per_page);
@@ -476,7 +490,9 @@ export class PharmaService {
       continueWatchingPharmas,
       popularPharmas,
     ] = await Promise.all([
-      this.findAll({ is_featured: true, per_page: 10 }, user),
+      this.findAll({ is_featured: true, per_page: 10 }, user, {
+        randomOrder: true,
+      }),
       this.findAll(
         {
           status: 'queued',

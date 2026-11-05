@@ -104,6 +104,10 @@ export class VideoService {
   async findAll(
     query: QueryVideoDto,
     user: User,
+    // Internal only: deliberately not part of QueryVideoDto so a client cannot
+    // ask a paginated listing for a random order, which would duplicate and
+    // skip rows across pages.
+    options: { randomOrder?: boolean } = {},
   ): Promise<{
     data: VideoListDto[];
     meta: PaginationMeta;
@@ -233,27 +237,41 @@ export class VideoService {
     }
 
     // Sorting
-    if (sort_by && sort_order) {
-      const validSortFields = [
-        'title',
-        'created_at',
-        'updated_at',
-        'list_order',
-      ] as const;
-      const sortDirection = sort_order.toUpperCase() as 'ASC' | 'DESC';
-
-      // If sorting by list_order, use videoUserStatus, otherwise use video
-      if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
-        queryBuilder.orderBy('videoUserStatus.list_order', sortDirection);
-      } else if (validSortFields.includes(sort_by)) {
-        queryBuilder.orderBy(`video.${sort_by}`, sortDirection);
-      } else {
-        queryBuilder.orderBy('video.created_at', sortDirection);
-      }
-    } else if (popular) {
-      queryBuilder.orderBy('video.total_played', 'DESC');
+    if (options.randomOrder) {
+      // Single unpaginated draw for the home carousel: a fresh shuffle per
+      // request lets every featured title reach the home page.
+      queryBuilder.orderBy('RANDOM()');
     } else {
-      queryBuilder.orderBy('video.created_at', 'DESC');
+      // A `popular` listing means "most played", so it has to be decided
+      // before sort_by: that parameter carries a 'title' default, which used
+      // to win here and left Popular Titles ordered alphabetically. Reading
+      // the raw query keeps an explicitly requested sort in control.
+      if (popular && !query.sort_by) {
+        queryBuilder.orderBy('video.total_played', 'DESC');
+      } else if (sort_by && sort_order) {
+        const validSortFields = [
+          'title',
+          'created_at',
+          'updated_at',
+          'list_order',
+        ] as const;
+        const sortDirection = sort_order.toUpperCase() as 'ASC' | 'DESC';
+
+        // If sorting by list_order, use videoUserStatus, otherwise use video
+        if (sort_by === 'list_order' && validSortFields.includes(sort_by)) {
+          queryBuilder.orderBy('videoUserStatus.list_order', sortDirection);
+        } else if (validSortFields.includes(sort_by)) {
+          queryBuilder.orderBy(`video.${sort_by}`, sortDirection);
+        } else {
+          queryBuilder.orderBy('video.created_at', sortDirection);
+        }
+      } else {
+        queryBuilder.orderBy('video.created_at', 'DESC');
+      }
+
+      // None of the columns above are unique, and OFFSET/LIMIT without a
+      // total ordering lets Postgres repeat and skip rows between pages.
+      queryBuilder.addOrderBy('video.id', 'ASC');
     }
 
     const { data, meta } = await paginate(queryBuilder, page, per_page);
@@ -486,6 +504,7 @@ export class VideoService {
     const featuredVideos = await this.findAll(
       { is_featured: true, per_page: 10 },
       user,
+      { randomOrder: true },
     );
 
     // Get popular videos
