@@ -42,6 +42,27 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 50, unique: false, nullable: true })
   phone: string;
 
+  // Mirrors the address shape already used on Company. These were exposed by
+  // ProfileDto and accepted by UpdateProfileDto long before the columns
+  // existed, so every profile save failed on the way to the database.
+  @Column({ type: 'varchar', nullable: true })
+  address1: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  address2: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  city: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  country: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  state: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  zip: string;
+
   @Exclude()
   @Column({ type: 'varchar', length: 255, unique: true })
   password: string;
