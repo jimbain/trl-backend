@@ -430,6 +430,8 @@ export class AdminAudioElasticsearchService {
               'bisac_codes',
               'runtime',
               'copyright',
+              'sales_locations',
+              'retail_sales_locations',
             ]
           : [
               'is_active',
@@ -460,6 +462,7 @@ export class AdminAudioElasticsearchService {
               'fa_content_cost',
               'fa_retail_content_cost',
               'sales_locations',
+              'retail_sales_locations',
               'sample_url',
               'copyright',
               'display_copyright',
@@ -540,6 +543,12 @@ export class AdminAudioElasticsearchService {
               BISAC: (item.bisac_codes ?? []).join(', '),
               Length: item.runtime ?? '',
               Copyright: item.copyright ?? '',
+              // Appended rather than slotted in, so existing column
+              // positions in this export do not shift.
+              'Sale Locations': (item.sales_locations ?? []).join(', '),
+              'Retail Sale Locations': (item.retail_sales_locations ?? []).join(
+                ', ',
+              ),
             });
           } else {
             const qto = item.purchased_rental_licenses ?? 0;
@@ -578,7 +587,10 @@ export class AdminAudioElasticsearchService {
               'Findaway Retail Price': item.fa_retail_price ?? '',
               'Findaway Content Cost': item.fa_content_cost ?? '',
               'Findaway Retail Content Cost': item.fa_retail_content_cost ?? '',
-              'Sale Locations': (item.sales_locations ?? [])?.join(', ') ?? '',
+              'Sale Locations': (item.sales_locations ?? []).join(', '),
+              'Retail Sale Locations': (item.retail_sales_locations ?? []).join(
+                ', ',
+              ),
               'Sample URL': item.sample_url ?? '',
               Copyright: item.copyright ?? '',
               'Copyright for Display': item.display_copyright ?? '',
