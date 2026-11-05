@@ -521,29 +521,29 @@ export class AudioService {
         | undefined,
     );
 
+    // AudioListDto reads a flat, aliased row: `title`, `authors` and
+    // `chapters`. Hydrated entities expose `display_title`/`display_authors`
+    // and nest `chapters` under metadata, so selecting entities here left the
+    // Popular row with no title, no author and a zero chapter count while the
+    // cover and rating still came through. Aliased exactly like the other
+    // home-row queries.
     const audios = await queryBuilder
       .select([
-        'audio.id',
-        'audio.display_title',
-        'audio.display_authors',
-        'audio.avg_rating',
-        'audio.total_rented',
-        'audio.purchased_rental_license_limit',
-        'audio.bookshelf_credit_cost',
-        'audio.is_only_for_purchase',
-        'metadata.available_for',
-        'metadata.title',
-        'metadata.authors',
-        'metadata.cover_url',
-        'metadata.chapters',
-        'userAudioStatus.status',
-        'userAudioStatus.updated_at',
-        'userAudioStatus.rental_expire_at',
-        'userAudioStatus.audio_id',
+        'audio.id AS id',
+        'audio.display_title AS title',
+        'audio.display_authors AS authors',
+        'metadata.cover_url AS image_url',
+        'audio.avg_rating AS avg_rating',
+        'audio.total_rented AS total_rented',
+        'audio.purchased_rental_license_limit AS purchased_rental_license_limit',
+        'audio.bookshelf_credit_cost AS bookshelf_credit_cost',
+        'audio.is_only_for_purchase AS is_only_for_purchase',
+        'metadata.available_for AS available_for',
+        'metadata.chapters AS chapters',
       ])
       .orderBy('audio.total_played', 'DESC')
       .limit(10)
-      .getMany();
+      .getRawMany();
 
     return plainToInstance(
       AudioListDto,
